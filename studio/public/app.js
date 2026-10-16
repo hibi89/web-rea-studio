@@ -42,18 +42,24 @@ function showExploration(x){
  const inventory=x.exploration?.inventory||x.page?.interaction_inventory;
  const fixture=x.exploration?.source==='controlled-fixture-scenario'?x.exploration:null;
  if(fixture){
-  f1.textContent='통제된 REA 로컬 테스트 · 실행 단계 '+fixture.actions_observed+
+  f1.textContent=(x.mode==='fixture-causal'?'실제 Chrome 합성 테스트':'통제된 REA 로컬 테스트')+' · 실행 단계 '+fixture.actions_observed+
    '개 · 완료 '+fixture.successful_steps+'개 (외부 사이트 자동 탐색 아님)';
   fillList('f1-controls',(fixture.steps||[]).slice(0,28).map(s=>s.step_id+
    ' · '+s.action+' · '+s.status),'테스트 행동 없음');
   const transitions=fixture.state_transitions;
   f2.textContent='통제된 테스트의 화면 변화 '+(transitions?.observed_state_changes??0)+
-   '건 · 변화 감지 단계 '+(transitions?.changed_steps??0)+'개 · 개별 API 인과관계는 별도 증거 필요';
+   '건 · 변화 감지 단계 '+(transitions?.changed_steps??0)+'개 · '+
+   (x.mode==='fixture-causal'
+     ?'실제 Chrome에서 행동 → API 호출 검증 '+(fixture.verified_action_api_links??0)+'건 (합성 사이트에만 해당)'
+     :'개별 API 인과관계는 별도 증거 필요');
   const stateLines=(transitions?.steps||[]).filter(step=>step.changed?.length)
     .slice(0,30).map(step=>step.step_id+' · '+step.changed
      .map(c=>c.field+' '+c.from+' → '+c.to).join(' / '));
+  const requestLines=x.mode==='fixture-causal'?(transitions?.steps||[])
+    .filter(step=>step.network_requests>0)
+    .map(step=>step.step_id+' → /api/rows · API GET '+step.network_requests+'회 · 통제 실험 검증'):[];
   fillList('f2-dependencies',[
-   ...stateLines,
+   ...stateLines,...requestLines,
    ...(fixture.observed_endpoint_paths||[]).map(s=>'관찰된 네트워크 경로 · '+s)
   ],'관찰된 변화·요청 없음');
   return;
@@ -159,7 +165,7 @@ function setCurrent(run){
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
  el('run').disabled=['queued','running'].includes(run.status);
- el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':run.mode==='static-visual'?'STATIC VISUAL':'REA BROWSER'}`;
+ el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':run.mode==='static-visual'?'STATIC VISUAL':run.mode==='fixture-causal'?'F2 SYNTHETIC CHROME':'REA BROWSER'}`;
  if(run.status==='failed'||run.status==='interrupted')show(run.error);
  else show('');
 }
@@ -176,7 +182,7 @@ async function select(id){
   const run=await api(`/api/runs/${id}`);
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
-  if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
+  if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':run.mode==='fixture-causal'?'합성 Chrome 행동/API 검증 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
   let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
    try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
@@ -242,17 +248,28 @@ async function select(id){
 }
 el('run-form').addEventListener('submit',async e=>{
  e.preventDefault();el('run').disabled=true;
- try{const run=await api('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_url:el('target').value,...(approvedTargets.includes(el('target').value)?{analysis_mode:el('analysis-mode').value}:{})})});
+ try{const run=await api('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_url:el('target').value,...((approvedTargets.includes(el('target').value)||el('target').value===fixtureUrl)?{analysis_mode:el('analysis-mode').value}:{})})});
   el('report').textContent='새 분석 작업을 등록했습니다.';el('steps').textContent='—';el('responses').textContent='—';el('verdict').textContent='—';await list();await select(run.id);
  }catch(err){show(err.message);el('run').disabled=false;}
 });
 list().then(async()=>{const {runs}=await api('/api/runs');if(runs.length)await select(runs[0].id);}).catch(e=>show(e.message));
 
-let approvedTargets=[];
+let approvedTargets=[],fixtureUrl='';
 api('/api/targets').then(x=>{
- approvedTargets=x.approved_urls||[];
+ approvedTargets=x.approved_urls||[];fixtureUrl=x.fixture;
  if(approvedTargets.length && el('target').value===x.fixture) el('target').value=approvedTargets[0];
  el('approved-list').textContent=approvedTargets.length?`승인된 HTTPS 사이트: ${approvedTargets.join(' · ')}`:'외부 사이트는 시작 전 WEB_REA_ALLOWED_URLS 환경변수에 정확한 HTTPS URL을 등록해야 합니다.';
- const update=()=>{const target=el('target').value;const yes=approvedTargets.includes(target);el('analysis-mode').disabled=!yes;el('target-mode').textContent=target===x.fixture?'● REA controlled browser':yes?(el('analysis-mode').value==='static-html'?'● Approved HTTPS · static HTML':el('analysis-mode').value==='static-visual'?'● Approved HTTPS · no JS, visual only':'● Approved HTTPS · passive Chrome, no clicks'):'● Not approved';};
+ const update=()=>{
+  const target=el('target').value,yes=approvedTargets.includes(target),fixture=target===x.fixture;
+  const control=el('analysis-mode');
+  const acceptable=fixture?['rea-browser','fixture-causal']:['static-html','dynamic-passive','static-visual'];
+  if((yes||fixture)&&!acceptable.includes(control.value))control.value=fixture?'rea-browser':'static-html';
+  control.disabled=!(yes||fixture);
+  for(const o of control.options)o.hidden=!acceptable.includes(o.value);
+  el('target-mode').textContent=fixture
+   ?(control.value==='fixture-causal'?'● Isolated synthetic Chrome: 4 fixed actions':'● REA controlled browser')
+   :yes?(control.value==='static-html'?'● Approved HTTPS · static HTML':
+    control.value==='static-visual'?'● Approved HTTPS · no JS, visual only':'● Approved HTTPS · passive Chrome, no clicks'):'● Not approved';
+ };
  el('target').addEventListener('input',update);el('analysis-mode').addEventListener('change',update);update();
 }).catch(e=>show(e.message));

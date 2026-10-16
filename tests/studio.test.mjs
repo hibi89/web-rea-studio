@@ -464,3 +464,72 @@ test('F3 manifest is generated once for static HTML and downloadable without a r
   assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/manifest')).status,404);
  }finally{await new Promise(ok=>studio.server.close(ok));}
 });
+
+
+test('F2 synthetic fixture mode is gated to fixture URL and persists verified action/API evidence without rerunning',async()=>{
+ const port2=await freePort(),data=join(home,'fixture-causal-proof');
+ const fixture='http://127.0.0.1:'+fixturePort+'/';
+ let attempts=0;
+ const baseStep=(step_id,changes,network_requests,old,next)=>({
+  step_id,action:'click',status:'completed',changed_fields:changes,
+  state_before:old,state_after:next,network_requests,
+  endpoint_paths:network_requests?['/api/rows']:[]
+ });
+ const initial={period:7,rows:3,order:'asc',view:'table',ready:true};
+ const period={...initial,period:30,rows:8};
+ const sorted={...period,order:'desc'};
+ const helped={...sorted,view:'help'};
+ const causalEvidence={
+  source:'controlled-f2-chrome',scope:'in-memory-synthetic-only',
+  verified_actions:4,verified_action_api_links:2,denied_unknown_requests:0,
+  steps:[
+   baseStep('change-period',['period','rows'],1,initial,period),
+   baseStep('sort-rows',['order'],0,period,sorted),
+   baseStep('open-help',['view'],0,sorted,helped),
+   baseStep('refresh',[],1,helped,helped)
+  ],limitations:['Only synthetic controlled fixture']
+ };
+ const app=createStudioServer({studioPort:port2,fixturePort,storageDir:data,browserPath:'/test/chrome',
+  approvedUrls:['https://owner.example.org/'],
+  controlledExecutor:async({browserPath})=>{
+   attempts++;assert.equal(browserPath,'/test/chrome');
+   return causalEvidence;
+  }});
+ await app.init();await new Promise(ok=>app.server.listen(port2,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port2;
+ const post=obj=>fetch(base+'/api/runs',{method:'POST',
+  headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(obj)});
+ try{
+  assert.equal((await post({target_url:'https://owner.example.org/',analysis_mode:'fixture-causal'})).status,400);
+  assert.equal((await post({target_url:fixture+'/other',analysis_mode:'fixture-causal'})).status,400);
+  assert.equal((await post({target_url:fixture,analysis_mode:'dynamic-passive'})).status,400);
+  const accepted=await post({target_url:fixture,analysis_mode:'fixture-causal'});
+  assert.equal(accepted.status,202);
+  const id=(await accepted.json()).id;
+  await until(async()=>{const m=await(await fetch(base+'/api/runs/'+id)).json();return m.status==='completed'?m:null;});
+  const rep=await(await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(rep.analysis_mode,'fixture-causal');
+  assert.equal(rep.verified_action_api_links,2);
+  assert.equal(rep.completed_steps,4);
+  assert.equal(rep.evidence_manifest_available,true);
+  const ins=await(await fetch(base+'/api/runs/'+id+'/inspection')).json();
+  assert.equal(ins.exploration.state_transitions.changed_steps,3);
+  assert.equal(ins.exploration.state_transitions.observed_state_changes,4);
+  assert.equal(ins.exploration.verified_action_api_links,2);
+  assert.deepEqual(ins.exploration.state_transitions.steps.map(t=>t.network_requests),[1,0,0,1]);
+  const manifest=await(await fetch(base+'/api/runs/'+id+'/manifest')).json();
+  assert.equal(manifest.analysis_mode,'fixture-causal');
+  assert.equal(manifest.network.causal_links_verified,2);
+  assert.equal(manifest.network.attribution_scope,'controlled-synthetic-only');
+  assert.equal(manifest.controlled_scenario.verified_action_api_links,2);
+  assert.equal(manifest.controlled_scenario.state_transitions[0].changes[0].field,'period');
+  assert.equal(manifest.controlled_scenario.state_transitions[0].changes[0].to,30);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction')).status,404);
+  const homePage=await(await fetch(base+'/')).text();
+  assert.match(homePage,/value="fixture-causal"/);
+  assert.equal(attempts,1);
+  await fetch(base+'/api/runs/'+id+'/report');
+  await fetch(base+'/api/runs/'+id+'/manifest');
+  assert.equal(attempts,1);
+ }finally{await new Promise(ok=>app.server.close(ok));}
+});

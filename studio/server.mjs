@@ -10,6 +10,7 @@ import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from './evidence-manifest.mjs';
+import {verifyControlledF2Actions} from './controlled-f2-browser.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -22,12 +23,17 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
   if(input===null||typeof input!=='object'||Array.isArray(input)||typeof input.target_url!=='string'||Object.keys(input).some(k=>!['target_url','analysis_mode'].includes(k)))throw Error('Only target_url and analysis_mode are accepted');
-  if(input.target_url===fixtureUrl){if(input.analysis_mode!==undefined&&input.analysis_mode!=='rea-browser')throw Error('Fixture only supports REA browser analysis');validateTarget({target_url:input.target_url},fixturePort);return {mode:'rea-browser',url:fixtureUrl};}
+  if(input.target_url===fixtureUrl){
+   const mode=input.analysis_mode??'rea-browser';
+   if(!['rea-browser','fixture-causal'].includes(mode))throw Error('Fixture only supports the controlled REA and controlled F2 modes');
+   validateTarget({target_url:input.target_url},fixturePort);
+   return {mode,url:fixtureUrl};
+  }
   if(allowed.has(input.target_url)){const requested=input.analysis_mode??'static-html';if(!['static-html','dynamic-passive','static-visual'].includes(requested))throw Error('Invalid analysis mode for approved HTTPS target');return {mode:requested,url:input.target_url};}
   throw Error('Target not approved. Configure the exact authorized HTTPS URL before starting Studio.');
  }
@@ -45,7 +51,40 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     try {
      await store.update(meta.id,{status:'running'});
      let execution;
-     if(mode==='rea-browser'){
+     if(mode==='fixture-causal'){
+      await store.saveInput(meta.id,{kind:mode,scope:'controlled-synthetic-only',actions:'four-fixed-synthetic-controls',network:'in-memory-only'});
+      const evidence=await controlledExecutor({browserPath});
+      if(evidence?.source!=='controlled-f2-chrome'||evidence.scope!=='in-memory-synthetic-only'||
+       evidence.verified_actions!==4||evidence.verified_action_api_links!==2)
+        throw Error('F2_CONTROLLED_EVIDENCE_INVALID');
+      const changes=evidence.steps.map(step=>({
+       step_id:step.step_id,action:step.action,status:step.status,
+       network_requests:step.network_requests,
+       changed:step.changed_fields.map(field=>({field,from:step.state_before[field],to:step.state_after[field]}))
+      }));
+      const stateTransitions={source:'controlled-fixture-state-diff',verification:'real-isolated-Chrome',
+       steps:changes,changed_steps:changes.filter(step=>step.changed.length).length,
+       observed_state_changes:changes.reduce((sum,step)=>sum+step.changed.length,0)};
+      const endpointPaths=[...new Set(evidence.steps.flatMap(step=>step.endpoint_paths))].slice(0,6);
+      execution={
+       report:{verdict:'PASS',analysis_mode:mode,failures:[],step_count:4,completed_steps:4,
+        screenshot_saved:false,controlled_fixture_only:true,verified_action_api_links:evidence.verified_action_api_links,
+        blocked_unexpected_requests:evidence.denied_unknown_requests},
+       inspection:{schema_version:4,mode,scope:'controlled-fixture-only',
+        completeness:'controlled-four-action-observation',page:{title:'F2 synthetic action fixture'},
+        exploration:{source:'controlled-fixture-scenario',execution:'controlled-only',
+         actions_observed:4,successful_steps:4,verified_action_api_links:evidence.verified_action_api_links,
+         observed_endpoint_paths:endpointPaths,steps:evidence.steps.map(step=>({
+          step_id:step.step_id,action:step.action,status:step.status
+         })),state_transitions:stateTransitions},
+        steps:evidence.steps.map(step=>({step_id:step.step_id,action:step.action,status:step.status,
+         network_requests:step.network_requests,network_paths:step.endpoint_paths,changed_fields:step.changed_fields})),
+        network:evidence.steps.flatMap(step=>step.endpoint_paths.map(path=>({
+         kind:'controlled-api',path,status:200,step_id:step.step_id
+        }))),
+        limitations:evidence.limitations}
+      };
+     }else if(mode==='rea-browser'){
       const scenario=createScenario(browserPath,url);
       await store.saveInput(meta.id,scenario);
       execution=await executor({scenario,dir:store.pathFor(meta.id)});
