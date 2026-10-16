@@ -50,12 +50,22 @@ test('F3 controlled fixture summary remains explicitly scoped and strips query s
  const manifest=buildEvidenceManifest({
   scope:'controlled-fixture-only',
   exploration:{source:'controlled-fixture-scenario',actions_observed:7,successful_steps:6,
-   observed_endpoint_paths:['/api/trends','/api/private?token=SECRET','https://evil.example/a']},
+   observed_endpoint_paths:['/api/trends','/api/private?token=SECRET','https://evil.example/a'],
+   state_transitions:{observed_state_changes:2,steps:[
+    {step_id:'toggle-info',changed:[{field:'notes_expanded',from:false,to:true}]},
+    {step_id:'help',changed:[{field:'panel',from:'dashboard',to:'help'}]},
+    {step_id:'injection',changed:[{field:'panel',from:'<script>',to:'bad-secret'}]}
+   ]}},
   page:{controls:[]}
  },{verdict:'PASS'});
  assert.equal(manifest.analysis_mode,'rea-browser');
  assert.equal(manifest.evidence_scope,'controlled-local-fixture');
  assert.equal(manifest.controlled_scenario.executed_steps,7);
+ assert.equal(manifest.controlled_scenario.observed_state_changes,2);
+ assert.deepEqual(manifest.controlled_scenario.state_transitions[0].changes[0],{
+  field:'notes_expanded',from:false,to:true});
+ assert.deepEqual(manifest.controlled_scenario.state_transitions[2].changes[0],{
+  field:'panel',from:null,to:null});
  assert.deepEqual(manifest.controlled_scenario.endpoints,['/api/trends']);
  assert.doesNotMatch(JSON.stringify(manifest),/SECRET|evil.example/);
 });

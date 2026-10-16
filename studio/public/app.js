@@ -46,9 +46,16 @@ function showExploration(x){
    '개 · 완료 '+fixture.successful_steps+'개 (외부 사이트 자동 탐색 아님)';
   fillList('f1-controls',(fixture.steps||[]).slice(0,28).map(s=>s.step_id+
    ' · '+s.action+' · '+s.status),'테스트 행동 없음');
-  f2.textContent='로컬 테스트에서 관찰된 네트워크 경로 · 단계별 인과관계는 별도 증거 필요';
-  fillList('f2-dependencies',(fixture.observed_endpoint_paths||[]).map(s=>'observed GET path · '+s),
-   '관찰된 API 경로 없음');
+  const transitions=fixture.state_transitions;
+  f2.textContent='통제된 테스트의 화면 변화 '+(transitions?.observed_state_changes??0)+
+   '건 · 변화 감지 단계 '+(transitions?.changed_steps??0)+'개 · 개별 API 인과관계는 별도 증거 필요';
+  const stateLines=(transitions?.steps||[]).filter(step=>step.changed?.length)
+    .slice(0,30).map(step=>step.step_id+' · '+step.changed
+     .map(c=>c.field+' '+c.from+' → '+c.to).join(' / '));
+  fillList('f2-dependencies',[
+   ...stateLines,
+   ...(fixture.observed_endpoint_paths||[]).map(s=>'관찰된 네트워크 경로 · '+s)
+  ],'관찰된 변화·요청 없음');
   return;
  }
  if(inventory?.source==='passive-controls'&&inventory.counts){

@@ -11,6 +11,9 @@ test('inspection projects only controlled fixture evidence without input values 
  assert.equal(result.page.controls.find(x=>x.id==='search').kind,'input');
  assert.equal(result.steps[0].path,origin+'/');
  assert.equal(result.network[0].path,origin+'/api/trends');
+ assert.equal(result.exploration.state_transitions.source,'controlled-fixture-state-diff');
+ assert.equal(result.exploration.state_transitions.steps.length,1);
+ assert.equal(result.exploration.state_transitions.observed_state_changes,0);
  const json=JSON.stringify(result);for(const item of ['SECRET','private-content','Authorization']) assert.ok(!json.includes(item));
 });
 test('inspection rejects non-local evidence and strips external URLs',()=>{
