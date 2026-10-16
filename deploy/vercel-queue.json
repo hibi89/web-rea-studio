@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "team_id": "team_oDTHTX6ht90nzgUWxnpzZxhU",
+  "owner": "hibi89",
+  "projects": [
+    {
+      "project_name": "web-rea-studio-preview",
+      "repo": "hibi89/web-rea-studio",
+      "root_directory": "preview",
+      "branch": "main"
+    }
+  ]
+}

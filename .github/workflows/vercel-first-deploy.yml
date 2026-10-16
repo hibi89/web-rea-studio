@@ -1,0 +1,28 @@
+name: First-time Vercel project provisioning
+on:
+  push:
+    branches: [main]
+    paths:
+      - deploy/vercel-queue.json
+      - deploy/vercel-provision.mjs
+      - .github/workflows/vercel-first-deploy.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: vercel-first-deploy
+  cancel-in-progress: false
+jobs:
+  provision:
+    name: Create and deploy listed projects
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Provision projects through Vercel API
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node deploy/vercel-provision.mjs
