@@ -1,6 +1,6 @@
 import {randomUUID, createHash} from 'node:crypto';
-import {mkdir, readFile, readdir, rename, writeFile, open, stat} from 'node:fs/promises';
-import {join, resolve} from 'node:path';
+import {mkdir, readFile, readdir, rename, writeFile, open, stat, unlink, cp} from 'node:fs/promises';
+import {join, resolve, relative, sep} from 'node:path';
 import {spawn} from 'node:child_process';
 import {validateCapture} from '../scripts/check-capture.mjs';
 import {buildInspection} from './inspection.mjs';
@@ -32,25 +32,117 @@ export function createScenario(browserPath,targetUrl) {
     capture:{after_each_step:['dom','accessibility','url'],at_end:['dom','accessibility','url','screenshot'],events:['network','console','page-errors']}
   };
 }
-async function writeJsonAtomic(path,obj){
-  const temp=`${path}.${randomUUID()}.tmp`;
-  try { await writeFile(temp,JSON.stringify(obj,null,2),{flag:'wx',mode:0o600}); await rename(temp,path);}
-  catch(e){try{await import('node:fs/promises').then(m=>m.unlink(temp))}catch{} throw e;}
+// Keep Windows run data away from OneDrive, which can lock existing files during
+// metadata.json replacement. Existing historical runs are copied, never moved.
+export function defaultRunStorageDir({platform=process.platform,env=process.env,cwd=process.cwd()}={}){
+  if(env.WEB_REA_DATA_DIR?.trim())return resolve(env.WEB_REA_DATA_DIR);
+  if(platform==='win32'){
+    const local=env.LOCALAPPDATA||(env.USERPROFILE?join(env.USERPROFILE,'AppData','Local'):null);
+    if(!local)throw Error('LOCALAPPDATA is required for safe local Studio storage');
+    return join(local,'WebREAStudio','runs');
+  }
+  return join(cwd,'results','studio','runs');
 }
-export function makeStore(basePath) {
+
+const METADATA_VERSION=/^metadata\.v([0-9]{6})\.json$/;
+const sleep=ms=>new Promise(ok=>setTimeout(ok,ms));
+async function writeJsonAtomic(path,obj,move=rename){
+  const temp=`${path}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temp,JSON.stringify(obj,null,2),{flag:'wx',mode:0o600});
+    // Retry only transient filesystem locking; never remove the destination.
+    for(let attempt=0;;attempt++){
+      try{await move(temp,path);break;}
+      catch(e){if(!['EPERM','EACCES','EBUSY'].includes(e.code)||attempt>=2)throw e;await sleep([100,300][attempt]);}
+    }
+  }catch(e){await unlink(temp).catch(()=>{});throw e;}
+}
+
+// One-time migration from the old project-local storage; keep the source intact.
+// A staged copy avoids showing partially imported runs if OneDrive is busy.
+export async function importLegacyRuns({from=join(process.cwd(),'results','studio','runs'),to=defaultRunStorageDir()}={}){
+  if(resolve(from)===resolve(to))return {imported:0,skipped:0};
+  let entries;try{entries=await readdir(from,{withFileTypes:true});}catch(e){if(e.code==='ENOENT')return {imported:0,skipped:0};throw e;}
+  await mkdir(to,{recursive:true});
+  let imported=0,skipped=0;
+  for(const entry of entries){
+    if(!entry.isDirectory()||!ID_PATTERN.test(entry.name))continue;
+    const source=join(from,entry.name),dest=join(to,entry.name),staging=join(to,`.import-${entry.name}-${randomUUID()}`);
+    try {
+      try{await stat(dest);skipped++;continue;}catch(e){if(e.code!=='ENOENT')throw e;}
+      await cp(source,staging,{recursive:true,force:false,errorOnExist:true,filter:filename=>{
+        const rel=relative(source,filename);
+        return rel===''||(!rel.includes(sep)&&!rel.endsWith('.tmp'));
+      }});
+      await rename(staging,dest);
+      imported++;
+    }catch(e){
+      if(e.code==='EEXIST'){skipped++;continue;}
+      throw Object.assign(Error('Legacy runs could not be copied into local storage; originals were not modified'),{code:'LEGACY_IMPORT_FAILED',cause:e});
+    }finally{await import('node:fs/promises').then(m=>m.rm(staging,{recursive:true,force:true})).catch(()=>{});}
+  }
+  return {imported,skipped};
+}
+
+export function makeStore(basePath,{move=rename}={}) {
   const root=resolve(basePath);
   const pathFor=id=>{if(!ID_PATTERN.test(id))throw Error('Invalid run ID');return join(root,id)};
-  const metaPath=id=>join(pathFor(id),'metadata.json');
+  const metaPath=(id,version=0)=>join(pathFor(id),version===0?'metadata.json':`metadata.v${String(version).padStart(6,'0')}.json`);
+  const pending=new Map();
+  async function serialized(id,action){
+    const prior=pending.get(id)||Promise.resolve();
+    const job=prior.catch(()=>{}).then(action);
+    pending.set(id,job);
+    try{return await job;}finally{if(pending.get(id)===job)pending.delete(id);}
+  }
   return {
     root,
-    async init(){await mkdir(root,{recursive:true});for(const id of await readdir(root)){if(!ID_PATTERN.test(id))continue;let m;try{m=JSON.parse(await readFile(metaPath(id),'utf8'));}catch{continue;}if(['queued','running'].includes(m.status)){m.status='interrupted';m.updated_at=iso();m.error='Studio server stopped before completion';await writeJsonAtomic(metaPath(id),m);}}},
-    async create(input){const id=randomUUID(),created_at=iso();await mkdir(pathFor(id),{recursive:false,mode:0o700});const meta={id, target_url:input.target_url,status:'queued',created_at,updated_at:created_at,engine:STUDIO_RELEASE};await writeJsonAtomic(metaPath(id),meta);return meta;},
-    async update(id,patch){const old=await this.get(id);if(!old)throw Error('Missing run');const meta={...old,...patch,updated_at:iso()};await writeJsonAtomic(metaPath(id),meta);return meta;},
-    async get(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(metaPath(id),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
+    async init(){
+      await mkdir(root,{recursive:true});
+      for(const id of await readdir(root)){
+        if(!ID_PATTERN.test(id))continue;
+        let meta;try{meta=await this.get(id);}catch(e){if(e.code==='ENOENT')continue;throw e;}
+        if(meta&&['queued','running'].includes(meta.status)){
+          await this.update(id,{status:'interrupted',error:'Studio server stopped before completion'});
+        }
+      }
+    },
+    async create(input){
+      const id=randomUUID(),created_at=iso();
+      await mkdir(pathFor(id),{recursive:false,mode:0o700});
+      const meta={id,target_url:input.target_url,status:'queued',created_at,updated_at:created_at,engine:STUDIO_RELEASE};
+      await writeJsonAtomic(metaPath(id),meta,move);
+      return meta;
+    },
+    async update(id,patch){
+      if(!ID_PATTERN.test(id))throw Error('Invalid run ID');
+      return serialized(id,async()=>{
+        const old=await this.get(id);
+        if(!old)throw Error('Missing run');
+        const next=old._revision===undefined?1:old._revision+1;
+        if(next>999999)throw Error('Run metadata revision limit exceeded');
+        const meta={...old,...patch,updated_at:iso(),_revision:next};
+        // New destination for each update; no rename over metadata.json.
+        await writeJsonAtomic(metaPath(id,next),meta,move);
+        return meta;
+      });
+    },
+    async get(id){
+      if(!ID_PATTERN.test(id))return null;
+      let files;try{files=await readdir(pathFor(id));}catch(e){if(e.code==='ENOENT')return null;throw e;}
+      const versions=files.map(n=>({name:n,match:METADATA_VERSION.exec(n)})).filter(x=>x.match)
+        .sort((a,b)=>Number(b.match[1])-Number(a.match[1]));
+      const selected=versions[0]?.name||(files.includes('metadata.json')?'metadata.json':null);
+      if(!selected)return null;
+      const meta=JSON.parse(await readFile(join(pathFor(id),selected),'utf8'));
+      if(meta.id!==id)throw Error('Metadata ID mismatch');
+      if(selected!=='metadata.json')meta._revision=Number(versions[0].match[1]);
+      return meta;
+    },
     async list(){const out=[];for(const id of await readdir(root)){if(!ID_PATTERN.test(id))continue;const m=await this.get(id);if(m)out.push(m);}return out.sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,50);},
-    async saveInput(id,scenario){await writeJsonAtomic(join(pathFor(id),'scenario.json'),scenario);},
-    async saveReport(id,report){await writeJsonAtomic(join(pathFor(id),'report.json'),report);},
-    async saveInspection(id,inspection){await writeJsonAtomic(join(pathFor(id),'inspection.json'),inspection);},
+    async saveInput(id,scenario){await writeJsonAtomic(join(pathFor(id),'scenario.json'),scenario,move);},
+    async saveReport(id,report){await writeJsonAtomic(join(pathFor(id),'report.json'),report,move);},
+    async saveInspection(id,inspection){await writeJsonAtomic(join(pathFor(id),'inspection.json'),inspection,move);},
     async getInspection(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'inspection.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async getReport(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'report.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async getScreenshot(id){if(!ID_PATTERN.test(id))return null;try{return await readFile(join(pathFor(id),'screenshot.png'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},

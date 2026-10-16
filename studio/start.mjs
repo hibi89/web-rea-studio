@@ -1,17 +1,25 @@
 import {createFixtureServer} from '../fixtures/site/server.mjs';
 import {createStudioServer} from './server.mjs';
 import {existsSync} from 'node:fs';
-import {browserExecutable} from './core.mjs';
+import {browserExecutable,defaultRunStorageDir,importLegacyRuns} from './core.mjs';
+import {join} from 'node:path';
 const fixturePort=Number(process.env.P0_PORT||4317),studioPort=Number(process.env.STUDIO_PORT||4320);
 if(![fixturePort,studioPort].every(p=>Number.isInteger(p)&&p>0&&p<=65535)||fixturePort===studioPort)throw Error('Invalid ports');
 const path=browserExecutable();
 if(!path||!existsSync(path))console.warn('REA_BROWSER_EXECUTABLE not found; configure before running analyses');
-const fixture=createFixtureServer(),studio=createStudioServer({fixturePort,studioPort,browserPath:path});
+const dataDir=defaultRunStorageDir();
+const legacyDir=join(process.cwd(),'results','studio','runs');
+let migration={imported:0,skipped:0};
+try{migration=await importLegacyRuns({from:legacyDir,to:dataDir});}
+catch(e){console.warn('Existing history could not be copied. Originals remain intact. Check OneDrive permissions; new runs use local storage.');}
+const fixture=createFixtureServer(),studio=createStudioServer({fixturePort,studioPort,browserPath:path,storageDir:dataDir});
 await studio.init();
 await new Promise((resolve,reject)=>fixture.once('error',reject).listen(fixturePort,'127.0.0.1',resolve));
 try{await new Promise((resolve,reject)=>studio.server.once('error',reject).listen(studioPort,'127.0.0.1',resolve));}
 catch(e){fixture.close();throw e;}
 console.log(`Web REA Studio P1: http://127.0.0.1:${studioPort}`);
+console.log('Local run storage outside OneDrive: '+dataDir);
+console.log(`Legacy history imported: ${migration.imported}; already present: ${migration.skipped}`);
 console.log(`Controlled fixture: http://127.0.0.1:${fixturePort}/`);
 console.log('Only controlled fixture analysis is enabled; no remote websites.');
 for(const sig of ['SIGINT','SIGTERM'])process.once(sig,()=>{studio.server.close();fixture.close();});

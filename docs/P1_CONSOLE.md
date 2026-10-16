@@ -49,3 +49,13 @@ Design authorization record, navigation/request allowlist, redirect handling, br
 ## Localhost link tracking compatibility
 
 Opening the Studio UI via ChatGPT may append `?utm_source=chatgpt.com`. `GET /` strips only bounded `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` query fields by an HTTP redirect to `/`. Unknown query fields and any query on API or asset routes are still rejected; this is not an external-site allowlist expansion.
+
+## P1 storage fix for Windows OneDrive (2026-10-16)
+
+A real Windows run repeatedly reported `EPERM` when replacing an existing `metadata.json` under the OneDrive-synced project folder. This is a local metadata write error, not evidence that REA itself failed.
+
+- The default **Windows** run directory is now `%LOCALAPPDATA%\WebREAStudio\runs` (outside the OneDrive project). On other platforms it remains `results/studio/runs`. The optional `WEB_REA_DATA_DIR` environment variable overrides this when needed.
+- On Studio startup, existing UUID run folders under `results/studio/runs` are copied to the new local directory **without altering or deleting originals**. Previously imported UUIDs are skipped; temporary `.tmp` files are excluded. If an old history file is inaccessible, the Studio starts with local storage and warns; the originals stay untouched.
+- Run metadata updates are now immutable revisions (`metadata.v000001.json`, `metadata.v000002.json`, etc.). Initial/legacy `metadata.json` is never replaced. Reads select the highest committed revision, and updates for one run are serialized. A bounded retry (two retries) handles transient rename denial. No old snapshot is removed to work around EPERM.
+- `npm run diagnose` reads the new local store, including revisioned metadata. The Studio prints the actual local storage directory in the terminal. For accurate diagnosis of legacy runs, start Studio once so it can perform the copy, then stop it before running `npm run diagnose`.
+- This change has Linux Node unit/integration tests, including simulated Windows EPERM. A **real Windows/OneDrive acceptance test is still required**. Do not declare Studio end-to-end success before observing a new `completed / PASS` run and a screenshot.

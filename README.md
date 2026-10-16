@@ -80,3 +80,7 @@ npm run studio
 ```
 
 Open **http://127.0.0.1:4320/**. Enter `http://127.0.0.1:4317/` (pre-filled), then click **분석 실행**. A single run stores evidence and a summary in `results/studio/runs/`. Existing results can be opened without relaunching analysis. The only supported target is our synthetic fixture until browser-origin containment has been verified. Read [P1_CONSOLE.md](docs/P1_CONSOLE.md) for security boundaries, API, run states, limitations and Windows acceptance criteria.
+
+## P1-2 evidence inspector and diagnostics
+
+After `npm run studio`, one controlled fixture analysis stores `report.json`, optional `screenshot.png`, and `inspection.json` for step/API evidence. GET/UI refresh is read-only. For a failed run, run `npm run diagnose` to classify local stderr without printing raw logs. See `docs/P1_INSPECTOR.md`. **Windows real-browser acceptance is still pending for this UI path.**

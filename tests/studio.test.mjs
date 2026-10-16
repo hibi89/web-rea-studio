@@ -115,7 +115,7 @@ test('failed analyzer records safe diagnostics without exposing raw stderr',asyn
   assert.equal(r.status,202);const meta=await r.json();
   const failed=await until(async()=>{const x=await(await fetch(`${endpoint}/api/runs/${meta.id}`)).json();return x.status==='failed'?x:null;});
   assert.equal(failed.error_code,'REA_EXIT_NONZERO');assert.equal(failed.error.includes('stderr'),true);
-  assert.match(failed.diagnostic_path,/^results\/studio\/runs\/[a-f0-9-]+\/rea-stderr\.log$/);
+  assert.match(failed.diagnostic_path,/^runs\/[a-f0-9-]+\/rea-stderr\.log$/);
   assert.equal((await fetch(`${endpoint}/api/runs/${meta.id}/inspection`)).status,404);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });

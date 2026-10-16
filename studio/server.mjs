@@ -2,7 +2,7 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {makeStore, validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
+import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -15,7 +15,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=join(process.cwd(),'results','studio','runs'),executor=runActualCapture,browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,browserPath=browserExecutable()}={}){
  const store=makeStore(storageDir);
  let active=null;
  async function begin(input){
@@ -38,7 +38,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      await store.saveReport(meta.id,report);
      if(execution.inspection)await store.saveInspection(meta.id,execution.inspection);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
-    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:`results/studio/runs/${meta.id}/rea-stderr.log`}).catch(()=>{});}
+    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:`runs/${meta.id}/rea-stderr.log`}).catch(()=>{});}
     finally{active=null;}
    })();
    return {meta};
