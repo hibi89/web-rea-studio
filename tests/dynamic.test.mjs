@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
+import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
+import {CdpClient} from '../studio/dynamic-browser.mjs';
+
+const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
+const request=(url,resourceType='Document',method='GET')=>({url,resourceType,method});
+
+test('approved exact document and same-origin scripts are read-only, no arbitrary navigation',()=>{
+ assert.equal(approveBrowserRequest(request(target),{target}).allowed,true);
+ assert.equal(approveBrowserRequest(request(target+'assets/site.js','Script'),{target}).allowed,true);
+ assert.equal(approveBrowserRequest(request(target+'api/stats?month=10','XHR'),{target}).allowed,true);
+ for(const scenario of [
+  request(target+'admin','Document'),request('https://other.clevertide128.chatgpt.site/','Document'),
+  request('https://127.0.0.1/','Script'),request('http://127.0.0.1/','Script'),
+  request('https://169.254.169.254/latest','Script'),request(target+'api/update','Fetch','POST'),
+  request(target,'WebSocket'),request('data:text/html,secret','Image'),
+ ])assert.equal(approveBrowserRequest(scenario,{target}).allowed,false,scenario.url);
+ assert.equal(redactedResourcePath(target+'api/stats?token=secret',target),'/api/stats');
+ assert.equal(redactedResourcePath('https://evil.test/steal',target),null);
+});
+
+test('bounded request and data quotas are enforced before fetching',()=>{
+ assert.equal(approveBrowserRequest(request(target),{target,seen:DYNAMIC_LIMITS.maxRequests}).reason,'budget_exhausted');
+ assert.equal(approveBrowserRequest(request(target),{target,bytes:DYNAMIC_LIMITS.maxBytes}).reason,'budget_exhausted');
+ assert.match(LOCKDOWN_CSP,/connect-src 'self'/);
+ assert.match(LOCKDOWN_CSP,/form-action 'none'/);
+ assert.match(LOCKDOWN_CSP,/frame-src 'none'/);
+});
+const publicDns=async()=>[{address:'1.1.1.1',family:4}];
+const fakeTransport=({status=200,type='text/html',body='<h1>OK</h1>',headers={}}={})=>{
+ const calls=[];
+ const request=(url,opts,onResponse)=>{
+  calls.push({url,opts});const req=new EventEmitter();
+  req.end=()=>process.nextTick(()=>{const res=new PassThrough();res.statusCode=status;res.headers={'content-type':type,...headers};onResponse(res);res.end(body);});
+  req.destroy=()=>{};return req;
+ };
+ return {request,calls};
+};
+test('gateway pins public DNS, does exactly one credential-free GET and returns buffered bytes',async()=>{
+ const fake=fakeTransport({type:'application/javascript',body:'console.log(1)'});
+ const x=await fetchGatewayResource(target+'app.js',{resolveHost:publicDns,request:fake.request});
+ assert.equal(x.status,200);assert.equal(x.contentType,'application/javascript');assert.equal(x.body.toString(),'console.log(1)');
+ assert.equal(fake.calls.length,1);
+ assert.equal(fake.calls[0].opts.agent,false);
+ assert.equal(fake.calls[0].opts.method,'GET');
+ assert.equal(fake.calls[0].opts.rejectUnauthorized,true);
+ assert.equal(fake.calls[0].opts.headers.Cookie,undefined);
+ assert.equal(fake.calls[0].opts.headers.Authorization,undefined);
+ assert.equal(fake.calls[0].opts.headers['Accept-Encoding'],'identity');
+ await new Promise((ok,bad)=>fake.calls[0].opts.lookup('host',{},(e,ip,family)=>e?bad(e):(assert.equal(ip,'1.1.1.1'),assert.equal(family,4),ok())));
+});
+test('gateway denies redirects, private IP resolution, oversized and non-content resources',async()=>{
+ const fake=fakeTransport();
+ await assert.rejects(fetchGatewayResource(target,{resolveHost:async()=>[{address:'127.0.0.1',family:4}],request:fake.request}),{code:'DNS_ADDRESS_BLOCKED'});
+ assert.equal(fake.calls.length,0);
+ for(const [fakeOptions,expected] of [[{status:302},'REDIRECT_BLOCKED'],[{type:'text/calendar'},'MIME_BLOCKED'],[{headers:{'content-encoding':'gzip'}},'ENCODING_BLOCKED'],[{body:'x'.repeat(2*1024*1024+1)},'RESOURCE_TOO_LARGE']]){
+  const f=fakeTransport(fakeOptions);await assert.rejects(fetchGatewayResource(target,{resolveHost:publicDns,request:f.request}),{code:expected});
+  assert.equal(f.calls.length,1);
+ }
+});
+class FakeSocket{
+ constructor(){this.handlers={};this.sent=[];this.readyState=1;}
+ addEventListener(type,handler){(this.handlers[type]||=[]).push(handler);}
+ send(json){this.sent.push(JSON.parse(json));}
+ emit(type,data){for(const cb of this.handlers[type]||[])cb(data);}
+ close(){this.readyState=3;this.emit('close',{});}
+}
+test('CDP client addresses commands by sessionId and rejects errors/disconnections',async()=>{
+ const ws=new FakeSocket(),cdp=new CdpClient(ws);
+ const a=cdp.send('Page.enable',{},'page-session');
+ assert.equal(ws.sent[0].sessionId,'page-session');
+ ws.emit('message',{data:JSON.stringify({id:ws.sent[0].id,result:{enabled:true}})});
+ assert.deepEqual(await a,{enabled:true});
+ const b=cdp.send('Page.navigate',{url:target},'page-session');
+ ws.emit('message',{data:JSON.stringify({id:ws.sent[1].id,error:{message:'fake-error'}})});
+ await assert.rejects(b,{code:'CDP_REMOTE_ERROR'});
+ const c=cdp.send('Runtime.evaluate',{},'page-session');ws.close();
+ await assert.rejects(c,{code:'CDP_DISCONNECTED'});
+});

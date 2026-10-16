@@ -4,6 +4,7 @@ import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
 import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
+import {runDynamicAnalysis} from './dynamic-browser.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -16,13 +17,13 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
-  if(input===null||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==1||typeof input.target_url!=='string')throw Error('Only target_url is accepted');
-  if(input.target_url===fixtureUrl){validateTarget(input,fixturePort);return {mode:'rea-browser',url:fixtureUrl};}
-  if(allowed.has(input.target_url))return {mode:'static-html',url:input.target_url};
+  if(input===null||typeof input!=='object'||Array.isArray(input)||typeof input.target_url!=='string'||Object.keys(input).some(k=>!['target_url','analysis_mode'].includes(k)))throw Error('Only target_url and analysis_mode are accepted');
+  if(input.target_url===fixtureUrl){if(input.analysis_mode!==undefined&&input.analysis_mode!=='rea-browser')throw Error('Fixture only supports REA browser analysis');validateTarget({target_url:input.target_url},fixturePort);return {mode:'rea-browser',url:fixtureUrl};}
+  if(allowed.has(input.target_url)){const requested=input.analysis_mode??'static-html';if(!['static-html','dynamic-passive'].includes(requested))throw Error('Invalid analysis mode for approved HTTPS target');return {mode:requested,url:input.target_url};}
   throw Error('Target not approved. Configure the exact authorized HTTPS URL before starting Studio.');
  }
  const store=makeStore(storageDir);
@@ -43,10 +44,13 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       const scenario=createScenario(browserPath,url);
       await store.saveInput(meta.id,scenario);
       execution=await executor({scenario,dir:store.pathFor(meta.id)});
-     }else{
+     }else if(mode==='static-html'){
       await store.saveInput(meta.id,{kind:'static-html',target_url:url,method:'GET',resources:false});
       execution=await staticExecutor({target:url,dir:store.pathFor(meta.id)});
-     }
+     }else if(mode==='dynamic-passive'){
+      await store.saveInput(meta.id,{kind:'dynamic-passive',target_url:url,method:'GET',same_origin_only:true,actions:false});
+      execution=await dynamicExecutor({target:url,browserPath,dir:store.pathFor(meta.id)});
+     }else throw Error('Unrecognized analysis mode');
      // Both the actual REA executor and its deterministic test double use this result contract.
      const report=execution.report;
      if(!report||!['PASS','FAIL'].includes(report.verdict))throw Error('Invalid analyzer report');
@@ -88,7 +92,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     const name=path==='/'?'index.html':path.slice(1);
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
-   if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_mode:'static-html-only'});
+   if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
    const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot))?$/.exec(path);
    if(req.method==='GET'&&match){

@@ -163,3 +163,30 @@ test('P2 missing approved URLs leaves remote host blocked',async()=>{
   assert.equal(r.status,400);assert.equal(calls,0);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
+
+test('P2 passive HTTPS run uses separate executor, stores safe report and screenshot availability',async()=>{
+ const p=await freePort(),root=join(home,'p2-dynamic'),target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
+ let invoked=0;
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,approvedUrls:[target],browserPath:'/test/chrome',
+  dynamicExecutor:async({target:received,browserPath,dir})=>{
+   invoked++;assert.equal(received,target);assert.equal(browserPath,'/test/chrome');
+   assert.match(dir,/p2-dynamic/);
+   return {report:{verdict:'PASS',analysis_mode:'dynamic-passive',failures:[],step_count:1,completed_steps:1,screenshot_saved:false},inspection:{schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',steps:[],network:[]}};
+  }});
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const endpoint=`http://127.0.0.1:${p}`;
+ const post=body=>fetch(endpoint+'/api/runs',{method:'POST',headers:{Origin:endpoint,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ try{
+  const forbidden=await post({target_url:'https://other.clevertide128.chatgpt.site/',analysis_mode:'dynamic-passive'});
+  assert.equal(forbidden.status,400);
+  const invalid=await post({target_url:target,analysis_mode:'auto-click'});assert.equal(invalid.status,400);
+  const fixtureReject=await post({target_url:expected(),analysis_mode:'dynamic-passive'});assert.equal(fixtureReject.status,400);
+  const r=await post({target_url:target,analysis_mode:'dynamic-passive'});assert.equal(r.status,202);
+  const meta=await r.json();assert.equal(meta.mode,'dynamic-passive');
+  const completed=await until(async()=>{const x=await(await fetch(`${endpoint}/api/runs/${meta.id}`)).json();return x.status==='completed'?x:null;});
+  assert.equal(completed.mode,'dynamic-passive');assert.equal(invoked,1);
+  const report=await(await fetch(`${endpoint}/api/runs/${meta.id}/report`)).json();assert.equal(report.analysis_mode,'dynamic-passive');
+  const inspected=await(await fetch(`${endpoint}/api/runs/${meta.id}/inspection`)).json();assert.equal(inspected.scope,'explicit-https-allowlist');
+  await fetch(`${endpoint}/api/runs/${meta.id}`);await fetch(`${endpoint}/api/runs`);assert.equal(invoked,1);
+ }finally{await new Promise(ok=>s.server.close(ok));}
+});

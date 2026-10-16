@@ -1,0 +1,129 @@
+import {spawn} from 'node:child_process';
+import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from './dynamic-gateway.mjs';
+import {validateHttpsUrl} from './static-analysis.mjs';
+
+const error=(code,message)=>Object.assign(Error(message),{code});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+export class CdpClient{
+ constructor(ws){
+  this.ws=ws;this.next=1;this.pending=new Map();this.handlers=new Map();
+  ws.addEventListener('message',event=>{
+   let m;try{m=JSON.parse(event.data);}catch{return;}
+   if(m.id){const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);clearTimeout(p.timer);m.error?p.reject(error('CDP_REMOTE_ERROR',m.error.message||'Chrome DevTools command failed')):p.resolve(m.result||{});return;}
+   for(const h of this.handlers.get(m.method)||[])Promise.resolve().then(()=>h(m.params||{},m.sessionId)).catch(()=>{});
+  });
+  ws.addEventListener('close',()=>{for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(error('CDP_DISCONNECTED','Chrome disconnected'));}this.pending.clear();});
+ }
+ on(event,handler){const h=this.handlers.get(event)||[];h.push(handler);this.handlers.set(event,h);}
+ send(method,params={},sessionId,ms=15000){
+  if(this.ws.readyState!==1)return Promise.reject(error('CDP_DISCONNECTED','Chrome websocket is not open'));
+  const id=this.next++;return new Promise((resolve,reject)=>{
+   const timer=setTimeout(()=>{this.pending.delete(id);reject(error('CDP_TIMEOUT',`Chrome command timed out: ${method}`));},ms);
+   this.pending.set(id,{resolve,reject,timer});
+   this.ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));
+  });
+ }
+ close(){try{this.ws.close();}catch{}}
+}
+
+async function connectBrowser(port,pathname){
+ const socket=new WebSocket(`ws://127.0.0.1:${port}${pathname}`);
+ await new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(error('CDP_CONNECT_TIMEOUT','Chrome debugging connection timed out')),10000);
+  socket.addEventListener('open',()=>{clearTimeout(timer);resolve();},{once:true});
+  socket.addEventListener('error',()=>{clearTimeout(timer);reject(error('CDP_CONNECT_FAILED','Chrome debugging connection failed'));},{once:true});
+ });
+ return new CdpClient(socket);
+}
+async function getDevtoolsPort(profile,child){
+ const file=join(profile,'DevToolsActivePort');
+ for(let i=0;i<80;i++){
+  if(child.exitCode!==null)throw error('CHROME_EXITED','Chrome quit before debugger startup');
+  try{const t=(await readFile(file,'utf8')).split(/\r?\n/);const port=Number(t[0]);if(port>0&&port<65536&&/^\/devtools\/browser\/[\w-]+$/.test(t[1]))return {port,path:t[1]};}catch{}
+  await wait(125);
+ }
+ throw error('CDP_START_TIMEOUT','Chrome debugging port file not created');
+}
+const browserJs=`(()=>{
+ const clean=s=>String(s??'').replace(/[\\x00-\\x1f]/g,' ').slice(0,120);
+ return {title:clean(document.title),state:document.readyState,
+ headings:[...document.querySelectorAll('h1,h2,h3')].slice(0,25).map(el=>({tag:el.tagName,text:clean(el.textContent)})),
+ controls:[...document.querySelectorAll('button,input,select,textarea')].slice(0,50).map(el=>({tag:el.tagName,id:clean(el.id),type:clean(el.getAttribute('type'))})),
+ counts:{buttons:document.querySelectorAll('button').length,inputs:document.querySelectorAll('input').length,forms:document.querySelectorAll('form').length,links:document.querySelectorAll('a').length},
+ body_bytes:document.body?.innerText?.length||0};
+})()`;
+
+/** Passive browser: no clicks, no credentials, no navigation off exact selected URL.
+ * All browser network requests route through a bounded Node HTTPS relay, while
+ * browser DNS resolution and proxy use are disabled as defense in depth.
+ */
+export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs}={}){
+ validateHttpsUrl(target);
+ if(typeof browserPath!=='string'||!browserPath.trim())throw error('BROWSER_NOT_FOUND','Chrome path required');
+ const profile=await mkdtemp(join(tmpdir(),'webrea-cdp-'));
+ const flags=['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-update','--disable-sync','--disable-quic','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',`--user-data-dir=${profile}`,'about:blank'];
+ let child,cdp,sessionId;
+ const events=[],metrics={requested:0,fulfilled:0,blocked:0,bytes:0},start=Date.now(),tasks=new Set();
+ try{
+  child=launch(browserPath,flags,{stdio:'ignore',windowsHide:true});
+  const {port,path}=await getDevtoolsPort(profile,child);
+  cdp=await connectBrowser(port,path);
+  const created=await cdp.send('Target.createTarget',{url:'about:blank'});
+  sessionId=(await cdp.send('Target.attachToTarget',{targetId:created.targetId,flatten:true})).sessionId;
+  await cdp.send('Page.enable',{},sessionId);
+  await cdp.send('Network.enable',{},sessionId);
+  await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
+  await cdp.send('Runtime.enable',{},sessionId);
+  cdp.on('Fetch.requestPaused',(req,sid)=>{
+   if(sid!==sessionId)return;
+   const promise=(async()=>{
+    metrics.requested++;
+    const approved=approveBrowserRequest({url:req.request?.url,method:req.request?.method,resourceType:req.resourceType},{target,seen:metrics.requested-1,bytes:metrics.bytes});
+    const path=redactedResourcePath(req.request?.url,target);
+    if(!approved.allowed){metrics.blocked++;events.push({kind:'blocked',path,reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
+    try{
+     const response=await relay(approved.url);
+     if(metrics.bytes+response.body.length>DYNAMIC_LIMITS.maxBytes)throw error('BUDGET_EXHAUSTED','Resource budget');
+     metrics.bytes+=response.body.length;metrics.fulfilled++;
+     events.push({kind:'fulfilled',path,status:response.status,bytes:response.body.length});
+     const responseHeaders=[{name:'Content-Type',value:response.contentType},{name:'Cache-Control',value:'no-store'},{name:'X-Content-Type-Options',value:'nosniff'}];
+     if(req.resourceType==='Document')responseHeaders.push({name:'Content-Security-Policy',value:LOCKDOWN_CSP});
+     await cdp.send('Fetch.fulfillRequest',{requestId:req.requestId,responseCode:response.status,responseHeaders,body:response.body.toString('base64')},sessionId);
+    }catch(e){metrics.blocked++;events.push({kind:'blocked',path,reason:typeof e.code==='string'?e.code:'REQUEST_FAILED'});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId).catch(()=>{});}
+   })();tasks.add(promise);promise.finally(()=>tasks.delete(promise));
+  });
+  await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]},sessionId);
+  const navigated=await cdp.send('Page.navigate',{url:target},sessionId);
+  if(navigated.errorText)throw error('NAVIGATION_FAILED',`Target navigation failed (${String(navigated.errorText).slice(0,100)}); no screenshot claimed`);
+  // Give bounded time for scripts that only use allowed same-origin resources.
+  const settleUntil=Math.min(Date.now()+8000,start+timeoutMs-3000);
+  while(Date.now()<settleUntil &&(tasks.size>0||Date.now()<start+1800))await wait(180);
+  await Promise.allSettled([...tasks]);
+  const runtime=await cdp.send('Runtime.evaluate',{expression:browserJs,returnByValue:true,awaitPromise:false},sessionId);
+  const page=runtime.result?.value;
+  if(!page||typeof page!=='object')throw error('DOM_CAPTURE_FAILED','Browser page summary unavailable');
+  const frame=await cdp.send('Page.getFrameTree',{},sessionId);
+  const observedUrl=frame.frameTree?.frame?.url;
+  if(observedUrl!==target)throw error('NAVIGATION_OUT_OF_SCOPE','Chrome final URL differs from approved URL');
+  if(metrics.fulfilled===0)throw error('NO_APPROVED_RESPONSE','No document or resources could be loaded');
+  const shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true},sessionId);
+  const png=Buffer.from(shot.data||'','base64');
+  if(png.length<100||png.length>5*1024*1024||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw error('SCREENSHOT_INVALID','PNG capture missing/invalid');
+  const screenshot_sha256=createHash('sha256').update(png).digest('hex');
+  await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});
+  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:metrics.blocked?'partial-resource-load':'passive-browser-only',
+    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:events.slice(0,75),limitations:['No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
+  const report={verdict:'PASS',analysis_mode:'dynamic-passive',failures:[],step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:metrics.blocked?'partial':'unverified',note:'Passive Chrome DOM and screenshot capture; blocked resources may affect fidelity. No clicks or complete reconstruction.'};
+  return {report,inspection};
+ }finally{
+  if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}
+  if(child && child.exitCode===null){try{child.kill();}catch{}}
+  if(child && child.exitCode===null)await Promise.race([new Promise(ok=>child.once('exit',ok)),wait(1200)]);
+  await rm(profile,{recursive:true,force:true,maxRetries:4,retryDelay:150}).catch(()=>{});
+ }
+}

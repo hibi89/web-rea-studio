@@ -34,6 +34,12 @@ Next: owner runs `git pull --ff-only`, `npm test`, `npm run studio`, and perform
 - Added `npm run check:launcher` to verify actual local child process invocation without fetching REA or opening a browser.
 - **Windows P1 real REA capture still unverified.** Run preflight before a single manual Studio analysis.
 
+## P1 Windows end-to-end VERIFIED / P2-1 developed (2026-10-16)
+- Owner's live Windows screenshots show Studio `COMPLETED`, strict `PASS`, 7/7 completed actions, API response observed, screenshot_saved=true, and inspection steps/network events. P1 controlled-fixture browser flow is now verified on owner's real Windows machine.
+- P2-1 adds an independent one-request, **static-only**, authorized HTTPS page structure analyzer. Exact URLs must be approved at startup via `WEB_REA_ALLOWED_URLS`; default external approval list is empty.
+- P2 tests block unapproved URLs, noncanonical HTTPS, unsafe DNS, redirects, oversized/non-HTML content, and assert that GET/reload never triggers further analysis.
+- P2 local mock tests are not a Windows live external HTTPS test. P2-1 external real-host acceptance awaits an owned/authorized URL and user-side run.
+- External REA/Chrome capture remains disabled pending independent browser egress containment.
 
 ## 2026-10-16 P2 user-selected live HTTPS target
 - Windows REA P1 browser path: owner confirmed `COMPLETED`, `PASS`, 7/7 actions, 200 response, verified screenshot and steps/network inspector in the conversation. Controlled fixture only.

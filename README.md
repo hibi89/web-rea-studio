@@ -1,96 +1,55 @@
-# Web REA Studio — P0 verification kit
+# Web REA Studio
 
-2026-10-16 | Status: **PARTIAL / REA browser execution returned Evidence; actions not yet validated**
+Private local-first website analysis project. Current development status: **P1 controlled-browser workflow demonstrated on the owner's Windows PC; P2-1 authorized passive HTTPS HTML analysis implemented, external-site real-host verification pending.**
 
-This is a **controlled proof-of-concept kit**, not a finished app cloner and not REA's source code. It includes a local synthetic dashboard, reproducible API tests, and a pinned REA scenario runner to validate the proposed REA adapter. The project does not read other websites, accept credentials, or modify existing user repositories.
+## What it does today
 
-## Verified in the current sandbox
+| Mode | Site | Engine | Output |
+|---|---|---|---|
+| Controlled browser | `http://127.0.0.1:4317/` | pinned `rea-agents@6.5.0` / Chrome | Seven scripted actions, DOM/accessibility, network events, verified report, final screenshot |
+| Authorized HTTPS static | Exact URLs in `WEB_REA_ALLOWED_URLS` | Restricted single HTTPS GET, **not REA** | HTML page title, headings, controls/forms, same-origin path summary, digest and limited report |
 
-- GitHub source reviewed: `morluto/rea`, release **`rea-agents-6.5.0`**, package `rea-agents@6.5.0`, license MIT. The remote `main` HEAD on 2026-10-16 was `1b97b0f3707b1cf78ac98bd4ae81638b33cc286f` (not the pinned release source).
-- REA browser docs confirm two separate boundaries: passive CDP observation and owned Playwright scenario capture. Scenario capture does **not** enforce an independent destination network allowlist.
-- The local fixture API passed **7/7 Node built-in tests**.
-- REA was **not installed or executed** here: sandbox Node.js **v22.16.0** does not meet its Node >=22.19 requirement; the installed Chromium refuses navigation (`net::ERR_BLOCKED_BY_ADMINISTRATOR`), including to loopback.
-- Windows user machine: Node.js **v24.21.0**, Chrome executable found; original `npm test` passed **7/7**. First REA invocation halted when Windows PowerShell treated an npm `prebuild-install` deprecation warning as a `NativeCommandError`. This does not prove a failure in REA itself.
-- Fixed runner now delegates the pinned `npx.cmd` call to `cmd.exe` through `Start-Process`, isolates stderr in a log, and checks the child exit code. **This fix has not been executed on Windows yet.**
-- Windows + REA real browser result: **NOT VERIFIED**.
+**Limitations:** The tool does **not** reconstruct private server source, analyze unauthorised domains, bypass authentication or make unrestricted external browser requests. Static external analysis does not execute JavaScript or take screenshots.
 
-## Windows P0 steps (PowerShell)
+## Windows quick start
 
-For first-time setup, clone the new private repository into a **new directory** (do not overwrite the earlier ZIP extraction):
-
-```powershell
-git clone https://github.com/hibi89/web-rea-studio.git
-cd web-rea-studio
-```
-
-For subsequent changes, run `git pull --ff-only` in this Git directory. Do not run `git pull` in the earlier ZIP folder: it is not a Git checkout.
-
-1. Use the cloned project directory. Do not place it in another project's Git repository.
-2. Verify Node.js: `node --version`; use Node.js 24.11+ or 22.19+ (not 23 or 25). Check `npm --version` and Chrome/Edge installation.
-3. From the extracted folder run `npm test` and `node scripts/check-host.mjs`. No package installation is needed for the local tests.
-4. Review plan: `powershell -NoProfile -File .\scripts\p0-rea-smoke.ps1`. This makes **no external download or configuration changes**. If your environment blocks PowerShell scripts by policy, do not work around the policy without permission.
-5. When you expressly permit npm package download and browser execution, run `powershell -NoProfile -File .\scripts\p0-rea-smoke.ps1 -Execute`, or execute after reviewing the script. It starts a local fixture and calls **exact `rea-agents@6.5.0`**, writes capture data under `results/`, and cleans up its fixture process. Set `-BrowserPath 'C:\...\chrome.exe'` if auto-discovery fails.
-6. Never send `results/rea-capture.json` from a real site without reviewing it. The P0 fixture is synthetic; future analysis must redact tokens, cookies, URLs, and private content.
-
-Alternative for manual smoke: open two terminals, run `npm run fixture` in one, and `node scripts/generate-scenario.mjs` with the `REA_BROWSER_EXECUTABLE` environment set in the second. Then `npx -y rea-agents@6.5.0 capture-browser-scenario results/browser-scenario.json --json`.
-
-## P0 pass criteria
-
-- Node version compatible on owner Windows: **pass (24.21.0)**
-- Fixture API tests: **pass (7/7)**
-- Local browser can navigate the fixture: **pending actual REA run**
-- REA exact version launches with `capture-browser-scenario`: **pending**
-- Click action and DOM/accessibility capture exist in saved evidence: **pending**
-- REA process terminates cleanly and does not alter existing client config: **pending**
-- Saved Evidence is retrievable and secrets are absent: **pending**
-
-Do not advance to P1 based on the 7 Node tests alone. Continue after actual Windows/REA smoke output has been reviewed.
-
-## Official source references
-
-- https://github.com/morluto/rea
-- https://github.com/morluto/rea/releases/tag/rea-agents-6.5.0
-- https://github.com/morluto/rea/blob/rea-agents-6.5.0/docs/browser-observation.md
-- https://github.com/morluto/rea/blob/rea-agents-6.5.0/docs/browser-scenario-contract.md
-- https://github.com/morluto/rea/blob/rea-agents-6.5.0/docs/installation.md
-- https://github.com/morluto/rea/blob/rea-agents-6.5.0/THIRD_PARTY_NOTICES.md
-
-## P0 enhanced evidence verification
-
-The Windows REA 6.5.0 command completed and saved a JSON Evidence envelope on the owner machine, but the original validator checked JSON syntax only. This new revision records DOM, accessibility, and URL after every scenario action and checks action status, digest integrity, visible changes, API request/response, origin and cleanup.
-
-From the GitHub checkout:
+In the checked-out `hibi89/web-rea-studio` directory:
 
 ```powershell
 git pull --ff-only
 npm test
-powershell -NoProfile -File .\scripts\p0-rea-smoke.ps1 -Execute
-```
-
-Only a report with `"verdict": "PASS"` passes our controlled-fixture criteria. Do not share raw Evidence from unrelated websites. This does not demonstrate full website reconstruction, source recovery, or generalized security isolation.
-
-## P1-1 local Studio (new)
-
-P0 REA passed the controlled-fixture validation on the user's Windows machine. The new P1-1 Studio is a **local, permission-bounded preview**. It does not yet analyze arbitrary websites and it does not reconstruct original private source code.
-
-```powershell
-git pull --ff-only
-npm test
+npm run check:launcher
 npm run studio
 ```
 
-Open **http://127.0.0.1:4320/**. Enter `http://127.0.0.1:4317/` (pre-filled), then click **분석 실행**. A single run stores evidence and a summary in `results/studio/runs/`. Existing results can be opened without relaunching analysis. The only supported target is our synthetic fixture until browser-origin containment has been verified. Read [P1_CONSOLE.md](docs/P1_CONSOLE.md) for security boundaries, API, run states, limitations and Windows acceptance criteria.
+Open `http://127.0.0.1:4320/`. Click **분석 실행** with the default local fixture URL to exercise the P1 browser workflow.
 
-## P1-2 evidence inspector and diagnostics
+For a domain you own or have permission to analyze, stop Studio and set an exact HTTPS authorization in your PowerShell session **before** starting it:
 
-After `npm run studio`, one controlled fixture analysis stores `report.json`, optional `screenshot.png`, and `inspection.json` for step/API evidence. GET/UI refresh is read-only. For a failed run, run `npm run diagnose` to classify local stderr without printing raw logs. See `docs/P1_INSPECTOR.md`. **Windows real-browser acceptance is still pending for this UI path.**
+```powershell
+$env:WEB_REA_ALLOWED_URLS='https://your-approved-actual-site.example/'
+npm run studio
+```
 
-## Windows P1 storage reliability update (2026-10-16)
+The domain above is a placeholder; use an actual authorized URL. Copy that same exact URL into Studio. This performs a **single static HTML request** only. An unapproved URL is rejected.
 
-The Studio no longer writes its **new Windows runs** under the OneDrive-synced repository folder. Instead it stores run history under `%LOCALAPPDATA%\WebREAStudio\runs`. On startup it copies existing run records from the previous project-local `results/studio/runs` directory, leaving originals unchanged. It records subsequent job-state updates as uniquely named metadata revisions rather than replacing `metadata.json`, avoiding the confirmed `EPERM` replacement failure. `npm run diagnose` uses the same run store.
+Only one run executes at a time. Refresh and viewing history do not re-run the analyzer. On Windows, results stay in `%LOCALAPPDATA%\WebREAStudio\runs`, outside the OneDrive-synced source checkout.
 
-To apply: stop `npm run studio` with `Ctrl+C`, run `git pull --ff-only`, `npm test`, and `npm run studio`, then submit **one** controlled fixture analysis. Check for `completed`, `PASS`, and a screenshot. Real Windows verification is pending.
+## Tested vs untested
 
+- **Owner Windows real P1 evidence**: `COMPLETED`, strict `PASS`, 7/7 steps, HTTP 200 observed, screenshot saved, inspector populated (2026-10-16; owner provided UI screenshots).
+- **P2 static HTML**: offline local tests of scope, DNS filtering, TLS request parameters, redirect refusal, HTML size checks, extraction, and API persistence. **No live external HTTPS test on owner Windows yet.**
+- REA 6.5.0 is pinned; direct Node → `npx-cli.js` launcher is used instead of Windows `cmd.exe /c` to avoid quoting failure.
+
+## Documentation
+
+- [P2 authorized static analyzer](docs/P2_STATIC.md)
+- [P1 console and persistence](docs/P1_CONSOLE.md)
+- [P1 evidence inspector](docs/P1_INSPECTOR.md)
+- [P0 REA acceptance](docs/P0_CHECKLIST.md)
+- [Architecture and requirements](REQUIREMENTS.md)
+
+No unrelated GitHub repositories or Vercel projects are modified by this Studio.
 
 ## P2 first real HTTPS target
 
