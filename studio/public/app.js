@@ -150,6 +150,10 @@ async function select(id){
      el('p5-geometry').textContent=geometry?.status==='measured-not-certified'
       ?'영역 '+geometry.matched_regions+'/'+geometry.original_regions+' 일치 ('+geometry.region_match_pct+
        '%) · 좌표 평균 오차 '+geometry.average_geometry_error_px+'px · 배경색 동일 '+geometry.exact_background_match_pct+'%'
+       +(geometry.unmatched_reference_regions?.length
+         ?'\n매칭되지 않은 원본 영역: '+geometry.unmatched_reference_regions.slice(0,6)
+           .map(r=>r.tag+' ['+r.x+','+r.y+'] '+r.width+'×'+r.height).join(' / ')
+         :'')
       :'영역 비교 데이터 없음';
      el('p5-original').src=`/api/runs/${id}/screenshot`;
      el('p5-replica').src=`/api/runs/${id}/reconstruction-screenshot`;

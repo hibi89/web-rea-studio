@@ -6,7 +6,7 @@ export function compareP4Geometry(reference,reconstruction,{tolerancePx=8}={}){
  if(!a||!b||!a.boxes.length||!b.boxes.length)return {
   status:'unavailable',reason:'geometry-evidence-missing'};
  if(!Number.isInteger(tolerancePx)||tolerancePx<1||tolerancePx>50)throw Error('P5_INVALID_TOLERANCE');
- const used=new Set(),measure=[],color=[];
+ const used=new Set(),measure=[],color=[],unmatched=[];
  // Largest painted shapes first; tag names are intentionally ignored because
  // the independent HTML uses safe div regions instead of source DOM elements.
  const shapes=[...a.boxes].sort((x,y)=>y.w*y.h-x.w*x.h);
@@ -23,12 +23,17 @@ export function compareP4Geometry(reference,reconstruction,{tolerancePx=8}={}){
    measure.push(best.distance);
    const replica=b.boxes[best.index];
    color.push(original.background===replica.background?1:0);
+  }else if(unmatched.length<12){
+   // Only geometry and element category; no text, selector or source path.
+   unmatched.push({tag:original.tag,x:original.x,y:original.y,
+    width:original.w,height:original.h,nearest_error_px:best?Number(best.distance.toFixed(2)):null});
   }
  }
  return {
   status:'measured-not-certified',tolerance_px:tolerancePx,
   original_regions:a.boxes.length,reconstructed_regions:b.boxes.length,
   matched_regions:measure.length,
+  unmatched_reference_regions:unmatched,
   region_match_pct:Number((measure.length/a.boxes.length*100).toFixed(2)),
   average_geometry_error_px:measure.length?
    Number((measure.reduce((x,y)=>x+y,0)/measure.length).toFixed(2)):null,

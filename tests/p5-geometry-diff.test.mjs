@@ -29,6 +29,8 @@ test('P5 geometry mismatch reveals one moved card and separately reports color d
  assert.equal(result.matched_regions,1);
  assert.equal(result.exact_background_match_pct,0);
  assert.equal(result.original_regions,2);
+ assert.equal(result.unmatched_reference_regions.length,1);
+ assert.deepEqual(result.unmatched_reference_regions[0],{tag:'section',x:225,y:160,width:390,height:300,nearest_error_px:25});
 });
 test('P5 geometry comparator fails safely if evidence is missing or tolerance invalid',()=>{
  assert.equal(compareP4Geometry(geom(),null).status,'unavailable');
