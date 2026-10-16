@@ -22,3 +22,12 @@ test('PowerShell runner isolates npm warnings and checks exit status',async()=>{
  assert.match(r,/\$reaProcess\.ExitCode -ne 0/);
  assert.doesNotMatch(r,/& npx\.cmd/);
 });
+
+test('fixture sort action has a visible ordering change',async()=>{
+ const r=await fetch(base+'/api/trends?days=7');assert.equal(r.status,200);
+ const {items}=await r.json();
+ const names=items.map(x=>x.title).sort((a,b)=>a.localeCompare(b));
+ const ranked=[...items].sort((a,b)=>b.score-a.score).map(x=>x.title);
+ assert.deepEqual(names,['Amber Jelly','Rose Chrome']);
+ assert.deepEqual(ranked,['Rose Chrome','Amber Jelly']);
+});

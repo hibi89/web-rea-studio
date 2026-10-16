@@ -12,7 +12,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 }
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const data = [
-  { id: 'a', title: 'Rose Chrome', category: 'chrome', score: 73, days: 7 },
+  { id: 'a', title: 'Rose Chrome', category: 'chrome', score: 93, days: 7 },
   { id: 'b', title: 'Blue French', category: 'french', score: 65, days: 30 },
   { id: 'c', title: 'Amber Jelly', category: 'jelly', score: 88, days: 7 },
   { id: 'd', title: 'Mint Chrome', category: 'chrome', score: 79, days: 30 },

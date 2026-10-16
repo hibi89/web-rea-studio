@@ -23,3 +23,6 @@ test('wrong origin cannot pass',()=>{const x=valid();x.normalized_result.scenari
 test('missing API response cannot pass',()=>{const x=valid();x.normalized_result.events.items=x.normalized_result.events.items.slice(0,1);x.normalized_result.events.retained=1;assert.ok(validateCapture(x,scenario).failures.includes('api_response_not_observed'));});
 test('unconfirmed browser cleanup cannot pass',()=>{const x=valid();x.normalized_result.browser.cleanup='incomplete';assert.ok(validateCapture(x,scenario).failures.includes('browser_cleanup_unconfirmed'));});
 test('unexpected input scenario cannot pass',()=>{const x=structuredClone(scenario);x.actions[1].action='hover';assert.ok(validateCapture(valid(),x).failures.includes('unexpected_input_scenario'));});
+
+test('unchanged order after click cannot pass',()=>{const x=valid();x.normalized_result.steps[2].artifacts.dom=artifact(states[1]);assert.ok(validateCapture(x,scenario).failures.includes('sort_not_observed'));});
+test('wrong initial sort cannot pass',()=>{const x=valid();x.normalized_result.steps[1].artifacts.dom=artifact(states[2]);assert.ok(validateCapture(x,scenario).failures.includes('initial_sort_not_observed'));});

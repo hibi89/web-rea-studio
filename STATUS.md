@@ -10,3 +10,9 @@
 - No end-user capture has been uploaded into ChatGPT. Enhanced verifier has passed synthetic positive and negative tests only; owner Windows REA rerun is still required.
 - No unrelated repository or Vercel project modified.
 - Next: user runs `git pull --ff-only`, `npm test`, then the same smoke script with `-Execute` and shares the verifier report. On PASS, review capture provenance and close P0.
+
+## P0 real-browser regression 2026-10-16
+- Windows REA 6.5.0 returned Evidence with seven completed steps, complete coverage, one 200 API response, zero dropped events, confirmed browser cleanup.
+- Verifier returned `FAIL: sort_not_observed`, because original fixture used scores Amber Jelly 88 and Rose Chrome 73: alphabetical and descending score ordering were identical.
+- Fix: Rose Chrome synthetic score 93; verify both initial and post-click order, plus regression tests.
+- P0 status: partial / Windows rerun pending, do not claim PASS until a new capture validates.

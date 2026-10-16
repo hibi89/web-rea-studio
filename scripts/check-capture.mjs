@@ -57,7 +57,9 @@ export function validateCapture(document, scenario) {
   requireCheck(steps[4]?.after_url?.url?.endsWith('#help'),'help_navigation_missing');
   requireCheck(steps[5]?.after_url?.url?.endsWith('#table'),'return_navigation_missing');
   requireCheck(/<div id="results"[^>]*data-state="ready"/.test(domAt(1)),'initial_table_not_ready');
-  // Initial alphabetical sort is Amber Jelly then Rose Chrome. Score sort is opposite.
+  // Initial alphabetical sort must show Amber before Rose, then score sort Rose before Amber.
+  const initialDom=domAt(1);
+  requireCheck(initialDom.indexOf('<td>Amber Jelly</td>')>=0 && initialDom.indexOf('<td>Amber Jelly</td>')<initialDom.indexOf('<td>Rose Chrome</td>'),'initial_sort_not_observed');
   const sortDom=domAt(2);
   requireCheck(sortDom.includes('Rose Chrome')&&sortDom.includes('Amber Jelly')&&sortDom.indexOf('<td>Rose Chrome</td>')<sortDom.indexOf('<td>Amber Jelly</td>'),'sort_not_observed');
   requireCheck(/id="toggle-notes"[^>]*aria-expanded="true"/.test(domAt(3)),'notes_toggle_not_observed');
