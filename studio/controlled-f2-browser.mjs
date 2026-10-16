@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {CdpClient} from './dynamic-browser.mjs';
 const ORIGIN='https://webrea-controlled-fixture.example.org';
-const URL=ORIGIN+'/';
+const TARGET=ORIGIN+'/';
 const html=String.raw`<!doctype html><html><head><title>F2 synthetic</title></head><body>
 <button id="period">Period</button><button id="sort">Sort</button>
 <button id="help">Help</button><button id="refresh">Refresh</button>
@@ -32,7 +32,7 @@ function classify(url,method){
  if(method!=='GET')return null;
  let u;try{u=new URL(url);}catch{return null;}
  if(u.origin!==ORIGIN||u.username||u.password||u.hash)return null;
- if(u.href===URL)return {kind:'document'};
+ if(u.href===TARGET)return {kind:'document'};
  if(u.pathname==='/api/rows'&&u.searchParams.size===1&&
     ['7','30'].includes(u.searchParams.get('period')))
     return {kind:'api',period:Number(u.searchParams.get('period'))};
@@ -104,7 +104,7 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
    }catch{failures++;}
   });
   await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]},sid);
-  const navigation=await cdp.send('Page.navigate',{url:URL},sid);
+  const navigation=await cdp.send('Page.navigate',{url:TARGET},sid);
   if(navigation.errorText)throw Error('F2_NAVIGATION_FAILED');
   const readState=async()=>{
    const v=(await cdp.send('Runtime.evaluate',{expression:STATE,returnByValue:true},sid)).result?.value;
