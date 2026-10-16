@@ -87,14 +87,14 @@ summary before allowing additional origins or changing the request policy.
 ## Local failure diagnostics
 
 The public Vercel deployment is a **mock UI**. Actual browser analysis runs on
-the Windows PC at \`http://127.0.0.1:4320/\`. Storage is local, outside OneDrive.
+the Windows PC at `http://127.0.0.1:4320/`. Storage is local, outside OneDrive.
 
-Pull the latest code, run \`npm test\`, then \`npm run studio\`. Select any
+Pull the latest code, run `npm test`, then `npm run studio`. Select any
 previous **FAILED** run from the left sidebar to see **실패 원인 진단**:
 a bounded summary of failure codes, network request counts, path-only network
 metadata and the recommended next check. **진단 복사** copies the sanitized
 summary; it never includes raw stderr, request query strings, cookies or tokens.
 
 This viewer makes no new browser request and never retries an analysis.
-If the site displays \`Failed to fetch\`, the screenshot is diagnostic,
+If the site displays `Failed to fetch`, the screenshot is diagnostic,
 **not** proof that the site was successfully reconstructed.

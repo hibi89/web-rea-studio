@@ -1,0 +1,26 @@
+name: Local Studio Node regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - "studio/**"
+      - "tests/**"
+      - "scripts/**"
+      - "fixtures/**"
+      - "package.json"
+      - ".github/workflows/local-studio-ci.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Node 22 unit and local HTTP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run offline Studio regression tests
+        run: npm test

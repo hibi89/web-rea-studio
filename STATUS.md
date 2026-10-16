@@ -63,7 +63,7 @@ Next: owner runs `git pull --ff-only`, `npm test`, `npm run studio`, and perform
 - Underlying data request failure still requires per-request event inspection; no additional domains approved.
 
 ## Local-first failure inspection milestone (2026-10-16)
-- Added a local-only \`GET /api/runs/:id/diagnosis\` for failed or interrupted historical runs; it derives a privacy-filtered summary from previously saved data with no rerun.
+- Added a local-only `GET /api/runs/:id/diagnosis` for failed or interrupted historical runs; it derives a privacy-filtered summary from previously saved data with no rerun.
 - The actual local Studio UI now shows a failure-only diagnosis panel with a copy button and bounded path-only network metadata.
 - Included regression tests for read-only semantics, redaction and completed-run rejection.
 - Real Windows Chrome acceptance remains pending. The failed application report is not declared fixed.
