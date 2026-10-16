@@ -29,10 +29,20 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
  const errPath=join(runDir,'rea-stderr.log');
  // Never print raw stderr, API payloads, or token-bearing URLs.
  let stderr='';try{stderr=(await readFile(errPath,'utf8')).slice(-60000);}catch(e){if(e.code!=='ENOENT')throw e;}
- const diagnosis=infer(stderr)||infer(String(meta.error||''))||meta.error_code||'UNKNOWN';
+ const directDiagnosis=infer(stderr)||infer(String(meta.error||''))||meta.error_code||'UNKNOWN';
  const report=await store.getReport(meta.id);
  const inspection=await store.getInspection(meta.id);
  const isPassive=meta.mode==='dynamic-passive';
+ const oldNetwork=Array.isArray(inspection?.network)?inspection.network:[];
+ const pendingFaviconOnly=isPassive&&report?.resource_pending===1&&
+  oldNetwork.some(e=>e?.kind==='requested'&&e.path==='/favicon.ico')&&
+  !oldNetwork.some(e=>e?.kind==='requested'&&e.path!=='/'&&e.path!=='/favicon.ico');
+ const diagnosis=directDiagnosis==='UNKNOWN'&&pendingFaviconOnly?'PASSIVE_FAVICON_PENDING':directDiagnosis;
+ const nextAction=pendingFaviconOnly?
+  'Only /favicon.ico was pending; no report API call was recorded. This does not explain the Failed to fetch screen. Run the updated passive diagnostics once to identify fetch/XHR attempts.' :
+  isPassive&&diagnosis==='UNKNOWN'?
+  'Saved passive capture cannot identify application request failures. Update Studio then perform one approved passive diagnostic run.' :
+  diagnosis==='UNKNOWN'?'Inspect the local stderr log; do not publish raw logs.':'Use this diagnosis with the run status to identify the failing stage.';
  // The remote page's URLs and network payloads stay local. Only approved origin
  // pathnames (no query) and external hostnames are shown, with strict bounds.
  const safeSegment=value=>typeof value==='string'&&value.length<170&&
@@ -53,10 +63,14 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
     requested:report?.resource_requests??null,fulfilled:report?.resource_fulfilled??null,
     blocked:report?.resource_blocked??null,pending:report?.resource_pending??null,
     browser_failures:report?.chrome_network_failures??null,
+    fetch_attempts:report?.fetch_attempts??inspection?.network_diagnostics?.fetch_attempts??null,
+    fetch_rejections:report?.fetch_rejections??inspection?.network_diagnostics?.fetch_rejections??null,
+    xhr_attempts:report?.xhr_attempts??inspection?.network_diagnostics?.xhr_attempts??null,
+    synthetic_favicons:report?.synthetic_favicons??inspection?.network_diagnostics?.synthetic_favicons??null,
     recent_network_events:network}}:{}),
   files:{scenario_bytes:await metrics(join(runDir,'scenario.json')),evidence_bytes:await metrics(join(runDir,'rea-capture.json')),stderr_bytes:await metrics(errPath),report_bytes:await metrics(join(runDir,'report.json')),inspection_bytes:await metrics(join(runDir,'inspection.json'))},
   stderr_path:`runs/${meta.id}/rea-stderr.log`,
-  next_action:diagnosis==='UNKNOWN'?'Inspect the local stderr log; do not publish raw logs.':'Use this diagnosis together with the run status to identify the failing stage.',
+  next_action:nextAction,
   privacy:'No raw stderr, browser data, credentials, or URL query values are printed.'};
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href){

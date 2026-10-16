@@ -50,6 +50,66 @@ export function sanitizedNetworkTarget(raw,approved){
  }catch{return {path:null,scope:'invalid-url'};}
 }
 
+
+/* Passive local diagnostic only: observe fetch/XHR without issuing requests. */
+export const PASSIVE_TRACE_SCRIPT=String.raw`(()=>{
+ const log=[];let fetches=0,rejections=0,xhrs=0;
+ const safeUrl=input=>{
+  try{
+   const raw=typeof input==='string'?input:input&&typeof input.url==='string'?input.url:'';
+   const u=new URL(raw,location.href);
+   if(u.origin===location.origin)return {scope:'approved-origin',path:u.pathname.slice(0,120)};
+   if(u.protocol==='https:' && /^[a-z0-9.-]{1,180}$/i.test(u.hostname))return {scope:'other-origin',host:u.hostname.toLowerCase()};
+  }catch{}
+  return {scope:'unknown'};
+ };
+ const emit=(kind,target)=>{
+  if(log.length<32)log.push({kind,...safeUrl(target)});
+ };
+ const nativeFetch=window.fetch;
+ if(typeof nativeFetch==='function'){
+  window.fetch=function(...args){
+   fetches++;emit('fetch-attempt',args[0]);
+   let result;
+   try{result=Reflect.apply(nativeFetch,this,args);}
+   catch(e){rejections++;emit('fetch-rejected',args[0]);throw e;}
+   return result.catch(e=>{rejections++;emit('fetch-rejected',args[0]);throw e;});
+  };
+ }
+ if(typeof XMLHttpRequest!=='undefined'){
+  const nativeOpen=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(method,url,...args){
+   xhrs++;emit('xhr-open',url);
+   return Reflect.apply(nativeOpen,this,[method,url,...args]);
+  };
+ }
+ Object.defineProperty(window,'__webrea_passive_trace',{value:{
+  snapshot:()=>({fetches,rejections,xhrs,events:log.slice()})
+ },writable:false,configurable:false});
+})()`;
+export function isIncidentalFavicon(request,target){
+ try{
+  const u=new URL(request.url),t=new URL(target);
+  return request.method==='GET' && request.resourceType==='Other' &&
+   u.href===t.origin+'/favicon.ico';
+ }catch{return false;}
+}
+export function sanitizeClientTrace(trace,target){
+ const safeEvents=[];
+ for(const event of Array.isArray(trace?.events)?trace.events.slice(0,32):[]){
+  if(!event||!['fetch-attempt','fetch-rejected','xhr-open'].includes(event.kind))continue;
+  const safe={kind:event.kind};
+  if(event.scope==='approved-origin'&&typeof event.path==='string'&&/^\/[A-Za-z0-9_./%~-]{0,119}$/.test(event.path) && !event.path.includes('..')){
+   safe.path=event.path;safe.scope='approved-origin';
+  }else if(event.scope==='other-origin'&&typeof event.host==='string'&&/^[a-z0-9.-]{1,180}$/.test(event.host)){
+   safe.host=event.host;safe.scope='other-origin';
+  }else safe.scope='unknown';
+  safeEvents.push(safe);
+ }
+ const bound=n=>Number.isInteger(n)&&n>=0&&n<=1000?n:0;
+ return {fetches:bound(trace?.fetches),rejections:bound(trace?.rejections),xhrs:bound(trace?.xhrs),events:safeEvents};
+}
+
 export class CdpClient{
  constructor(ws){
   this.ws=ws;this.next=1;this.pending=new Map();this.handlers=new Map();
@@ -95,7 +155,8 @@ const browserJs=`(()=>{
  // Only a boolean error signal crosses the browser boundary, not the page text.
  const visibleText=String(document.body?.innerText||'').slice(0,100000);
  const application_fetch_error_visible=/failed to fetch|보고서를 불러오지 못했습니다/i.test(visibleText);
- return {title:clean(document.title),state:document.readyState,application_fetch_error_visible,
+ const passive_trace=window.__webrea_passive_trace?.snapshot?.()||null;
+ return {title:clean(document.title),state:document.readyState,application_fetch_error_visible,passive_trace,
  headings:[...document.querySelectorAll('h1,h2,h3')].slice(0,25).map(el=>({tag:el.tagName,text:clean(el.textContent)})),
  controls:[...document.querySelectorAll('button,input,select,textarea')].slice(0,50).map(el=>({tag:el.tagName,id:clean(el.id),type:clean(el.getAttribute('type'))})),
  counts:{buttons:document.querySelectorAll('button').length,inputs:document.querySelectorAll('input').length,forms:document.querySelectorAll('form').length,links:document.querySelectorAll('a').length},
@@ -112,7 +173,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
  const profile=await mkdtemp(join(tmpdir(),'webrea-cdp-'));
  const flags=['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-update','--disable-sync','--disable-quic','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',`--user-data-dir=${profile}`,'about:blank'];
  let child,cdp,sessionId;
- const events=[],metrics={requested:0,fulfilled:0,blocked:0,bytes:0},start=Date.now(),tasks=new Set();
+ const events=[],metrics={requested:0,fulfilled:0,blocked:0,bytes:0,synthetic_favicons:0},start=Date.now(),tasks=new Set();
  const pendingIds=new Set(),networkPaths=new Map();
  let chromeFailures=0;
  try{
@@ -125,6 +186,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   await cdp.send('Network.enable',{},sessionId);
   await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
   await cdp.send('Runtime.enable',{},sessionId);
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:PASSIVE_TRACE_SCRIPT},sessionId);
   cdp.on('Network.requestWillBeSent',(event,sid)=>{
    if(sid!==sessionId)return;
    if(networkPaths.size<150)networkPaths.set(event.requestId,sanitizedNetworkTarget(event.request?.url,target));
@@ -143,11 +205,27 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
    pendingIds.add(req.requestId);
    const promise=(async()=>{
     metrics.requested++;
-    const approved=approveBrowserRequest({url:req.request?.url,method:req.request?.method,resourceType:req.resourceType},{target,seen:metrics.requested-1,bytes:metrics.bytes});
+    const request={url:req.request?.url,method:req.request?.method,resourceType:req.resourceType};
+    const approved=approveBrowserRequest(request,{target,seen:metrics.requested-1,bytes:metrics.bytes});
     const path=redactedResourcePath(req.request?.url,target);
     // Record the request even if it remains pending when the screenshot is taken.
     // Only same-origin pathname metadata is retained; query parameters are removed.
     if(events.length<120)events.push({kind:'requested',...sanitizedNetworkTarget(req.request?.url,target),resource_type:req.resourceType});
+    if(isIncidentalFavicon(request,target)){
+     // Browsers auto-request a favicon even if the application doesn't use it.
+     // Complete this cosmetic request locally; never fetch an unknown icon from the site.
+     try{
+      await cdp.send('Fetch.fulfillRequest',{requestId:req.requestId,responseCode:204,
+       responseHeaders:[{name:'Cache-Control',value:'no-store'}]},sessionId);
+      metrics.fulfilled++;metrics.synthetic_favicons++;
+      if(events.length<120)events.push({kind:'synthetic-favicon',path:'/favicon.ico',status:204});
+     }catch{
+      metrics.blocked++;
+      if(events.length<120)events.push({kind:'favicon-failed',path:'/favicon.ico',reason:'cdp_completion_failed'});
+      await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId).catch(()=>{});
+     }
+     return;
+    }
     if(!approved.allowed){metrics.blocked++;if(events.length<120)events.push({kind:'blocked',...sanitizedNetworkTarget(req.request?.url,target),reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
     try{
      const response=await relay(approved.url);
@@ -179,8 +257,8 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
     maxWaitMs:budget,minWaitMs:Math.min(5000,Math.floor(budget*0.45))});
   if(!idle.idle && events.length<120)events.push({kind:'wait-timeout',pending:pendingIds.size});
   const runtime=await cdp.send('Runtime.evaluate',{expression:browserJs,returnByValue:true,awaitPromise:false},sessionId);
-  const page=runtime.result?.value;
-  if(!page||typeof page!=='object')throw error('DOM_CAPTURE_FAILED','Browser page summary unavailable');
+  const initialPage=runtime.result?.value;
+  if(!initialPage||typeof initialPage!=='object')throw error('DOM_CAPTURE_FAILED','Browser page summary unavailable');
   const frame=await cdp.send('Page.getFrameTree',{},sessionId);
   const observedUrl=frame.frameTree?.frame?.url;
   if(observedUrl!==target)throw error('NAVIGATION_OUT_OF_SCOPE','Chrome final URL differs from approved URL');
@@ -190,10 +268,18 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   if(png.length<100||png.length>5*1024*1024||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw error('SCREENSHOT_INVALID','PNG capture missing/invalid');
   const screenshot_sha256=createHash('sha256').update(png).digest('hex');
   await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});
+  // Recheck DOM after screenshot because the browser may paint a newer error
+  // than the first Runtime.evaluate snapshot observed.
+  const afterScreenshot=await cdp.send('Runtime.evaluate',{expression:browserJs,returnByValue:true,awaitPromise:false},sessionId);
+  const finalPage=afterScreenshot.result?.value;
+  const rawPage=finalPage&&typeof finalPage==='object'?finalPage:initialPage;
+  const telemetry=sanitizeClientTrace(rawPage.passive_trace,target);
+  const page={...rawPage,passive_trace:telemetry,
+   application_fetch_error_visible:initialPage.application_fetch_error_visible===true||rawPage.application_fetch_error_visible===true};
   const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
   const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only',
-    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:events.slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size},limitations:['No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:['Passive fetch/XHR observation (no added HTTP requests)','favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
+  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

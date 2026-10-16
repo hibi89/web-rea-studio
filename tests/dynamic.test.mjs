@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
-import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget} from '../studio/dynamic-browser.mjs';
+import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget,isIncidentalFavicon,sanitizeClientTrace,PASSIVE_TRACE_SCRIPT} from '../studio/dynamic-browser.mjs';
 
 const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
 const request=(url,resourceType='Document',method='GET')=>({url,resourceType,method});
@@ -129,4 +129,31 @@ test('network diagnostics retain source host but never query, secret, credential
  assert.equal(JSON.stringify(foreign).includes('secret'),false);
  assert.equal(JSON.stringify(foreign).includes('/private/'),false);
  assert.equal(sanitizedNetworkTarget('http://169.254.169.254/private?token=abc',base).scope,'other-scheme');
+});
+
+test('favicon-only request can be completed locally without visiting remote icon',()=>{
+ assert.equal(isIncidentalFavicon({url:target+'favicon.ico',method:'GET',resourceType:'Other'},target),true);
+ for(const r of [
+  {url:target+'favicon.ico?token=abc',method:'GET',resourceType:'Other'},
+  {url:'https://other.example/favicon.ico',method:'GET',resourceType:'Other'},
+  {url:target+'favicon.ico',method:'POST',resourceType:'Other'},
+  {url:target+'api/report',method:'GET',resourceType:'Other'},
+ ])assert.equal(isIncidentalFavicon(r,target),false);
+});
+test('fetch/XHR attempted requests are tracked without exposing query or cross-origin paths',()=>{
+ assert.match(PASSIVE_TRACE_SCRIPT,/window\.fetch=function/);
+ assert.match(PASSIVE_TRACE_SCRIPT,/XMLHttpRequest\.prototype\.open/);
+ assert.doesNotMatch(PASSIVE_TRACE_SCRIPT,/sendBeacon|localStorage|sessionStorage/);
+ const result=sanitizeClientTrace({fetches:1,rejections:1,xhrs:1,events:[
+  {kind:'fetch-attempt',scope:'approved-origin',path:'/api/report?key=SECRET'},
+  {kind:'fetch-rejected',scope:'other-origin',host:'api.example.net',raw:'https://api.example.net/secret/path?token=SECRET'},
+  {kind:'xhr-open',scope:'approved-origin',path:'/api/report'}
+ ]},target);
+ assert.equal(result.fetches,1);
+ assert.equal(result.rejections,1);
+ assert.equal(result.events[0].path,undefined);
+ assert.equal(result.events[1].host,'api.example.net');
+ assert.equal(result.events[1].raw,undefined);
+ assert.equal(JSON.stringify(result).includes('SECRET'),false);
+ assert.equal(result.events[2].path,'/api/report');
 });
