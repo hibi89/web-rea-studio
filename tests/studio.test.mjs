@@ -473,6 +473,7 @@ test('F2 synthetic fixture mode is gated to fixture URL and persists verified ac
  const baseStep=(step_id,changes,network_requests,old,next)=>({
   step_id,action:'click',status:'completed',changed_fields:changes,
   state_before:old,state_after:next,network_requests,
+  attribution:'verified-in-controlled-single-action-window',
   endpoint_paths:network_requests?['/api/rows']:[]
  });
  const initial={period:7,rows:3,order:'asc',view:'table',ready:true};
