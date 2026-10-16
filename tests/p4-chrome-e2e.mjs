@@ -42,7 +42,31 @@ try{
  assert.match(reconstructed,/script-src &#39;none&#39;/);
  assert.doesNotMatch(reconstructed,/<script\b|<iframe\b|https?:\/\//);
  assert.ok(!reconstructed.includes('JAVASCRIPT RAN'));
+ // End-to-end proof: the generated standalone HTML is also rendered by a
+ // second real, isolated Chrome, not merely inspected as a string.
+ const replayDir=await mkdtemp(join(tmpdir(),'webrea-p4-replay-ci-'));
+ let replayRelayCalls=0;
+ try{
+  const replayTarget='https://p4-replay.example.org/';
+  const replay=await runDynamicAnalysis({
+   target:replayTarget,browserPath,dir:replayDir,scriptsDisabled:true,
+   relay:async url=>{
+    replayRelayCalls++;
+    assert.equal(url,replayTarget);
+    return {status:200,contentType:'text/html; charset=utf-8',body:Buffer.from(reconstructed,'utf8')};
+   }
+  });
+  assert.equal(replay.report.verdict,'PASS',JSON.stringify(replay.report.failures));
+  assert.equal(replay.report.scripts_executed,false);
+  assert.equal(replayRelayCalls,1);
+  assert.equal(replay.report.screenshot_width,report.screenshot_width);
+  assert.ok(replay.report.screenshot_height>=1500);
+  const replayPng=await readFile(join(replayDir,'screenshot.png'));
+  assert.deepEqual(screenshotPngDimensions(replayPng),{
+   width:replay.report.screenshot_width,height:replay.report.screenshot_height});
+  assert.ok(replay.inspection.page.body_bytes>0);
+ }finally{await rm(replayDir,{recursive:true,force:true});}
  console.log(JSON.stringify({chrome_e2e:'PASS',screenshot_px:[report.screenshot_width,report.screenshot_height],
-  geometry_regions:geom.boxes.length,titles:geom.titles.length,external_network_requests:0,
+  geometry_regions:geom.boxes.length,titles:geom.titles.length,external_network_requests:0,reconstructed_html_chrome_render:'PASS',
   independent_html_bytes:Buffer.byteLength(reconstructed)}));
 }finally{await rm(dir,{recursive:true,force:true});}
