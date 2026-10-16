@@ -5,6 +5,7 @@ import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from './dynamic-gateway.mjs';
 import {validateHttpsUrl} from './static-analysis.mjs';
+import {LAYOUT_PROBE,sanitizeRenderedLayout} from './rendered-blueprint.mjs';
 
 const error=(code,message)=>Object.assign(Error(message),{code});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -276,10 +277,17 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   const telemetry=sanitizeClientTrace(rawPage.passive_trace,target);
   const page={...rawPage,passive_trace:telemetry,
    application_fetch_error_visible:initialPage.application_fetch_error_visible===true||rawPage.application_fetch_error_visible===true};
+  // A separate read-only geometry probe; never make screenshot/report depend on it.
+  let layout=null;
+  try{
+   const observation=await cdp.send('Runtime.evaluate',{expression:LAYOUT_PROBE,returnByValue:true,awaitPromise:false},sessionId,2500);
+   layout=sanitizeRenderedLayout(observation.result?.value);
+  }catch{}
+  page.frontend_blueprint=layout||{source:'computed-dom',status:'probe-unavailable'};
   const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
   const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only',
     browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:['Passive fetch/XHR observation (no added HTTP requests)','favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}
