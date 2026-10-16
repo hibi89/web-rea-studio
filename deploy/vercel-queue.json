@@ -6,8 +6,8 @@
     {
       "project_name": "web-rea-studio-preview",
       "repo": "hibi89/web-rea-studio",
-      "root_directory": "preview",
-      "branch": "main"
+      "branch": "main",
+      "root_directory": "preview"
     }
   ]
 }
