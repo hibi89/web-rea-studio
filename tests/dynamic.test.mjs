@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
-import {CdpClient} from '../studio/dynamic-browser.mjs';
+import {CdpClient,assessPassiveRender} from '../studio/dynamic-browser.mjs';
 
 const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
 const request=(url,resourceType='Document',method='GET')=>({url,resourceType,method});
@@ -79,4 +79,19 @@ test('CDP client addresses commands by sessionId and rejects errors/disconnectio
  await assert.rejects(b,{code:'CDP_REMOTE_ERROR'});
  const c=cdp.send('Runtime.evaluate',{},'page-session');ws.close();
  await assert.rejects(c,{code:'CDP_DISCONNECTED'});
+});
+
+test('a captured application fetch error must not pass render acceptance',()=>{
+ const x=assessPassiveRender({application_fetch_error_visible:true},{requested:2,fulfilled:2,blocked:0});
+ assert.equal(x.verdict,'FAIL');assert.deepEqual(x.failures,['application_fetch_error_visible']);
+});
+test('unsettled requests are not silently counted as completed',()=>{
+ const x=assessPassiveRender({application_fetch_error_visible:false},{requested:2,fulfilled:1,blocked:0});
+ assert.equal(x.verdict,'FAIL');assert.equal(x.pending,1);
+});
+test('full capture pass still does not claim visual equivalence',()=>{
+ const x=assessPassiveRender({application_fetch_error_visible:false},{requested:3,fulfilled:3,blocked:0});
+ assert.equal(x.verdict,'PASS');assert.equal(x.render_fidelity,'unverified');
+ const partial=assessPassiveRender({application_fetch_error_visible:false},{requested:4,fulfilled:3,blocked:1});
+ assert.equal(partial.render_fidelity,'partial');
 });

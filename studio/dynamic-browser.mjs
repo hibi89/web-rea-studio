@@ -9,6 +9,16 @@ import {validateHttpsUrl} from './static-analysis.mjs';
 const error=(code,message)=>Object.assign(Error(message),{code});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
+/** A screenshot of an app error is evidence, not successful dashboard rendering. */
+export function assessPassiveRender(page,metrics){
+ const pending=Math.max(0,(metrics.requested||0)-(metrics.fulfilled||0)-(metrics.blocked||0));
+ const failures=[];
+ if(page?.application_fetch_error_visible===true)failures.push('application_fetch_error_visible');
+ if(pending>0)failures.push('resource_requests_unsettled');
+ return {verdict:failures.length?'FAIL':'PASS',failures,pending,
+  render_fidelity:failures.length?'incomplete':metrics.blocked?'partial':'unverified'};
+}
+
 export class CdpClient{
  constructor(ws){
   this.ws=ws;this.next=1;this.pending=new Map();this.handlers=new Map();
@@ -51,7 +61,10 @@ async function getDevtoolsPort(profile,child){
 }
 const browserJs=`(()=>{
  const clean=s=>String(s??'').replace(/[\\x00-\\x1f]/g,' ').slice(0,120);
- return {title:clean(document.title),state:document.readyState,
+ // Only a boolean error signal crosses the browser boundary, not body text.
+ const visibleText=String(document.body?.innerText||'').slice(0,100000);
+ const application_fetch_error_visible=/failed to fetch|보고서를 불러오지 못했습니다/i.test(visibleText);
+ return {title:clean(document.title),state:document.readyState,application_fetch_error_visible,
  headings:[...document.querySelectorAll('h1,h2,h3')].slice(0,25).map(el=>({tag:el.tagName,text:clean(el.textContent)})),
  controls:[...document.querySelectorAll('button,input,select,textarea')].slice(0,50).map(el=>({tag:el.tagName,id:clean(el.id),type:clean(el.getAttribute('type'))})),
  counts:{buttons:document.querySelectorAll('button').length,inputs:document.querySelectorAll('input').length,forms:document.querySelectorAll('form').length,links:document.querySelectorAll('a').length},
@@ -85,6 +98,9 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
     metrics.requested++;
     const approved=approveBrowserRequest({url:req.request?.url,method:req.request?.method,resourceType:req.resourceType},{target,seen:metrics.requested-1,bytes:metrics.bytes});
     const path=redactedResourcePath(req.request?.url,target);
+    // Record request start even if it is still unresolved at screenshot time.
+    // Same-origin path only; no query strings or credentials are retained.
+    events.push({kind:'requested',path,resource_type:req.resourceType});
     if(!approved.allowed){metrics.blocked++;events.push({kind:'blocked',path,reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
     try{
      const response=await relay(approved.url);
@@ -116,9 +132,10 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   if(png.length<100||png.length>5*1024*1024||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw error('SCREENSHOT_INVALID','PNG capture missing/invalid');
   const screenshot_sha256=createHash('sha256').update(png).digest('hex');
   await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});
-  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:metrics.blocked?'partial-resource-load':'passive-browser-only',
+  const assessment=assessPassiveRender(page,metrics);
+  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only',
     browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:events.slice(0,75),limitations:['No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:'PASS',analysis_mode:'dynamic-passive',failures:[],step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:metrics.blocked?'partial':'unverified',note:'Passive Chrome DOM and screenshot capture; blocked resources may affect fidelity. No clicks or complete reconstruction.'};
+  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

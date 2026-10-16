@@ -46,3 +46,10 @@ Next: owner runs `git pull --ff-only`, `npm test`, `npm run studio`, and perform
 - First exact P2 static target selected by owner: `https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/`.
 - Private repo now contains `config/approved-targets.json`; the local Studio loads it and pre-fills the input. No wildcard or unrestricted browser navigation.
 - Static HTTPS extraction tests: in-sandbox 57/57 Node tests PASS after adding four approval/config tests. Browser visit and live remote HTTPS response were not tested in this environment; P2 live acceptance pending.
+
+## P2-2 Windows feedback (2026-10-16)
+- Passive Chrome captured a screenshot of `보고서를 불러오지 못했습니다 / Failed to fetch`.
+- Old report erroneously showed PASS, despite resource_requests=2, resource_fulfilled=1 and render_fidelity=unverified.
+- Revised acceptance distinguishes successful capture from working app rendering; pending requests and visible fetch errors cause FAIL.
+- Screenshot remains available after FAIL, and request-start paths are logged without query strings.
+- Actual data-fetch failure root cause still pending network event inspection; do not broaden origins blindly.

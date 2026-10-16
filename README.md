@@ -59,3 +59,13 @@ This runs **one read-only static HTML GET**, not REA browser capture and not
 website cloning. No extra `WEB_REA_ALLOWED_URLS` environment variable is
 needed for the checked-in target. The existing REA-controlled fixture remains
 available by entering `http://127.0.0.1:4317/` manually.
+
+## P2-2 live site failure and evidence-quality fix (2026-10-16)
+
+The owner captured a PNG and DOM for the approved dashboard. However, the screenshot
+showed a page-level `Failed to fetch` report error, not the intended dashboard.
+Earlier `PASS` only meant a PNG was stored. This revision treats visible fetch
+errors and unsettled resource requests as a failed render verdict, retains the
+diagnostic screenshot even on FAIL, and logs request-start events using only
+same-origin pathnames. The cause of the site's failed data request is not fixed;
+inspect the evidence network list before changing any network allowlist.
