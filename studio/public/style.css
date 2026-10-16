@@ -19,3 +19,16 @@
 .screenshot-open{font-size:12px;color:#6ccde8;display:inline-block;margin:2px 0 10px;text-decoration:underline;text-underline-offset:3px}.screenshot-open[hidden]{display:none}
 
 .p4-panel{border:1px solid #2e536c;background:#0a2032;border-radius:10px;padding:19px;margin-top:20px}.p4-panel[hidden]{display:none}.p4-panel h3{font-size:14px;color:#9cddf1;margin:0 0 8px}.p4-panel p{font-size:12px;color:#abc9d6;line-height:1.65}.p4-caveat{color:#8297a8!important}
+
+.p5-comparison{margin-top:18px;border-top:1px solid #34546a;padding-top:17px}
+.p5-comparison[hidden]{display:none}
+.p5-comparison h4{font-size:13px;color:#b8e6f2;margin:0 0 10px}
+.p5-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
+.p5-metrics>div{background:#071725;border:1px solid #27445b;border-radius:8px;padding:11px}
+.p5-metrics small{display:block;color:#97adc0;font-size:11px;margin-bottom:7px}
+.p5-metrics strong{color:#e0f4ff;font-size:13px;overflow-wrap:anywhere}
+.p5-images{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}
+.p5-images>div{background:#081627;border:1px solid #2a465d;border-radius:9px;padding:10px;min-width:0}
+.p5-images span{display:block;font-size:11px;color:#a1b8cc;margin-bottom:8px}
+.p5-images img{max-width:100%;height:auto;display:block}
+@media(max-width:800px){.p5-images,.p5-metrics{grid-template-columns:1fr}}

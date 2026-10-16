@@ -94,6 +94,8 @@ function setCurrent(run){
  el('p4-panel').hidden=true;
  el('open-reconstruction').hidden=true;
  el('open-reconstruction').removeAttribute('href');
+ el('p5-comparison').hidden=true;
+ for(const key of ['p5-original','p5-replica'])el(key).removeAttribute('src');
  el('diagnosis-panel').hidden=true;
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
@@ -117,9 +119,9 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
   if(run.mode==='static-visual'&&!active){
@@ -131,6 +133,24 @@ async function select(id){
     const link=el('open-reconstruction');
     link.href=`/api/runs/${id}/reconstruction`;
     link.hidden=false;
+   }
+  }
+  if(comparisonAvailable&&run.mode==='static-visual'){
+   try{
+    const metrics=await api(`/api/runs/${id}/comparison`);
+    if(state.id===id){
+     el('p5-comparison').hidden=false;
+     el('p5-status').textContent=metrics.dimensions_equal
+      ?'두 Chrome 화면의 같은 좌표를 비교했습니다.'
+      :'캡처 크기가 달라 겹치는 영역만 비교했습니다.';
+     el('p5-mae').textContent=String(metrics.rgb_mae)+' / 255 (낮을수록 유사)';
+     el('p5-match').textContent=String(metrics.pixel_match_pct)+'% (높을수록 유사)';
+     el('p5-overlap').textContent=String(metrics.overlap_area_pct)+'%';
+     el('p5-original').src=`/api/runs/${id}/screenshot`;
+     el('p5-replica').src=`/api/runs/${id}/reconstruction-screenshot`;
+    }
+   }catch{
+    el('p5-comparison').hidden=true;
    }
   }
   if(['failed','interrupted'].includes(run.status))await loadDiagnosis(id);

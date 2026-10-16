@@ -1,5 +1,5 @@
 import {createServer} from 'node:http';
-import {readFile,writeFile} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
@@ -7,6 +7,7 @@ import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 import {runDynamicAnalysis} from './dynamic-browser.mjs';
 import {diagnoseRuns} from './diagnose.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
+import {compareChromeScreenshots} from './p5-visual-diff.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -19,7 +20,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
@@ -63,12 +64,45 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       // the source page, remote scripts, original data or backend connections.
       const blueprint=execution.inspection?.page?.reconstruction_blueprint;
       report.reconstruction_available=false;
+      report.visual_comparison_available=false;
+      report.visual_comparison_status='unavailable';
       if(blueprint?.source==='p4-geometry'&&blueprint.boxes?.length){
        try{
         const document=generateP4Reconstruction(blueprint);
         if(Buffer.byteLength(document)>250000)throw Error('P4 preview too large');
         await writeFile(join(store.pathFor(meta.id),'reconstruction.html'),document,{flag:'wx',mode:0o600});
         report.reconstruction_available=true;
+        // Optional P5 second isolated Chrome pass: load ONLY our own generated
+        // HTML, from memory. All unrelated resource requests are rejected.
+        if(report.screenshot_saved===true){
+         const replayDir=join(store.pathFor(meta.id),'p5-replay');
+         try{
+          await mkdir(replayDir,{mode:0o700});
+          const replay=await replayExecutor({
+           target:url,browserPath,dir:replayDir,scriptsDisabled:true,
+           relay:async requested=>{
+            if(requested!==url)throw Error('P5_OFF_SCOPE');
+            return {status:200,contentType:'text/html; charset=utf-8',body:Buffer.from(document,'utf8')};
+           }
+          });
+          if(replay.report?.verdict!=='PASS'||replay.report?.screenshot_saved!==true)
+           throw Error('P5_REPLAY_NOT_CAPTURED');
+          const original=await store.getScreenshot(meta.id);
+          const replica=await readFile(join(replayDir,'screenshot.png'));
+          if(!original)throw Error('P5_REFERENCE_MISSING');
+          const comparison=compareChromeScreenshots(original,replica);
+          // Only write and claim availability after both artifacts exist.
+          await writeFile(join(store.pathFor(meta.id),'reconstruction.png'),replica,{flag:'wx',mode:0o600});
+          await store.saveComparison(meta.id,comparison);
+          report.visual_comparison_available=true;
+          report.visual_comparison_status='measured';
+          report.visual_comparison_rgb_mae=comparison.rgb_mae;
+          report.visual_comparison_match_pct=comparison.pixel_match_pct;
+         }catch{
+          report.visual_comparison_available=false;
+          report.visual_comparison_status='unavailable';
+         }finally{await rm(replayDir,{recursive:true,force:true}).catch(()=>{});}
+        }
        }catch{
         report.reconstruction_available=false;
        }
@@ -113,7 +147,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|comparison|reconstruction-screenshot))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -136,6 +170,16 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='comparison'){
+      if(meta.mode!=='static-visual')return respond(res,404,{error:'comparison_not_available'});
+      const data=await store.getComparison(id);
+      return data?respond(res,200,data):respond(res,404,{error:'comparison_not_available'});
+    }
+    if(what==='reconstruction-screenshot'){
+      if(meta.mode!=='static-visual')return respond(res,404,{error:'comparison_not_available'});
+      const png=await store.getReconstructionScreenshot(id);
+      return png?respond(res,200,png,'image/png'):respond(res,404,{error:'comparison_not_available'});
     }
     if(what==='reconstruction'){
       if(meta.mode!=='static-visual')return respond(res,404,{error:'reconstruction_not_available'});

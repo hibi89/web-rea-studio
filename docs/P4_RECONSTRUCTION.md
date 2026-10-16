@@ -26,3 +26,25 @@ Existing historical captures cannot be retroactively reconstructed without
 P4 geometry evidence. A new authorized Static Visual run is needed. Node
 mock tests verify geometry sanitization, scriptless output, route security and
 stored run behavior; actual local Windows Chrome remains the acceptance gate.
+
+
+## P5 automated local screenshot comparison
+
+For future Static Visual runs that have a stored reference PNG and a generated
+independent HTML skeleton, the local server optionally launches **one additional
+isolated Chrome**. Its network relay serves only the in-memory generated HTML
+at the already-approved exact URL; no remote backend/API request is made.
+
+Two PNGs are then compared offline, on an 8px RGB sampling grid. The recorded
+`rgb_mae` runs from 0 (identical RGB values) to 255 (maximal error), and
+`pixel_match_pct` uses a per-sample RGB MAE tolerance of 18. The fixed
+explanatory overlay is excluded from comparison. Different screenshot sizes
+are explicitly flagged and only the overlapping area is compared. Metrics
+describe **visual similarity of these static screenshots**, not feature parity,
+live data, HTML/CSS semantics, or success of the original web application.
+
+The original screenshot, reconstruction screenshot, and comparison JSON are
+persisted only under the selected run's private local directory. The UI
+displays both images with metrics. If replay, PNG parsing, or comparison fails,
+the original capture and the independent HTML preview remain accessible;
+no false visual-quality claim is made. No remote hosts are auto-approved.

@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {runDynamicAnalysis,screenshotPngDimensions} from '../studio/dynamic-browser.mjs';
 import {generateP4Reconstruction} from '../studio/p4-reconstruction.mjs';
+import {compareChromeScreenshots} from '../studio/p5-visual-diff.mjs';
 const browserPath=process.env.CHROME_BIN;
 if(!browserPath)throw Error('CHROME_BIN required: real-browser check cannot be skipped');
 const target='https://p4-fixture.example.org/';
@@ -65,6 +66,14 @@ try{
   assert.deepEqual(screenshotPngDimensions(replayPng),{
    width:replay.report.screenshot_width,height:replay.report.screenshot_height});
   assert.ok(replay.inspection.page.body_bytes>0);
+  const compared=compareChromeScreenshots(png,replayPng);
+  assert.equal(compared.status,'measured-not-certified');
+  assert.ok(compared.sample_count>1000);
+  assert.ok(Number.isFinite(compared.rgb_mae));
+  assert.ok(compared.rgb_mae>=0&&compared.rgb_mae<=255);
+  assert.ok(compared.pixel_match_pct>=0&&compared.pixel_match_pct<=100);
+  assert.equal(compared.dimensions_equal,true);
+  console.log(JSON.stringify({p5_chrome_visual_comparison:compared}));
  }finally{await rm(replayDir,{recursive:true,force:true});}
  console.log(JSON.stringify({chrome_e2e:'PASS',screenshot_px:[report.screenshot_width,report.screenshot_height],
   geometry_regions:geom.boxes.length,titles:geom.titles.length,external_network_requests:0,reconstructed_html_chrome_render:'PASS',

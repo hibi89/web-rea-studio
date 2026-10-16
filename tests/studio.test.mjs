@@ -1,6 +1,7 @@
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {deflateSync} from 'node:zlib';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer as netServer} from 'node:net';
@@ -323,4 +324,79 @@ test('P4 UI exposes isolated reconstruction link while retaining original screen
  assert.match(html,/id="open-screenshot"/);
  assert.match(app,/reconstruction_available/);
  assert.match(app,/\/reconstruction/);
+});
+
+test('P5 local replay compares images once, persists JSON and image, and never fetches external hosts',async()=>{
+ const p=await freePort(),root=join(home,'p5-comparison'),target='https://owner.example.org/p5';
+ const palette=[20,40,60],w=24,h=16;
+ const rows=[];
+ for(let y=0;y<h;y++){
+  const row=Buffer.alloc(1+w*3);row[0]=0;
+  for(let x=0;x<w;x++)for(let channel=0;channel<3;channel++)row[1+x*3+channel]=palette[channel];
+  rows.push(row);
+ }
+ const chunk=(type,buf)=>{const hd=Buffer.alloc(8);hd.writeUInt32BE(buf.length);hd.write(type,4);
+  return Buffer.concat([hd,buf,Buffer.alloc(4)]);};
+ const ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=2;
+ const png=Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',ihdr),
+  chunk('IDAT',deflateSync(Buffer.concat(rows))),chunk('IEND',Buffer.alloc(0))]);
+ let initialCalls=0,replayCalls=0;
+ const geometry={source:'p4-geometry',viewport:{width:1440,height:900},document:{height:900},
+  body_color:'rgb(245, 246, 252)',
+  boxes:[{tag:'aside',depth:2,x:0,y:0,w:190,h:900,background:'rgb(255, 255, 255)',radius:'0px',border_width:'0px'}],
+  titles:[{tag:'h1',x:200,y:30,w:300,h:40,text:'대시보드',font_size:'24px',font_weight:'700',color:'rgb(10, 10, 20)'}]};
+ const studio=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',approvedUrls:[target],
+  dynamicExecutor:async({dir,scriptsDisabled})=>{
+   initialCalls++;assert.equal(scriptsDisabled,true);
+   await writeFile(join(dir,'screenshot.png'),png);
+   return {report:{verdict:'PASS',analysis_mode:'static-visual',screenshot_saved:true,failures:[]},
+    inspection:{mode:'static-visual',page:{reconstruction_blueprint:geometry}}};
+  },
+  replayExecutor:async({target:requested,dir,relay,scriptsDisabled})=>{
+   replayCalls++;assert.equal(requested,target);assert.equal(scriptsDisabled,true);
+   const response=await relay(target);assert.match(response.body.toString(),/대시보드/);
+   await assert.rejects(()=>relay('https://malicious.example.net/'),/P5_OFF_SCOPE/);
+   await writeFile(join(dir,'screenshot.png'),png);
+   return {report:{verdict:'PASS',screenshot_saved:true}};
+  }});
+ await studio.init();await new Promise(ok=>studio.server.listen(p,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+p;
+ try{
+  const posted=await fetch(base+'/api/runs',{method:'POST',
+   headers:{Origin:base,'Content-Type':'application/json'},
+   body:JSON.stringify({target_url:target,analysis_mode:'static-visual'})});
+  assert.equal(posted.status,202);
+  const id=(await posted.json()).id;
+  await until(async()=>{const meta=await(await fetch(base+'/api/runs/'+id)).json();return meta.status==='completed';});
+  const report=await(await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(report.reconstruction_available,true);
+  assert.equal(report.visual_comparison_available,true);
+  assert.equal(report.visual_comparison_status,'measured');
+  assert.equal(report.visual_comparison_match_pct,100);
+  const metricsResponse=await fetch(base+'/api/runs/'+id+'/comparison');
+  assert.equal(metricsResponse.status,200);
+  const metrics=await metricsResponse.json();
+  assert.equal(metrics.pixel_match_pct,100);
+  assert.equal(metrics.rgb_mae,0);
+  assert.equal(metrics.status,'measured-not-certified');
+  const replica=await fetch(base+'/api/runs/'+id+'/reconstruction-screenshot');
+  assert.equal(replica.status,200);
+  assert.equal(replica.headers.get('content-type'),'image/png');
+  assert.deepEqual(Buffer.from(await replica.arrayBuffer()),png);
+  await fetch(base+'/api/runs/'+id+'/comparison');
+  await fetch(base+'/api/runs/'+id+'/reconstruction-screenshot');
+  assert.equal(initialCalls,1);
+  assert.equal(replayCalls,1);
+  const nonexistent='00000000-0000-4000-8000-000000000000';
+  assert.equal((await fetch(base+'/api/runs/'+nonexistent+'/comparison')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+nonexistent+'/reconstruction-screenshot')).status,404);
+ }finally{await new Promise(ok=>studio.server.close(ok));}
+});
+test('P5 comparison views are present in local Studio UI',async()=>{
+ const html=await(await fetch(url+'/')).text();
+ const app=await(await fetch(url+'/app.js')).text();
+ assert.match(html,/id="p5-comparison"/);
+ assert.match(html,/id="p5-replica"/);
+ assert.match(app,/visual_comparison_available/);
+ assert.match(app,/\/reconstruction-screenshot/);
 });
