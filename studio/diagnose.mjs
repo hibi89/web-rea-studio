@@ -34,11 +34,24 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
  const inspection=await store.getInspection(meta.id);
  const isPassive=meta.mode==='dynamic-passive';
  const oldNetwork=Array.isArray(inspection?.network)?inspection.network:[];
+ const rejectedExternalHosts=[...new Set(oldNetwork
+  .filter(e=>e&&e.kind==='fetch-rejected'&&e.scope==='other-origin'&&typeof e.host==='string'&&/^[a-z0-9.-]{1,180}$/.test(e.host))
+  .map(e=>e.host))];
+ const attemptedExternalHosts=new Set(oldNetwork
+  .filter(e=>e&&e.kind==='fetch-attempt'&&e.scope==='other-origin'&&typeof e.host==='string'&&/^[a-z0-9.-]{1,180}$/.test(e.host))
+  .map(e=>e.host));
+ const rejectedHost=rejectedExternalHosts.find(host=>attemptedExternalHosts.has(host))||null;
+ const isExternalFetchRejection=isPassive&&rejectedHost!==null&&
+   report?.application_fetch_error_visible===true&&
+   (report?.fetch_rejections??inspection?.network_diagnostics?.fetch_rejections??0)>0;
  const pendingFaviconOnly=isPassive&&report?.resource_pending===1&&
   oldNetwork.some(e=>e?.kind==='requested'&&e.path==='/favicon.ico')&&
   !oldNetwork.some(e=>e?.kind==='requested'&&e.path!=='/'&&e.path!=='/favicon.ico');
- const diagnosis=directDiagnosis==='UNKNOWN'&&pendingFaviconOnly?'PASSIVE_FAVICON_PENDING':directDiagnosis;
- const nextAction=pendingFaviconOnly?
+ const diagnosis=directDiagnosis==='UNKNOWN'&&isExternalFetchRejection?'PASSIVE_EXTERNAL_FETCH_REJECTED':
+  directDiagnosis==='UNKNOWN'&&pendingFaviconOnly?'PASSIVE_FAVICON_PENDING':directDiagnosis;
+ const nextAction=isExternalFetchRejection?
+  'A page fetch to external host '+rejectedHost+' was rejected. Current passive browser enforces same-origin CSP and same-origin GET relay. This likely explains the visible data-load error, but CORS and remote-server availability remain unverified. Do not approve external requests automatically; first confirm ownership or authorization for the external API host.' :
+  pendingFaviconOnly?
   'Only /favicon.ico was pending; no report API call was recorded. This does not explain the Failed to fetch screen. Run the updated passive diagnostics once to identify fetch/XHR attempts.' :
   isPassive&&diagnosis==='UNKNOWN'?
   'Saved passive capture cannot identify application request failures. Update Studio then perform one approved passive diagnostic run.' :

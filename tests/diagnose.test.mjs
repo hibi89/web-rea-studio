@@ -43,6 +43,42 @@ test('passive-browser saved failure gives sanitized network diagnostics without 
  }finally{await rm(root,{recursive:true,force:true});}
 });
 
+
+test('failed report fetch to different origin gets a clear next action without allowing network access',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'rea-crossorigin-'));
+ const id='d04e4c7f-691e-407c-93a9-9f8091659ca9';
+ try{
+  const folder=join(root,id);await mkdir(folder);
+  await writeFile(join(folder,'metadata.json'),JSON.stringify({id,status:'failed',mode:'dynamic-passive',created_at:'2026-10-16T20:49:12Z',error:'application_fetch_error_visible'}));
+  await writeFile(join(folder,'report.json'),JSON.stringify({verdict:'FAIL',failures:['application_fetch_error_visible'],resource_requests:2,resource_fulfilled:2,resource_pending:0,application_fetch_error_visible:true,fetch_rejections:1}));
+  await writeFile(join(folder,'inspection.json'),JSON.stringify({network_diagnostics:{fetch_rejections:1},network:[
+   {kind:'requested',path:'/'},{kind:'fulfilled',path:'/',status:200},
+   {kind:'fetch-attempt',scope:'other-origin',host:'practice02.61-107-199-22.sslip.io',raw_url:'https://practice02.61-107-199-22.sslip.io/private?token=SECRET'},
+   {kind:'fetch-rejected',scope:'other-origin',host:'practice02.61-107-199-22.sslip.io'}
+  ]}));
+  const result=await diagnoseRuns(root);
+  assert.equal(result.diagnosis,'PASSIVE_EXTERNAL_FETCH_REJECTED');
+  assert.match(result.next_action,/same-origin CSP/);
+  assert.match(result.next_action,/practice02.61-107-199-22.sslip.io/);
+  assert.match(result.next_action,/CORS and remote-server availability remain unverified/);
+  assert.equal(result.passive_browser.recent_network_events.at(-1).external_host,'practice02.61-107-199-22.sslip.io');
+  assert.equal(JSON.stringify(result).includes('SECRET'),false);
+  assert.equal(JSON.stringify(result).includes('/private'),false);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('a rejected fetch without matching external attempt cannot be misclassified',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'rea-unmatched-'));
+ const id='b03e9c83-f6ac-4bec-8d74-6e621abbc789';
+ try{
+  const folder=join(root,id);await mkdir(folder);
+  await writeFile(join(folder,'metadata.json'),JSON.stringify({id,status:'failed',mode:'dynamic-passive',created_at:'2026-10-16T20:49:12Z',error:'application_fetch_error_visible'}));
+  await writeFile(join(folder,'report.json'),JSON.stringify({verdict:'FAIL',application_fetch_error_visible:true,fetch_rejections:1}));
+  await writeFile(join(folder,'inspection.json'),JSON.stringify({network:[{kind:'fetch-rejected',scope:'other-origin',host:'api.example.net'}]}));
+  const result=await diagnoseRuns(root);
+  assert.equal(result.diagnosis,'UNKNOWN');
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
 test('legacy passive failure with only favicon pending explains it is not the report API',async()=>{
  const root=await mkdtemp(join(tmpdir(),'rea-favicon-'));
  const id='ef139eb3-0d4f-4940-a165-31b2aa5f7b6c';

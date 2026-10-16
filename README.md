@@ -98,3 +98,19 @@ summary; it never includes raw stderr, request query strings, cookies or tokens.
 This viewer makes no new browser request and never retries an analysis.
 If the site displays `Failed to fetch`, the screenshot is diagnostic,
 **not** proof that the site was successfully reconstructed.
+
+
+## P2 cross-origin fetch diagnosis (local only, 2026-10-16)
+
+When a previously recorded passive capture reports a rejected JavaScript fetch
+to a different host, the local diagnosis panel now classifies the captured
+evidence as `PASSIVE_EXTERNAL_FETCH_REJECTED`, without probing or authorizing
+that host. The current Chrome CSP `connect-src 'self'` and the Node gateway's
+same-origin policy can prevent such data requests. The diagnosis does **not**
+establish that the remote server is reachable, that CORS is configured correctly,
+or that the failure is solely attributable to CSP.
+
+The owner must explicitly confirm authorization of any additional backend host
+before introducing an opt-in cross-origin allowlist. Never weaken the current
+gateway by a wildcard, accept raw URLs, expose cookies, or treat the browser's
+requested URL as permission. Inspect failed runs first; no repeat capture needed.
