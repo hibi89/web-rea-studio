@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web REA P0 Controlled Dashboard</title><link rel="stylesheet" href="/style.css"></head>
+<body><main><header><small>AUTHORIZED TEST FIXTURE · NO REAL USER DATA</small><h1>Trend Lab</h1><p>Web REA Studio 브라우저 분석 테스트 페이지</p></header>
+<nav aria-label="views"><button id="view-table">데이터</button><button id="view-info">도움말</button></nav>
+<section id="dashboard"><div class="toolbar"><label>기간 <select id="days"><option value="7">최근 7일</option><option value="30">최근 30일</option></select></label><label>분류 <select id="category"><option value="all">전체</option><option value="chrome">Chrome</option><option value="french">French</option><option value="jelly">Jelly</option></select></label><label>검색 <input id="search" type="search"></label><button id="refresh">조회</button><button id="sort">점수 높은 순</button></div>
+<div class="metrics"><div>결과 수 <strong id="count">-</strong></div><div>평균 점수 <strong id="avg">-</strong></div></div>
+<div id="results" data-state="loading" aria-live="polite">불러오는 중...</div><button id="toggle-notes" aria-expanded="false">분석 기준 보기</button><aside id="notes" hidden>점수는 시뮬레이션 값입니다. 판매·SNS·사용자 데이터가 아닙니다.</aside></section>
+<section id="help" hidden><h2>도움말</h2><p>REA 분석 검증용 페이지</p><button id="back">데이터로 돌아가기</button></section><footer id="status">초기화 중</footer></main><script src="/app.js" defer></script></body></html>

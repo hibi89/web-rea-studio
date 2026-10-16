@@ -1,0 +1,15 @@
+{
+  "name": "web-rea-studio-p0",
+  "version": "0.0.2",
+  "private": true,
+  "type": "module",
+  "description": "Web REA Studio controlled P0 fixture and verification",
+  "scripts": {
+    "fixture": "node fixtures/site/server.mjs",
+    "test": "node --test scripts/p0-local-test.test.mjs",
+    "check": "node scripts/check-host.mjs"
+  },
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  }
+}
