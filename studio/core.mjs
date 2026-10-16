@@ -144,6 +144,8 @@ export function makeStore(basePath,{move=rename}={}) {
     async saveInput(id,scenario){await writeJsonAtomic(join(pathFor(id),'scenario.json'),scenario,move);},
     async saveReport(id,report){await writeJsonAtomic(join(pathFor(id),'report.json'),report,move);},
     async saveInspection(id,inspection){await writeJsonAtomic(join(pathFor(id),'inspection.json'),inspection,move);},
+    async saveManifest(id,manifest){await writeJsonAtomic(join(pathFor(id),'manifest.json'),manifest,move);},
+    async getManifest(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'manifest.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async saveComparison(id,data){await writeJsonAtomic(join(pathFor(id),'comparison.json'),data,move);},
     async getComparison(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'comparison.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async getReconstructionScreenshot(id){if(!ID_PATTERN.test(id))return null;try{return await readFile(join(pathFor(id),'reconstruction.png'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},

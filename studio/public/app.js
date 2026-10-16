@@ -139,6 +139,10 @@ function setCurrent(run){
  el('open-screenshot').hidden=true;
  el('open-screenshot').removeAttribute('href');
  el('p4-panel').hidden=true;
+ el('f3-panel').hidden=true;
+ for(const linkId of ['download-manifest','download-reconstruction']){
+  el(linkId).hidden=true;el(linkId).removeAttribute('href');
+ }
  el('open-reconstruction').hidden=true;
  el('open-reconstruction').removeAttribute('href');
  el('p5-comparison').hidden=true;
@@ -166,11 +170,15 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
+  if(manifestAvailable&&!active){
+   el('f3-panel').hidden=false;
+   const link=el('download-manifest');link.href=`/api/runs/${id}/manifest`;link.hidden=false;
+  }
   if(run.mode==='static-visual'&&!active){
    el('p4-panel').hidden=false;
    el('p4-status').textContent=reconstructionAvailable
@@ -180,6 +188,9 @@ async function select(id){
     const link=el('open-reconstruction');
     link.href=`/api/runs/${id}/reconstruction`;
     link.hidden=false;
+    const exportLink=el('download-reconstruction');
+    exportLink.href=`/api/runs/${id}/reconstruction-download`;
+    exportLink.hidden=false;
    }
   }
   if(comparisonAvailable&&run.mode==='static-visual'){

@@ -299,6 +299,14 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   await until(async()=>{const x=await (await fetch(base+'/api/runs/'+id)).json();return x.status==='completed';});
   const report=await (await fetch(base+'/api/runs/'+id+'/report')).json();
   assert.equal(report.reconstruction_available,true);
+  assert.equal(report.evidence_manifest_available,true);
+  const manifestResponse=await fetch(base+'/api/runs/'+id+'/manifest');
+  assert.equal(manifestResponse.status,200);
+  assert.match(manifestResponse.headers.get('content-disposition'),/attachment/);
+  const manifest=await manifestResponse.json();
+  assert.equal(manifest.analysis_mode,'static-visual');
+  assert.equal(manifest.generated_artifacts.standalone_html,true);
+  assert.equal(manifest.visual.regions,1);
   const response=await fetch(base+'/api/runs/'+id+'/reconstruction');
   assert.equal(response.status,200);
   assert.match(response.headers.get('content-type'),/^text\/html/);
@@ -308,6 +316,11 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   assert.match(html,/대시보드/);
   assert.match(html,/width:190px;height:900px/);
   assert.doesNotMatch(html,/<script\b|https?:\/\//);
+  const download=await fetch(base+'/api/runs/'+id+'/reconstruction-download');
+  assert.equal(download.status,200);
+  assert.match(download.headers.get('content-disposition'),/attachment.*\.html/);
+  assert.match(download.headers.get('content-security-policy'),/script-src 'none'/);
+  assert.equal(await download.text(),html);
   assert.equal(launched,1);
   await fetch(base+'/api/runs/'+id+'/reconstruction');
   assert.equal(launched,1);
@@ -321,6 +334,8 @@ test('P4 UI exposes isolated reconstruction link while retaining original screen
  const app=await(await fetch(url+'/app.js')).text();
  assert.match(html,/id="p4-panel"/);
  assert.match(html,/id="open-reconstruction"/);
+ assert.match(html,/id="download-reconstruction"/);
+ assert.match(html,/id="download-manifest"/);
  assert.match(html,/id="open-screenshot"/);
  assert.match(app,/reconstruction_available/);
  assert.match(app,/\/reconstruction/);
@@ -410,4 +425,42 @@ test('F1/F2 exploration appears in the Studio evidence inspector without clickab
  assert.match(html,/id="f2-dependencies"/);
  assert.match(app,/showExploration\(x\)/);
  assert.match(app,/causal_links_verified|인과관계 미확인/);
+});
+
+test('F3 manifest is generated once for static HTML and downloadable without a repeat capture',async()=>{
+ const port=await freePort(),root=join(home,'f3-export-check'),target='https://owner.example.org/f3';
+ let calls=0;
+ const studio=createStudioServer({studioPort:port,fixturePort,storageDir:root,browserPath:'/not-needed',
+  approvedUrls:[target],staticExecutor:async()=>{
+   calls++;
+   return {report:{verdict:'PASS',analysis_mode:'static-html',failures:[],screenshot_saved:false},
+    inspection:{mode:'static-html',scope:'explicit-https-allowlist',page:{
+     title:'Controlled',controls:[{kind:'button',id:'refresh',type:'submit'}],
+     frontend_blueprint:{source:'html-only'}}}};
+  }});
+ await studio.init();await new Promise(ok=>studio.server.listen(port,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port;
+ try{
+  const submitted=await fetch(base+'/api/runs',{method:'POST',
+   headers:{Origin:base,'Content-Type':'application/json'},
+   body:JSON.stringify({target_url:target,analysis_mode:'static-html'})});
+  assert.equal(submitted.status,202);
+  const id=(await submitted.json()).id;
+  await until(async()=>{const m=await(await fetch(base+'/api/runs/'+id)).json();return m.status==='completed';});
+  const report=await (await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(report.evidence_manifest_available,true);
+  const res=await fetch(base+'/api/runs/'+id+'/manifest');
+  assert.equal(res.status,200);
+  assert.equal(res.headers.get('content-type'),'application/json; charset=utf-8');
+  assert.match(res.headers.get('content-disposition'),/attachment.*json/);
+  const manifest=await res.json();
+  assert.equal(manifest.controls.total,1);
+  assert.equal(manifest.network.causal_links_verified,0);
+  assert.equal(manifest.findings.find(x=>x.id==='script-execution').status,'not-run');
+  const repeat=await fetch(base+'/api/runs/'+id+'/manifest');
+  assert.deepEqual(await repeat.json(),manifest);
+  assert.equal(calls,1);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction-download')).status,404);
+  assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/manifest')).status,404);
+ }finally{await new Promise(ok=>studio.server.close(ok));}
 });

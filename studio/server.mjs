@@ -9,6 +9,7 @@ import {diagnoseRuns} from './diagnose.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
+import {buildEvidenceManifest} from './evidence-manifest.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -110,6 +111,14 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        }
       }
      }
+     report.evidence_manifest_available=false;
+     if(execution.inspection){
+      try{
+       const manifest=buildEvidenceManifest(execution.inspection,report);
+       await store.saveManifest(meta.id,manifest);
+       report.evidence_manifest_available=true;
+      }catch{}
+     }
      await store.saveReport(meta.id,report);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
     }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:mode==='rea-browser'?`runs/${meta.id}/rea-stderr.log`:null}).catch(()=>{});}
@@ -149,7 +158,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|comparison|reconstruction-screenshot))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -172,6 +181,22 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='manifest'){
+      const manifest=await store.getManifest(id);
+      return manifest?respond(res,200,manifest,jsonContent,{
+       'Content-Disposition':'attachment; filename="rea-evidence-manifest.json"'
+      }):respond(res,404,{error:'manifest_not_available'});
+    }
+    if(what==='reconstruction-download'){
+      if(meta.mode!=='static-visual')return respond(res,404,{error:'reconstruction_not_available'});
+      let doc;
+      try{doc=await readFile(join(store.pathFor(id),'reconstruction.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'reconstruction_not_available'});throw e;}
+      return respond(res,200,doc,'text/html; charset=utf-8',{
+       'Content-Disposition':'attachment; filename="rea-independent-ui.html"',
+       'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'"
+      });
     }
     if(what==='comparison'){
       if(meta.mode!=='static-visual')return respond(res,404,{error:'comparison_not_available'});

@@ -7,6 +7,7 @@ import {runDynamicAnalysis,screenshotPngDimensions} from '../studio/dynamic-brow
 import {generateP4Reconstruction} from '../studio/p4-reconstruction.mjs';
 import {compareChromeScreenshots} from '../studio/p5-visual-diff.mjs';
 import {compareP4Geometry} from '../studio/p5-geometry-diff.mjs';
+import {buildEvidenceManifest} from '../studio/evidence-manifest.mjs';
 const browserPath=process.env.CHROME_BIN;
 if(!browserPath)throw Error('CHROME_BIN required: real-browser check cannot be skipped');
 const target='https://p4-fixture.example.org/';
@@ -58,6 +59,12 @@ try{
  assert.doesNotMatch(serialized,/SUPER_PRIVATE_PASSWORD|HIDDEN_TYPED_DATA|SENSITIVE|offsite\.example/);
  assert.equal(inspection.exploration.dependencies.causal_links_verified,0);
  assert.equal(inspection.exploration.dependencies.interaction_execution,'not-performed');
+ const exported=buildEvidenceManifest(inspection,report);
+ assert.equal(exported.controls.total,controls.counts.total);
+ assert.equal(exported.visual.regions,inspection.page.reconstruction_blueprint.boxes.length);
+ assert.equal(exported.network.causal_links_verified,0);
+ assert.equal(exported.generated_artifacts.screenshot,true);
+ assert.doesNotMatch(JSON.stringify(exported),/SUPER_PRIVATE_PASSWORD|HIDDEN_TYPED_DATA|SENSITIVE|offsite\.example/);
  const geom=inspection.page.reconstruction_blueprint;
  assert.ok(geom,'Real browser P4 geometry must be captured');
  assert.ok(geom.boxes.length>=5,JSON.stringify(geom.boxes));
