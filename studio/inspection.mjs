@@ -1,3 +1,4 @@
+import {summarizeFixtureExploration} from './interaction-blueprint.mjs';
 // Intentionally small, fixture-only projection of REA Evidence.
 // Never return raw DOM, cookies, headers, request bodies or URL query strings.
 const isObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
@@ -51,8 +52,10 @@ export function buildInspection(evidence,report){
   path:safeUrl(e.url,origin),
   status:Number.isInteger(e.status)?e.status:null,
  })).filter(x=>x.path!==null);
+ const exploration=summarizeFixtureExploration({steps:stepsSummary,network});
  return {
   schema_version:1,
+  exploration,
   scope:'controlled-fixture-only',
   evidence_id:bounded(evidence.evidence_id,68),
   verdict:report?.verdict==='PASS'?'PASS':'FAIL',

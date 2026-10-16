@@ -11,6 +11,16 @@ const browserPath=process.env.CHROME_BIN;
 if(!browserPath)throw Error('CHROME_BIN required: real-browser check cannot be skipped');
 const target='https://p4-fixture.example.org/';
 const fixture="<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>P4 controlled layout</title><style>*{box-sizing:border-box}html,body{margin:0}body{font-family:Arial;background:rgb(244,245,253)}aside{position:absolute;left:0;top:0;width:198px;height:1550px;background:rgb(255,255,255)}main{position:absolute;left:198px;top:0;width:1030px;min-height:1550px;padding:28px;background:rgb(239,241,253)}header{height:85px;background:rgb(239,241,253)}h1{margin:0;color:rgb(31,32,58);font-size:30px}article{display:inline-block;vertical-align:top;width:435px;height:490px;margin:10px;background:rgb(255,255,255);border-radius:12px}section{margin-top:12px}</style><script>document.body.dataset.executed=\"YES\";document.title=\"JAVASCRIPT RAN\";</script></head><body><aside></aside><main><header><h1>대시보드</h1></header><section><article></article><article></article></section><section><article></article><article></article></section></main></body></html>";
+// F1 acceptance: invisible credential values and offsite hrefs must never
+// appear in stored control evidence. CSP ensures zero page-script execution.
+const fixtureWithControls=fixture.replace('</main>',
+ '<div style="padding:6px"><button type="button">Refresh Chart</button>'+
+ '<input type="password" value="SUPER_PRIVATE_PASSWORD_1234">'+
+ '<input type="text" value="HIDDEN_TYPED_DATA_1234">'+
+ '<a href="https://offsite.example.net/private?api_key=SENSITIVE">External</a>'+
+ '<a href="/reports?auth=SECRET">Reports</a>'+
+ '<div role="tab" aria-expanded="false" style="height:25px;width:95px">Overview</div>'+
+ '</div></main>');
 const dir=await mkdtemp(join(tmpdir(),'webrea-p4-ci-'));
 let relayCalls=0;
 try{
@@ -19,7 +29,7 @@ try{
   relay:async requestUrl=>{
    relayCalls++;
    assert.equal(requestUrl,target,'Unexpected outbound resource');
-   return {status:200,contentType:'text/html; charset=utf-8',body:Buffer.from(fixture,'utf8')};
+   return {status:200,contentType:'text/html; charset=utf-8',body:Buffer.from(fixtureWithControls,'utf8')};
   }
  });
  assert.equal(report.verdict,'PASS',JSON.stringify(report.failures));
@@ -35,6 +45,19 @@ try{
  assert.equal(report.screenshot_truncated,false);
  const png=await readFile(join(dir,'screenshot.png'));
  assert.deepEqual(screenshotPngDimensions(png),{width:report.screenshot_width,height:report.screenshot_height});
+ const controls=inspection.page.interaction_inventory;
+ assert.ok(controls?.source==='passive-controls','F1 must capture real Chrome DOM');
+ assert.ok(controls.counts.buttons>=1);
+ assert.ok(controls.counts.inputs>=2);
+ assert.ok(controls.counts.links>=2);
+ assert.ok(controls.counts.tabs>=1);
+ assert.equal(controls.counts.offsite_links,1);
+ assert.equal(controls.actions_executed,0);
+ assert.equal(report.verified_control_effects,0);
+ const serialized=JSON.stringify(controls);
+ assert.doesNotMatch(serialized,/SUPER_PRIVATE_PASSWORD|HIDDEN_TYPED_DATA|SENSITIVE|offsite\.example/);
+ assert.equal(inspection.exploration.dependencies.causal_links_verified,0);
+ assert.equal(inspection.exploration.dependencies.interaction_execution,'not-performed');
  const geom=inspection.page.reconstruction_blueprint;
  assert.ok(geom,'Real browser P4 geometry must be captured');
  assert.ok(geom.boxes.length>=5,JSON.stringify(geom.boxes));
@@ -86,6 +109,6 @@ try{
   console.log(JSON.stringify({p5_chrome_visual_comparison:compared}));
  }finally{await rm(replayDir,{recursive:true,force:true});}
  console.log(JSON.stringify({chrome_e2e:'PASS',screenshot_px:[report.screenshot_width,report.screenshot_height],
-  geometry_regions:geom.boxes.length,titles:geom.titles.length,external_network_requests:0,reconstructed_html_chrome_render:'PASS',
+  geometry_regions:geom.boxes.length,titles:geom.titles.length,controls_discovered:controls.counts.total,external_network_requests:0,reconstructed_html_chrome_render:'PASS',
   independent_html_bytes:Buffer.byteLength(reconstructed)}));
 }finally{await rm(dir,{recursive:true,force:true});}

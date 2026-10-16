@@ -400,3 +400,14 @@ test('P5 comparison views are present in local Studio UI',async()=>{
  assert.match(app,/visual_comparison_available/);
  assert.match(app,/\/reconstruction-screenshot/);
 });
+
+test('F1/F2 exploration appears in the Studio evidence inspector without clickable execution controls',async()=>{
+ const html=await(await fetch(url+'/')).text();
+ const app=await(await fetch(url+'/app.js')).text();
+ assert.match(html,/F1 · 인터랙션 자동 식별/);
+ assert.match(html,/F2 · 기능·네트워크 증거 지도/);
+ assert.match(html,/id="f1-controls"/);
+ assert.match(html,/id="f2-dependencies"/);
+ assert.match(app,/showExploration\(x\)/);
+ assert.match(app,/causal_links_verified|인과관계 미확인/);
+});

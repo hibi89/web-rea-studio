@@ -37,7 +37,54 @@ function showBlueprint(data){
  node.textContent=lines.join('\n');node.hidden=false;
 }
 
-async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);fillList('inspector-steps',x.steps?.map(s=>`${s.step_id} · ${s.action} · ${s.status} · ${s.elapsed_ms??'—'}ms`),'행동 없음');fillList('inspector-network',x.network?.map(summarizeNetworkEntry),'네트워크 이벤트 없음');if(x.mode==='static-html'){
+function showExploration(x){
+ const f1=el('f1-summary'),f2=el('f2-summary');
+ const inventory=x.exploration?.inventory||x.page?.interaction_inventory;
+ const fixture=x.exploration?.source==='controlled-fixture-scenario'?x.exploration:null;
+ if(fixture){
+  f1.textContent='통제된 REA 로컬 테스트 · 실행 단계 '+fixture.actions_observed+
+   '개 · 완료 '+fixture.successful_steps+'개 (외부 사이트 자동 탐색 아님)';
+  fillList('f1-controls',(fixture.steps||[]).slice(0,28).map(s=>s.step_id+
+   ' · '+s.action+' · '+s.status),'테스트 행동 없음');
+  f2.textContent='로컬 테스트에서 관찰된 네트워크 경로 · 단계별 인과관계는 별도 증거 필요';
+  fillList('f2-dependencies',(fixture.observed_endpoint_paths||[]).map(s=>'observed GET path · '+s),
+   '관찰된 API 경로 없음');
+  return;
+ }
+ if(inventory?.source==='passive-controls'&&inventory.counts){
+  const counts=inventory.counts;
+  f1.textContent='읽기 전용 DOM 식별 '+counts.total+'개 · 버튼 '+counts.buttons+
+   ' · 링크 '+counts.links+' · 입력 '+counts.inputs+' · 탭 '+counts.tabs+
+   ' · 선택 '+counts.selects+' · 조작 실행 0회';
+  fillList('f1-controls',(inventory.controls||[]).slice(0,35).map(c=>c.id+' · '+
+   c.kind+(c.label?' · '+c.label:'')+(c.navigation?' · '+c.navigation:'')+
+   ' · '+c.rect.x+','+c.rect.y+' / '+c.rect.width+'×'+c.rect.height),
+   '식별된 요소 없음');
+ }else if(x.mode==='static-html'){
+  const controls=x.page?.controls||[];
+  f1.textContent='정적 HTML 태그 '+controls.length+'개 · 실제 화면 노출·동작 미검증';
+  fillList('f1-controls',controls.slice(0,30).map(c=>c.kind+' · '+(c.id||'(id 없음)')+' · '+(c.type||'')),
+   '정적 HTML에서 식별된 컨트롤 없음');
+ }else{
+  f1.textContent='읽기 전용 조작 요소 정보 없음 (추출 실패 또는 기존 분석 기록)';
+  fillList('f1-controls',[],'확인 가능한 요소 없음');
+ }
+ const map=x.exploration?.dependencies;
+ if(map?.source==='read-only-network-evidence'){
+  f2.textContent=map.mode==='static-visual'
+   ?'JavaScript 미실행 · API 작동 원인 추론 불가'
+   :'수동적 네트워크 요청 관찰 · 버튼 → API 인과관계 미확인';
+  fillList('f2-dependencies',(map.dependencies||[]).map(d=>d.scope+
+   (d.host?' '+d.host:'')+' · 이벤트 '+d.events+' · fetch 시도 '+
+   d.fetch_attempts+' · 거부 '+d.fetch_rejections+' · 리소스 수신 '+d.loaded),
+   '관찰된 요청 없음');
+ }else{
+  f2.textContent='API 관련 실행 증거 없음';
+  fillList('f2-dependencies',[],'확인 가능한 요청 없음');
+ }
+}
+
+async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);showExploration(x);fillList('inspector-steps',x.steps?.map(s=>`${s.step_id} · ${s.action} · ${s.status} · ${s.elapsed_ms??'—'}ms`),'행동 없음');fillList('inspector-network',x.network?.map(summarizeNetworkEntry),'네트워크 이벤트 없음');if(x.mode==='static-html'){
    el('inspector-summary').textContent=`STATIC HTML · ${x.completeness} · 단일 HTTPS 요청 (브라우저 실행 없음)`;
    const page=x.page||{}, summary=page.summary||{};
    const lines=[`제목: ${page.title||'—'}`,`버튼 ${summary.buttons??0} · 입력 ${summary.inputs??0} · 폼 ${summary.forms??0} · 링크 ${summary.links??0} · 스크립트 ${summary.scripts??0}`,
@@ -49,7 +96,7 @@ async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);f
    showBlueprint(x.page?.frontend_blueprint);
    el('static-summary').hidden=false;el('static-summary').textContent=`${x.mode==='static-visual'?'JS 없이 그린 HTML 제목':'렌더링된 제목'}: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n${x.mode==='static-visual'?'JavaScript 미실행 HTML 화면입니다. 실제 데이터·동작·정상 브라우저 결과와 동일함을 증명하지 않습니다.':'차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.'}`;
    el('inspector-summary').textContent=`${x.mode==='static-visual'?'Static Visual · JS 차단':'Passive Chrome'} · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
-  }else{showBlueprint(null);el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{showBlueprint(null);el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
+  }else{showBlueprint(null);el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{showBlueprint(null);showExploration({});el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
 
 async function loadDiagnosis(id){
  const panel=el('diagnosis-panel');
