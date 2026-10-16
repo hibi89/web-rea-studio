@@ -38,6 +38,23 @@ test('creates new GitHub-linked project and triggers initial production deployme
  for(const call of seen)assert.match(call.opts.headers.Authorization,/^Bearer unit-test-fake$/);
  assert.ok(logs.every(x=>!x.includes('unit-test-fake')));
 });
+
+test('accepts deployment id field returned by current Vercel deployment API',async()=>{
+ const calls=[];
+ const fetcher=async(url,opts)=>{
+  calls.push(url);
+  if(url.includes('/v9/projects/'))return new Response('{}',{status:404});
+  if(url.includes('/v11/projects'))return Response.json({id:'prj_new'},{status:201});
+  if(url.includes('/v6/deployments'))return Response.json({deployments:[]});
+  if(url.includes('/v13/deployments'))return Response.json({id:'dpl_newformat',url:'test-preview.vercel.app'},{status:200});
+  throw Error('Unexpected call');
+ };
+ const logs=[];
+ const r=await provision(original,{token:'fake-test',fetcher,log:s=>logs.push(s)});
+ assert.equal(calls.length,4);
+ assert.equal(r[0].deployment,'queued');
+ assert.ok(logs.some(x=>x.includes('dpl_newformat')));
+});
 test('idempotent re-run does not recreate or redeploy existing linked project',async()=>{
  const seen=[];const fetcher=async(url,opts)=>{seen.push({url,opts});
   if(url.includes('/v9/projects/'))return Response.json({id:'prj_exists',link:{type:'github',org:'hibi89',repo:'web-rea-studio'}});

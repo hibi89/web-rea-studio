@@ -71,14 +71,17 @@ export async function provision(queue,{token,fetcher=fetch,log=console.log}={}){
   }
   const latest=await vercelCall(fetcher,token,q.team_id,`/v6/deployments?projectId=${encodeURIComponent(id)}&limit=1`);
   if(Array.isArray(latest.body?.deployments)&&latest.body.deployments.length){
-   log(`Existing deployment found for ${p.project_name} (${String(latest.body.deployments[0].state||'unknown')})`);
+   const found=latest.body.deployments[0];
+   log(`Existing deployment found for ${p.project_name} (${String(found.readyState||found.state||'unknown')})${found.url?' URL: '+String(found.url):''}`);
    summary.at(-1).deployment='existing';continue;
   }
   const deployed=await vercelCall(fetcher,token,q.team_id,'/v13/deployments?skipAutoDetectionConfirmation=1',{
    method:'POST',body:{name:p.project_name,project:id,target:'production',gitSource:{type:'github',org:'hibi89',repo:p.repo.slice(7),ref:p.branch}}
   });
-  if(typeof deployed.body?.uid!=='string')throw exitError('DEPLOYMENT_MISSING_ID');
-  log(`Initial deployment queued for ${p.project_name}; URL: ${String(deployed.body?.url||'pending')}`);
+  // Vercel POST /v13/deployments currently returns id; older examples may return uid.
+  const deploymentId=deployed.body?.id||deployed.body?.uid;
+  if(typeof deploymentId!=='string'||!deploymentId.startsWith('dpl_'))throw exitError('DEPLOYMENT_MISSING_ID');
+  log(`Initial deployment queued for ${p.project_name}; id: ${deploymentId}; URL: ${String(deployed.body?.url||'pending')}`);
   summary.at(-1).deployment='queued';
  }
  return summary;
