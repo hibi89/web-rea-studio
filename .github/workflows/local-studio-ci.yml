@@ -24,3 +24,16 @@ jobs:
           node-version: "22"
       - name: Run offline Studio regression tests
         run: npm test
+      - name: Locate installed Chrome
+        shell: bash
+        run: |
+          BROWSER_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -z "$BROWSER_BIN" ]; then
+            echo "Chrome unavailable; real browser acceptance is mandatory" >&2
+            exit 1
+          fi
+          echo "CHROME_BIN=$BROWSER_BIN" >> "$GITHUB_ENV"
+          "$BROWSER_BIN" --version
+      - name: Run real Chrome P4 offline acceptance
+        timeout-minutes: 2
+        run: node tests/p4-chrome-e2e.mjs
