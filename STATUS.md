@@ -1,10 +1,12 @@
-# Status — P0 PARTIAL — 2026-10-16
+# Status — P0 EVIDENCE VALIDATION PENDING — 2026-10-16
 
-- Dedicated GitHub source repo: `hibi89/web-rea-studio` (private, main).
-- P0 baseline: source/release reviewed (`morluto/rea`, `rea-agents@6.5.0`).
-- Owner Windows: Node.js v24.21.0; Chrome found. Original local fixture tested 7/7 PASS.
-- First Windows REA attempt aborted while PowerShell interpreted npm deprecation warning (`prebuild-install@7.1.3`) as NativeCommandError.
-- Updated runner launches `npx.cmd` as `cmd.exe` child with separate stdout/stderr files and checks actual exit code; **Windows rerun not yet verified**.
-- Local smoke and Node unit tests are not equivalent to a successful REA browser capture.
-- P1 not started. No Vercel project or production deployment is needed.
-- Next: owner clones fresh Git checkout, runs `npm test`, then smoke runner; review sanitized results before proceeding.
+- Private GitHub source: `hibi89/web-rea-studio`, branch `main`.
+- REA upstream version pinned: `rea-agents@6.5.0`.
+- Owner Windows host: Node.js 24.21.0; Chrome detected.
+- Local fixture tests: PASS 7/7 originally. P0 Node tests: PASS 16/16 in the authoring sandbox after verifier work.
+- Owner Windows `p0-rea-smoke.ps1 -Execute` completed with exit 0 and returned a 19,233-byte JSON Evidence envelope; output includes `evidence_id` and `normalized_result`.
+- Browser action results were NOT YET reviewed. This is NOT sufficient to certify P0.
+- Verification enhancements: new per-step DOM/accessibility capture, observable sort data, strict Evidence inspection (action states, origins, DOM digests, network responses, cleanup).
+- No end-user capture has been uploaded into ChatGPT. Enhanced verifier has passed synthetic positive and negative tests only; owner Windows REA rerun is still required.
+- No unrelated repository or Vercel project modified.
+- Next: user runs `git pull --ff-only`, `npm test`, then the same smoke script with `-Execute` and shares the verifier report. On PASS, review capture provenance and close P0.

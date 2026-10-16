@@ -60,7 +60,7 @@ try {
   if ($reaProcess.ExitCode -ne 0) { throw "REA failed: exit $($reaProcess.ExitCode). Inspect results/rea-stderr.log." }
   & node scripts/check-capture.mjs results/rea-capture.json
   if ($LASTEXITCODE -ne 0) { throw 'REA capture output requires inspection.' }
-  Write-Host 'Capture JSON parsed. Browser actions and evidence are NOT YET independently validated.'
+  Write-Host 'Controlled fixture Evidence checks passed. Independently review provenance before P0 sign-off.'
 }
 finally {
   if ($fixtureProc -and -not $fixtureProc.HasExited) { Stop-Process -Id $fixtureProc.Id -Force -ErrorAction SilentlyContinue }

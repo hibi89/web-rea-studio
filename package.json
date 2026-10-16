@@ -6,7 +6,7 @@
   "description": "Web REA Studio controlled P0 fixture and verification",
   "scripts": {
     "fixture": "node fixtures/site/server.mjs",
-    "test": "node --test scripts/p0-local-test.test.mjs",
+    "test": "node --test scripts/*.test.mjs",
     "check": "node scripts/check-host.mjs"
   },
   "engines": {

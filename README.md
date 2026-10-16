@@ -33,3 +33,17 @@ For subsequent source changes: `git pull --ff-only` in this checkout, then rerun
 - Successful JSON parsing alone does not certify click action fidelity or source equivalence.
 
 Upstream: https://github.com/morluto/rea ; https://github.com/morluto/rea/blob/rea-agents-6.5.0/docs/browser-scenario-contract.md
+
+## P0 enhanced evidence verification
+
+The Windows REA 6.5.0 command completed and saved a JSON Evidence envelope on the owner machine, but the original validator checked JSON syntax only. This new revision records DOM, accessibility, and URL after every scenario action and checks action status, digest integrity, visible changes, API request/response, origin and cleanup.
+
+From the GitHub checkout:
+
+```powershell
+git pull --ff-only
+npm test
+powershell -NoProfile -File .\scripts\p0-rea-smoke.ps1 -Execute
+```
+
+Only a report with `"verdict": "PASS"` passes our controlled-fixture criteria. Do not share raw Evidence from unrelated websites. This does not demonstrate full website reconstruction, source recovery, or generalized security isolation.
