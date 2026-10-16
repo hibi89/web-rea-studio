@@ -146,6 +146,11 @@ async function select(id){
      el('p5-mae').textContent=String(metrics.rgb_mae)+' / 255 (낮을수록 유사)';
      el('p5-match').textContent=String(metrics.pixel_match_pct)+'% (높을수록 유사)';
      el('p5-overlap').textContent=String(metrics.overlap_area_pct)+'%';
+     const geometry=metrics.geometry;
+     el('p5-geometry').textContent=geometry?.status==='measured-not-certified'
+      ?'영역 '+geometry.matched_regions+'/'+geometry.original_regions+' 일치 ('+geometry.region_match_pct+
+       '%) · 좌표 평균 오차 '+geometry.average_geometry_error_px+'px · 배경색 동일 '+geometry.exact_background_match_pct+'%'
+      :'영역 비교 데이터 없음';
      el('p5-original').src=`/api/runs/${id}/screenshot`;
      el('p5-replica').src=`/api/runs/${id}/reconstruction-screenshot`;
     }

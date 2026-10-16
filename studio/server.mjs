@@ -8,6 +8,7 @@ import {runDynamicAnalysis} from './dynamic-browser.mjs';
 import {diagnoseRuns} from './diagnose.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
+import {compareP4Geometry} from './p5-geometry-diff.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -91,6 +92,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
           const replica=await readFile(join(replayDir,'screenshot.png'));
           if(!original)throw Error('P5_REFERENCE_MISSING');
           const comparison=compareChromeScreenshots(original,replica);
+          comparison.geometry=compareP4Geometry(blueprint,replay.inspection?.page?.reconstruction_blueprint);
           // Only write and claim availability after both artifacts exist.
           await writeFile(join(store.pathFor(meta.id),'reconstruction.png'),replica,{flag:'wx',mode:0o600});
           await store.saveComparison(meta.id,comparison);

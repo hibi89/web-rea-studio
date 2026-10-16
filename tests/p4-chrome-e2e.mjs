@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {runDynamicAnalysis,screenshotPngDimensions} from '../studio/dynamic-browser.mjs';
 import {generateP4Reconstruction} from '../studio/p4-reconstruction.mjs';
 import {compareChromeScreenshots} from '../studio/p5-visual-diff.mjs';
+import {compareP4Geometry} from '../studio/p5-geometry-diff.mjs';
 const browserPath=process.env.CHROME_BIN;
 if(!browserPath)throw Error('CHROME_BIN required: real-browser check cannot be skipped');
 const target='https://p4-fixture.example.org/';
@@ -73,6 +74,15 @@ try{
   assert.ok(compared.rgb_mae>=0&&compared.rgb_mae<=255);
   assert.ok(compared.pixel_match_pct>=0&&compared.pixel_match_pct<=100);
   assert.equal(compared.dimensions_equal,true);
+  // Prevent silent regressions in our deterministic Chrome fixture. This gate
+  // must never be represented as the similarity of an arbitrary remote site.
+  assert.ok(compared.pixel_match_pct>=90,JSON.stringify(compared));
+  assert.ok(compared.rgb_mae<=20,JSON.stringify(compared));
+  const regionMetrics=compareP4Geometry(geom,replay.inspection.page.reconstruction_blueprint);
+  assert.equal(regionMetrics.status,'measured-not-certified');
+  assert.ok(regionMetrics.original_regions>=5);
+  assert.ok(regionMetrics.region_match_pct>=70,JSON.stringify(regionMetrics));
+  console.log(JSON.stringify({p5_chrome_geometry_comparison:regionMetrics}));
   console.log(JSON.stringify({p5_chrome_visual_comparison:compared}));
  }finally{await rm(replayDir,{recursive:true,force:true});}
  console.log(JSON.stringify({chrome_e2e:'PASS',screenshot_px:[report.screenshot_width,report.screenshot_height],
