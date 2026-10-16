@@ -36,6 +36,26 @@ test('scenario uses pinned six actions and bounded capture types',()=>{
 test('studio serves UI with restrictive security headers',async()=>{
  for(const path of ['/','/app.js','/style.css']){const r=await fetch(url+path);assert.equal(r.status,200);assert.match(r.headers.get('content-security-policy'),/script-src 'self'/);assert.equal(r.headers.get('x-frame-options'),'DENY');}
 });
+test('chat tracking query on UI landing page redirects safely without bypassing API query checks',async()=>{
+ const tracked=await fetch(url+'/?utm_source=chatgpt.com',{redirect:'manual'});
+ assert.equal(tracked.status,302);
+ assert.equal(tracked.headers.get('location'),'/');
+ assert.equal(tracked.headers.get('cache-control'),'no-store');
+ const destination=await fetch(url+'/?utm_source=chatgpt.com');
+ assert.equal(destination.status,200);
+ assert.match(await destination.text(),/Web REA Studio/);
+ for(const path of [
+  '/?secret=123',
+  '/?utm_source=chatgpt.com&next=https://example.com/',
+  '/?utm_source='+('x'.repeat(129)),
+  '/api/runs?utm_source=chatgpt.com',
+  '/app.js?utm_source=chatgpt.com',
+ ]){
+  const response=await fetch(url+path,{redirect:'manual'});
+  assert.equal(response.status,400,`should reject ${path}`);
+  assert.equal((await response.json()).error,'unexpected_query');
+ }
+});
 test('studio rejects hostile host and cross-origin submissions',async()=>{
  const hostStatus=await new Promise((ok,bad)=>{const req=httpRequest({hostname:'127.0.0.1',port,path:'/api/runs',headers:{Host:'localhost:'+port}},res=>{res.resume();ok(res.statusCode)});req.on('error',bad);req.end();});assert.equal(hostStatus,403);
  const origin=await fetch(url+'/api/runs',{method:'POST',headers:{Origin:'http://evil.invalid','Content-Type':'application/json'},body:JSON.stringify({target_url:expected()})});assert.equal(origin.status,403);

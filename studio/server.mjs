@@ -50,7 +50,20 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    if(req.headers.host!==allowedHost)return respond(res,403,{error:'host_not_allowed'});
    if(!['GET','POST'].includes(req.method))return respond(res,405,{error:'method_not_allowed'});
    const u=new URL(req.url,`http://${allowedHost}`);
-   if(u.search||u.hash)return respond(res,400,{error:'unexpected_query'});
+   if(u.search||u.hash){
+    // Chat links may append utm_* tracking fields to a localhost URL.
+    // Remove only well-known tracking fields on the UI landing page; keep API and
+    // all other routes strict. Redirect to a fixed path to avoid reflecting input.
+    const tracking=[...u.searchParams];
+    const allowedLandingTracking=req.method==='GET'&&u.pathname==='/'&&!u.hash&&
+      tracking.length>0&&tracking.length<=5&&
+      tracking.every(([name,value])=>/^utm_(?:source|medium|campaign|term|content)$/.test(name)&&value.length<=128);
+    if(allowedLandingTracking){
+     res.writeHead(302,{...headers,Location:'/','Content-Length':'0'});
+     return res.end();
+    }
+    return respond(res,400,{error:'unexpected_query'});
+   }
    const path=u.pathname;
    if(req.method==='GET' && Object.hasOwn(CONTENT_TYPES,path)){
     const name=path==='/'?'index.html':path.slice(1);

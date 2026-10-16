@@ -45,3 +45,7 @@ Stop the local server using `Ctrl+C` in its terminal. The analysis child is time
 ## Remaining work (P1-2)
 
 Design authorization record, navigation/request allowlist, redirect handling, browser network sandbox, secret scrubbing, bounded crawler actions, source attribution, evidence indexing and comparisons **before** enabling externally supplied URLs. The current REA browser scenario contract does not enforce a network allowlist on all ordinary page requests.
+
+## Localhost link tracking compatibility
+
+Opening the Studio UI via ChatGPT may append `?utm_source=chatgpt.com`. `GET /` strips only bounded `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` query fields by an HTTP redirect to `/`. Unknown query fields and any query on API or asset routes are still rejected; this is not an external-site allowlist expansion.
