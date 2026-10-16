@@ -1,6 +1,7 @@
 import {randomUUID, createHash} from 'node:crypto';
 import {mkdir, readFile, readdir, rename, writeFile, open, stat, unlink, cp} from 'node:fs/promises';
-import {join, resolve, relative, sep} from 'node:path';
+import {existsSync} from 'node:fs';
+import {join, resolve, relative, sep, dirname, isAbsolute} from 'node:path';
 import {spawn} from 'node:child_process';
 import {validateCapture} from '../scripts/check-capture.mjs';
 import {buildInspection} from './inspection.mjs';
@@ -157,14 +158,27 @@ export function browserExecutable(){
   }
   return process.env.REA_BROWSER_EXECUTABLE||'';
 }
+// npm run studio supplies the absolute npm CLI path. Its sibling npx-cli.js
+// can be invoked with Node directly, without cmd.exe /c quoting ambiguities on Windows.
+// No shell interpretation and no untrusted CLI arguments are involved.
+export function resolveNpxInvocation({env=process.env,nodeBinary=process.execPath,exists=existsSync}={}){
+  const npmCli=env.npm_execpath;
+  if(typeof npmCli!=='string'||!isAbsolute(npmCli)){
+    throw Object.assign(Error('npm CLI path unavailable; start Studio with npm run studio'),{code:'NPX_CLI_UNAVAILABLE'});
+  }
+  const npxCli=join(dirname(npmCli),'npx-cli.js');
+  if(!exists(npxCli)){
+    throw Object.assign(Error('npx-cli.js not found next to npm-cli.js; verify Node.js/npm installation'),{code:'NPX_CLI_UNAVAILABLE'});
+  }
+  return {command:nodeBinary,args:[npxCli,'-y',STUDIO_RELEASE,'capture-browser-scenario','scenario.json','--json']};
+}
+
 export async function runActualCapture({scenario,dir,timeoutMs=180000}) {
-  const scenarioFile=join(dir,'scenario.json');
   const output=join(dir,'rea-capture.json');
   const error=join(dir,'rea-stderr.log');
   const outHandle=await open(output,'w',0o600),errHandle=await open(error,'w',0o600);
-  const win=process.platform==='win32';
-  const command=win?(process.env.ComSpec||'cmd.exe'):'npx';
-  const args=win?['/d','/s','/c','"npx.cmd -y rea-agents@6.5.0 capture-browser-scenario scenario.json --json"']:['-y','rea-agents@6.5.0','capture-browser-scenario','scenario.json','--json'];
+  // Direct Node launch also preserves spaced paths inside LOCALAPPDATA on Windows.
+  const {command,args}=resolveNpxInvocation();
   try {
     await new Promise((ok,bad)=>{
       const child=spawn(command,args,{cwd:dir,stdio:['ignore',outHandle.fd,errHandle.fd],windowsHide:true,env:{...process.env,npm_config_yes:'true'}});

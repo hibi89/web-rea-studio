@@ -9,7 +9,8 @@
     "test": "node --test scripts/*.test.mjs tests/*.test.mjs",
     "check": "node scripts/check-host.mjs",
     "studio": "node studio/start.mjs",
-    "diagnose": "node studio/diagnose.mjs"
+    "diagnose": "node studio/diagnose.mjs",
+    "check:launcher": "node studio/check-launcher.mjs"
   },
   "engines": {
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"

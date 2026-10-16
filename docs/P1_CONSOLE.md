@@ -59,3 +59,9 @@ A real Windows run repeatedly reported `EPERM` when replacing an existing `metad
 - Run metadata updates are now immutable revisions (`metadata.v000001.json`, `metadata.v000002.json`, etc.). Initial/legacy `metadata.json` is never replaced. Reads select the highest committed revision, and updates for one run are serialized. A bounded retry (two retries) handles transient rename denial. No old snapshot is removed to work around EPERM.
 - `npm run diagnose` reads the new local store, including revisioned metadata. The Studio prints the actual local storage directory in the terminal. For accurate diagnosis of legacy runs, start Studio once so it can perform the copy, then stop it before running `npm run diagnose`.
 - This change has Linux Node unit/integration tests, including simulated Windows EPERM. A **real Windows/OneDrive acceptance test is still required**. Do not declare Studio end-to-end success before observing a new `completed / PASS` run and a screenshot.
+
+## Windows runner fix (2026-10-16)
+
+`cmd.exe /c` quoting failed in the Studio Node.js subprocess despite P0 PowerShell smoke succeeding. The Windows stderr showed the entire quoted `npx.cmd -y ...` invocation treated as a command name. The Studio now starts the npm-supplied sibling `npx-cli.js` with `process.execPath` (Node executable), no shell or command-string quotes.
+
+From PowerShell: `npm run check:launcher` first; this checks a real `npx-cli.js --version` process **without network or REA**. A preflight PASS is not a browser capture PASS. Then `npm run studio` and submit a single fixture job. Do not claim Windows P1 success until the result is `COMPLETED`, strict verifier `PASS`, and screenshot/inspection evidence is saved.
