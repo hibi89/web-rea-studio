@@ -150,6 +150,7 @@ async function select(id){
      el('p5-geometry').textContent=geometry?.status==='measured-not-certified'
       ?'영역 '+geometry.matched_regions+'/'+geometry.original_regions+' 일치 ('+geometry.region_match_pct+
        '%) · 좌표 평균 오차 '+geometry.average_geometry_error_px+'px · 배경색 동일 '+geometry.exact_background_match_pct+'%'
+       +(geometry.ignored_same_color_wrappers?' · 동일 배경 구조 컨테이너 '+geometry.ignored_same_color_wrappers+'개 별도':'')
        +(geometry.unmatched_reference_regions?.length
          ?'\n매칭되지 않은 원본 영역: '+geometry.unmatched_reference_regions.slice(0,6)
            .map(r=>r.tag+' ['+r.x+','+r.y+'] '+r.width+'×'+r.height).join(' / ')
