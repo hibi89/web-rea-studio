@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
 import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 import {runDynamicAnalysis} from './dynamic-browser.mjs';
+import {diagnoseRuns} from './diagnose.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -94,7 +95,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -107,6 +108,12 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='inspection'){
       const inspection=await store.getInspection(id);
       return inspection?respond(res,200,inspection):respond(res,404,{error:'inspection_not_ready'});
+    }
+    if(what==='diagnosis'){
+      // Redacted disk-only failure detail; no browser or external request.
+      if(!['failed','interrupted'].includes(meta.status))return respond(res,409,{error:'diagnosis_only_for_failed_run'});
+      const result=await diagnoseRuns(storageDir,id);
+      return result.found?respond(res,200,result):respond(res,404,{error:'diagnosis_not_found'});
     }
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);

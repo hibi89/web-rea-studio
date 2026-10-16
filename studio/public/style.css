@@ -3,3 +3,13 @@
 .approved-list{color:#8ca6bb;font-size:11px;margin:15px 0 0;line-height:1.7;word-break:break-all}.static-summary{padding:14px 16px;margin-top:13px;background:#0b2232;border:1px solid #25475d;border-radius:10px;color:#c3deeb;font-size:12px;line-height:1.7;white-space:pre-wrap}.static-summary[hidden]{display:none}
 .run-alert{margin:0 0 22px;padding:15px 18px;border-radius:10px;background:#321f26;color:#ffd1c6;border:1px solid #81504c;line-height:1.7;font-size:13px;overflow-wrap:anywhere}.run-alert[hidden]{display:none}.inspector{margin-top:20px;border-top:1px solid #23354a;padding-top:19px}.inspector h3{color:#b5d0e4;font-size:14px;margin:0 0 8px}.inspector-sub{font-size:12px;color:#829bb0;line-height:1.6}.inspector-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.inspector h4{font-size:12px;color:#71c8e0}.inspect-list{background:#081320;border:1px solid #253b53;padding:12px;border-radius:9px;max-height:250px;overflow-y:auto;font-size:12px;color:#afc5d6}.inspect-item{padding:9px 5px;border-bottom:1px solid #20364a;overflow-wrap:anywhere}.inspect-item:last-child{border-bottom:0}.inspector-foot{font-size:12px;color:#8cb0bd;margin-top:12px;line-height:1.6}@media(max-width:700px){.inspector-grid{grid-template-columns:1fr}}
 .mode-label{display:block;margin-top:16px}.mode-label+select{margin-top:9px;max-width:100%;background:#081320;border:1px solid #34516a;border-radius:9px;color:#d0e4f4;padding:10px 13px;font-size:12px}
+
+.diagnosis-panel{margin-top:20px;border:1px solid #765650;border-radius:12px;background:#1b1821;padding:18px}
+.diagnosis-panel[hidden]{display:none}
+.diagnosis-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.diagnosis-head h3{font-size:14px;margin:0 0 7px;color:#f0c1ad}
+.diagnosis-head p{font-size:12px;color:#b5a3a5;line-height:1.6}
+.diagnosis-head button{background:#243848;color:#dcecf8;border:1px solid #47617c;padding:9px 12px;border-radius:7px;white-space:nowrap;cursor:pointer}
+.diagnosis-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101722;border:1px solid #383d4d;border-radius:8px;padding:14px;color:#d3e1ed;line-height:1.7;font-size:12px;max-height:310px;overflow:auto}
+#diagnosis-copy-status{font-size:12px;color:#bdd5e4}
+@media(max-width:700px){.diagnosis-head{flex-direction:column}}

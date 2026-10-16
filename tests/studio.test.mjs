@@ -190,3 +190,44 @@ test('P2 passive HTTPS run uses separate executor, stores safe report and screen
   await fetch(`${endpoint}/api/runs/${meta.id}`);await fetch(`${endpoint}/api/runs`);assert.equal(invoked,1);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
+
+test('failed-run diagnosis API reads redacted persisted data, never retriggers executor',async()=>{
+ const p=await freePort(),root=join(home,'diagnose-route'),target='https://owner.example.org/approved';
+ let countRuns=0;
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,approvedUrls:[target],
+  dynamicExecutor:async()=>{
+   countRuns++;
+   return {report:{verdict:'FAIL',failures:['resource_requests_unsettled'],resource_requests:2,resource_fulfilled:1,resource_blocked:0,resource_pending:1},
+    inspection:{mode:'dynamic-passive',network:[{kind:'requested',path:'/api/report',url:'https://owner.example.org/api/report?secret=HIDDEN'},{kind:'browser-failed',host:'api.owner.example.org',reason:'cors_error',query:'SECRET'}]}};
+  }});
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+p;
+ try{
+  const none=await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/diagnosis');
+  assert.equal(none.status,404);
+  const res=await fetch(base+'/api/runs',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({target_url:target,analysis_mode:'dynamic-passive'})});
+  assert.equal(res.status,202);
+  const id=(await res.json()).id;
+  await until(async()=>{const r=await(await fetch(base+'/api/runs/'+id)).json();return r.status==='failed';});
+  const diagRes=await fetch(base+'/api/runs/'+id+'/diagnosis');
+  assert.equal(diagRes.status,200);
+  const x=await diagRes.json();
+  assert.equal(x.passive_browser.pending,1);
+  assert.equal(x.passive_browser.recent_network_events[0].path,'/api/report');
+  assert.equal(JSON.stringify(x).includes('HIDDEN'),false);
+  assert.equal(JSON.stringify(x).includes('SECRET'),false);
+  const before=countRuns;
+  await fetch(base+'/api/runs/'+id+'/diagnosis');
+  await fetch(base+'/api/runs/'+id+'/report');
+  assert.equal(countRuns,before);
+  const success=await s.store.create({target_url:expected(),mode:'rea-browser'});
+  await s.store.update(success.id,{status:'completed',verdict:'PASS'});
+  assert.equal((await fetch(base+'/api/runs/'+success.id+'/diagnosis')).status,409);
+ }finally{await new Promise(ok=>s.server.close(ok));}
+});
+test('actual local Studio has failure postmortem panel',async()=>{
+ const h=await(await fetch(url+'/')).text();
+ const js=await(await fetch(url+'/app.js')).text();
+ assert.match(h,/id="diagnosis-panel"/);
+ assert.match(js,/\/diagnosis/);
+});

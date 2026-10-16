@@ -21,8 +21,45 @@ async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);f
    el('static-summary').hidden=false;el('static-summary').textContent=`렌더링된 제목: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.`;
    el('inspector-summary').textContent=`Passive Chrome · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
   }else{el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
+
+async function loadDiagnosis(id){
+ const panel=el('diagnosis-panel');
+ try {
+  const x=await api('/api/runs/'+id+'/diagnosis');
+  if(state.id!==id)return;
+  const p=x.passive_browser;
+  const lines=['진단 코드: '+(x.diagnosis||'UNKNOWN'), '상태: '+x.status+' / 방식: '+(x.mode||'—')];
+  if(p){
+   lines.push('브라우저 판정: '+(p.verdict||'UNKNOWN'));
+   lines.push('요청 '+(p.requested??'—')+' · 성공 '+(p.fulfilled??'—')+' · 차단 '+(p.blocked??'—')+' · 미완료 '+(p.pending??'—')+' · 네트워크 오류 '+(p.browser_failures??'—'));
+   lines.push('오류 분류: '+(p.failures||[]).join(', '));
+   lines.push('최근 요청 경로/호스트 (쿼리 제외):');
+   for(const n of p.recent_network_events||[])lines.push('  '+n.kind+' · '+(n.path||n.external_host||'—')+' · '+(n.reason||n.status||'—'));
+  }
+  lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
+  lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
+  el('diagnosis-details').textContent=lines.join('\n');
+  el('diagnosis-copy-status').textContent='';
+  panel.hidden=false;
+ } catch {
+  if(state.id!==id)return;
+  el('diagnosis-details').textContent='진단 자료를 읽지 못했습니다. npm run diagnose 명령을 사용하세요.';
+  el('diagnosis-copy-status').textContent='';
+  panel.hidden=false;
+ }
+}
+el('copy-diagnosis').addEventListener('click',async()=>{
+ try{
+  if(!navigator.clipboard?.writeText)throw Error('clipboard_unavailable');
+  await navigator.clipboard.writeText(el('diagnosis-details').textContent);
+  el('diagnosis-copy-status').textContent='진단 요약을 복사했습니다.';
+ }catch{el('diagnosis-copy-status').textContent='자동 복사 불가. 위 텍스트를 선택해 복사하세요.';}
+});
+
 function setCurrent(run){
  state.id=run.id;
+ el('diagnosis-panel').hidden=true;
+ el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
  el('run').disabled=['queued','running'].includes(run.status);
@@ -49,6 +86,7 @@ async function select(id){
    try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
+  if(['failed','interrupted'].includes(run.status))await loadDiagnosis(id);
   el('preview').replaceChildren();
   if((run.status==='completed'||run.status==='failed')&&run.mode!=='static-html'&&screenshotSaved){
    const img=document.createElement('img');img.alt='REA 최종 화면 캡처';img.src=`/api/runs/${id}/screenshot`;img.onerror=()=>{img.remove();const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.textContent='SCREENSHOT UNAVAILABLE';el('preview').append(placeholder);};el('preview').append(img);
