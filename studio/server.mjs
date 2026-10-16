@@ -1,11 +1,12 @@
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
 import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 import {runDynamicAnalysis} from './dynamic-browser.mjs';
 import {diagnoseRuns} from './diagnose.mjs';
+import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -56,8 +57,24 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      // Both the actual REA executor and its deterministic test double use this result contract.
      const report=execution.report;
      if(!report||!['PASS','FAIL'].includes(report.verdict))throw Error('Invalid analyzer report');
-     await store.saveReport(meta.id,report);
      if(execution.inspection)await store.saveInspection(meta.id,execution.inspection);
+     if(mode==='static-visual'){
+      // Independent HTML reconstruction contains sanitized geometry only, not
+      // the source page, remote scripts, original data or backend connections.
+      const blueprint=execution.inspection?.page?.reconstruction_blueprint;
+      report.reconstruction_available=false;
+      if(blueprint?.source==='p4-geometry'&&blueprint.boxes?.length){
+       try{
+        const document=generateP4Reconstruction(blueprint);
+        if(Buffer.byteLength(document)>250000)throw Error('P4 preview too large');
+        await writeFile(join(store.pathFor(meta.id),'reconstruction.html'),document,{flag:'wx',mode:0o600});
+        report.reconstruction_available=true;
+       }catch{
+        report.reconstruction_available=false;
+       }
+      }
+     }
+     await store.saveReport(meta.id,report);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
     }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:mode==='rea-browser'?`runs/${meta.id}/rea-stderr.log`:null}).catch(()=>{});}
     finally{active=null;}
@@ -65,9 +82,9 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    return {meta};
   }catch(e){active=null;throw e;}
  }
- const respond=(res,code,data,type=jsonContent)=>{
+ const respond=(res,code,data,type=jsonContent,additionalHeaders={})=>{
   const body=Buffer.isBuffer(data)?data:type===jsonContent?JSON.stringify(data):data;
-  res.writeHead(code,{...headers,'Content-Type':type,'Content-Length':Buffer.byteLength(body)});res.end(body);
+  res.writeHead(code,{...headers,...additionalHeaders,'Content-Type':type,'Content-Length':Buffer.byteLength(body)});res.end(body);
  };
  const server=createServer(async(req,res)=>{
   try {
@@ -96,7 +113,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -119,6 +136,15 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='reconstruction'){
+      if(meta.mode!=='static-visual')return respond(res,404,{error:'reconstruction_not_available'});
+      let document;
+      try{document=await readFile(join(store.pathFor(id),'reconstruction.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'reconstruction_not_available'});throw e;}
+      return respond(res,200,document,'text/html; charset=utf-8',{
+       'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
+      });
     }
     return respond(res,200,meta);
    }

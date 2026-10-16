@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,STATIC_VISUAL_CSP,DYNAMIC_LIMITS} from './dynamic-gateway.mjs';
 import {validateHttpsUrl} from './static-analysis.mjs';
 import {LAYOUT_PROBE,sanitizeRenderedLayout} from './rendered-blueprint.mjs';
+import {P4_GEOMETRY_PROBE,sanitizeP4Geometry} from './p4-reconstruction.mjs';
 
 const error=(code,message)=>Object.assign(Error(message),{code});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -319,6 +320,16 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
    layout=sanitizeRenderedLayout(observation.result?.value);
   }catch{}
   page.frontend_blueprint=layout||{source:'computed-dom',status:'probe-unavailable'};
+  // P4 capture is only meaningful on script-disabled initial HTML. It does not
+  // make extra HTTP requests, invoke page scripts or read input values.
+  let geometry=null;
+  if(scriptsDisabled){
+   try{
+    const sampled=await cdp.send('Runtime.evaluate',{expression:P4_GEOMETRY_PROBE,returnByValue:true,awaitPromise:false},sessionId,4000);
+    geometry=sanitizeP4Geometry(sampled.result?.value);
+   }catch{}
+   if(geometry)page.reconstruction_blueprint=geometry;
+  }
   const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
   const mode=scriptsDisabled?'static-visual':'dynamic-passive';
   const completeness=scriptsDisabled
@@ -326,7 +337,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
    :assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only';
   const inspection={schema_version:3,scope:'explicit-https-allowlist',mode,completeness,scripts_executed:!scriptsDisabled,screen_capture:{width:screenshotSize.width,height:screenshotSize.height,variant:captureVariant,truncated:region?.truncated===true&&captureVariant==='full-page-bounded'},
     browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:[...(scriptsDisabled?['JavaScript blocked by CSP; HTML-only visual capture, not real application rendering','No live API calls or interactions']:['Passive fetch/XHR observation (no added HTTP requests)']),'favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,screenshot_width:screenshotSize.width,screenshot_height:screenshotSize.height,screenshot_variant:captureVariant,screenshot_truncated:region?.truncated===true&&captureVariant==='full-page-bounded',render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,p4_regions:geometry?.boxes?.length??0,p4_titles:geometry?.titles?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,screenshot_width:screenshotSize.width,screenshot_height:screenshotSize.height,screenshot_variant:captureVariant,screenshot_truncated:region?.truncated===true&&captureVariant==='full-page-bounded',render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

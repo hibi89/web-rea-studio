@@ -273,3 +273,54 @@ test('static visual mode is opt-in on exact approved URL, routes Chrome with scr
   assert.match(page,/value="static-visual"/);
  }finally{await new Promise(ok=>app.server.close(ok));}
 });
+
+test('P4 static-visual capture persists isolated reconstruction once and serves it with non-executing CSP',async()=>{
+ const testPort=await freePort(),root=join(home,'p4-reconstruction');
+ const target='https://owner.example.org/geometry';let launched=0;
+ const blueprint={source:'p4-geometry',viewport:{width:1440,height:900},document:{height:900},
+  body_color:'rgb(245, 246, 252)',candidates:4,
+  boxes:[{tag:'aside',depth:1,x:0,y:0,w:190,h:900,background:'rgb(255, 255, 255)',radius:'0px',border_width:'0px'}],
+  titles:[{tag:'h1',x:230,y:50,w:300,h:40,text:'대시보드',font_size:'24px',font_weight:'700',color:'rgb(31, 31, 46)'}]};
+ const app=createStudioServer({studioPort:testPort,fixturePort,storageDir:root,browserPath:'/test/chrome',approvedUrls:[target],
+  dynamicExecutor:async({scriptsDisabled})=>{
+   launched++;assert.equal(scriptsDisabled,true);
+   return {report:{verdict:'PASS',analysis_mode:'static-visual',screenshot_saved:false,failures:[]},
+    inspection:{mode:'static-visual',page:{reconstruction_blueprint:blueprint},network:[]}};
+  }});
+ await app.init();await new Promise(ok=>app.server.listen(testPort,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+testPort;
+ try{
+  const submitted=await fetch(base+'/api/runs',{method:'POST',
+    headers:{Origin:base,'Content-Type':'application/json'},
+    body:JSON.stringify({target_url:target,analysis_mode:'static-visual'})});
+  assert.equal(submitted.status,202);
+  const id=(await submitted.json()).id;
+  await until(async()=>{const x=await (await fetch(base+'/api/runs/'+id)).json();return x.status==='completed';});
+  const report=await (await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(report.reconstruction_available,true);
+  const response=await fetch(base+'/api/runs/'+id+'/reconstruction');
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/^text\/html/);
+  assert.match(response.headers.get('content-security-policy'),/script-src 'none'/);
+  assert.match(response.headers.get('content-security-policy'),/connect-src 'none'/);
+  const html=await response.text();
+  assert.match(html,/대시보드/);
+  assert.match(html,/width:190px;height:900px/);
+  assert.doesNotMatch(html,/<script\b|https?:\/\//);
+  assert.equal(launched,1);
+  await fetch(base+'/api/runs/'+id+'/reconstruction');
+  assert.equal(launched,1);
+  const fx=await app.store.create({target_url:expected(),mode:'rea-browser'});
+  assert.equal((await fetch(base+'/api/runs/'+fx.id+'/reconstruction')).status,404);
+  assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/reconstruction')).status,404);
+ }finally{await new Promise(ok=>app.server.close(ok));}
+});
+test('P4 UI exposes isolated reconstruction link while retaining original screenshot viewer',async()=>{
+ const html=await(await fetch(url+'/')).text();
+ const app=await(await fetch(url+'/app.js')).text();
+ assert.match(html,/id="p4-panel"/);
+ assert.match(html,/id="open-reconstruction"/);
+ assert.match(html,/id="open-screenshot"/);
+ assert.match(app,/reconstruction_available/);
+ assert.match(app,/\/reconstruction/);
+});

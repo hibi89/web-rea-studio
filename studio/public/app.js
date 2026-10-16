@@ -91,6 +91,9 @@ function setCurrent(run){
  state.id=run.id;
  el('open-screenshot').hidden=true;
  el('open-screenshot').removeAttribute('href');
+ el('p4-panel').hidden=true;
+ el('open-reconstruction').hidden=true;
+ el('open-reconstruction').removeAttribute('href');
  el('diagnosis-panel').hidden=true;
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
@@ -114,11 +117,22 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false;
+  let screenshotSaved=false,reconstructionAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
+  if(run.mode==='static-visual'&&!active){
+   el('p4-panel').hidden=false;
+   el('p4-status').textContent=reconstructionAvailable
+    ?'측정된 레이아웃으로 독립형 HTML/CSS를 생성했습니다. 클릭해서 비교할 수 있습니다.'
+    :'P4 영역 증거가 없거나 재구성하지 못했습니다. 기존 화면 캡처는 보존됩니다.';
+   if(reconstructionAvailable){
+    const link=el('open-reconstruction');
+    link.href=`/api/runs/${id}/reconstruction`;
+    link.hidden=false;
+   }
+  }
   if(['failed','interrupted'].includes(run.status))await loadDiagnosis(id);
   el('preview').replaceChildren();
   if((run.status==='completed'||run.status==='failed')&&run.mode!=='static-html'&&screenshotSaved){
