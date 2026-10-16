@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-16",
+  "phase": "P0",
+  "status": "PARTIAL",
+  "user_windows": {
+    "node": "v24.21.0",
+    "chrome_detected": true,
+    "original_fixture_passed": 7,
+    "rea_browser_capture": "pending_windows_retest",
+    "previous_problem": "PowerShell NativeCommandError on npm deprecation warning"
+  },
+  "implementation": {
+    "runner_uses_start_process": true,
+    "runner_windows_verification": "pending",
+    "sandbox_built_in_tests": "not claimed for current GitHub-reconstructed sources"
+  },
+  "upstream": {
+    "repo": "morluto/rea",
+    "release": "rea-agents-6.5.0"
+  },
+  "github": {
+    "repo": "hibi89/web-rea-studio",
+    "private": true
+  }
+}
