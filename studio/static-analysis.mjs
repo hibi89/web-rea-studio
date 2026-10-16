@@ -4,6 +4,7 @@ import {lookup as dnsLookup} from 'node:dns/promises';
 import {request as httpsRequest} from 'node:https';
 import {isIP} from 'node:net';
 import {createHash} from 'node:crypto';
+import {inspectFrontendHtml} from './frontend-blueprint.mjs';
 
 const err=(code,message)=>Object.assign(new Error(message),{code});
 const MAX_PAGE=512*1024;
@@ -120,6 +121,7 @@ export async function fetchApprovedHtml(target,{resolveHost=dnsLookup,request=ht
 export async function runStaticAnalysis({target,fetcher=fetchApprovedHtml}){
  const start=Date.now();const response=await fetcher(target);
  const page=inspectStaticHtml(response.html,target),url=new URL(target);
+  page.frontend_blueprint=inspectFrontendHtml(response.html,target);
  const inspection={schema_version:2,scope:'explicit-https-allowlist',mode:'static-html',
    browser:null,completeness:'static-html-only',page,
    steps:[{step_id:'https-document',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],
