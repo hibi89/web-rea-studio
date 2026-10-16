@@ -1,21 +1,21 @@
-// PUBLIC READ-ONLY DEMO. No fetch, XHR, WebSocket, external resources or storage.
+// PUBLIC READ-ONLY DEMO. Static local data only; no outgoing connections.
 const el=id=>document.getElementById(id);
 const fixture='http://127.0.0.1:4317/';
 const original='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
 const examples={
  'rea-browser':{
-  target:fixture,name:'Fixture · REA browser',status:'DEMO',steps:'7 / 7',responses:'1',summary:'Controlled local fixture의 과거 성공 사례를 바탕으로 구성된 시각적 예시입니다.',
+  target:fixture,name:'Fixture · REA browser',status:'DEMO',stepsLabel:'7 / 7',responses:'1',summary:'Controlled local fixture의 과거 성공 사례를 바탕으로 구성된 시각적 예시입니다.',
   report:{demo:true,live:false,analysis_mode:'rea-browser',sample_verdict:'PASS (과거 테스트 사례)',step_count:7,completed_steps:7,api_responses_200:1,screenshot_saved:false,note:'UI DEMO ONLY: actual Chrome/REA is not launched; the illustration is not a real screenshot.'},
   steps:['fixture-open · navigate · sample completed','fixture-sort · click · sample completed','fixture-filter · click · sample completed','fixture-inspect · evaluate · sample completed','fixture-api · GET · sample HTTP 200','fixture-screenshot · capture · illustration only'],
   network:['SAMPLE · GET /api/catalog · 200','SAMPLE · GET /assets/app.js · 200'],shot:'fixture'
  },
  'static-html':{
-  target:original,name:'Daily Dashboard · Static HTML',status:'DEMO',steps:'1 / 1',responses:'—',summary:'2026-10-16에 관찰한 정적 HTML 분석 사례를 샘플로 표시합니다. 현재 사이트를 재조회하지 않습니다.',
+  target:original,name:'Daily Dashboard · Static HTML',status:'DEMO',stepsLabel:'1 / 1',responses:'—',summary:'2026-10-16에 관찰한 정적 HTML 분석 사례를 샘플로 표시합니다. 현재 사이트를 재조회하지 않습니다.',
   report:{demo:true,live:false,analysis_mode:'static-html',sample_verdict:'PASS (과거 정적 HTML 검사)',http_status:200,html_bytes:87532,buttons:10,scripts:3,step_count:1,completed_steps:1,screenshot_saved:false,note:'Archived sample values only. No live HTTPS request occurs in this preview.'},
   steps:['SAMPLE · HTTPS document · GET · 200'],network:['SAMPLE · GET / · HTTP 200'],shot:'none'
  },
  'dynamic-passive':{
-  target:original,name:'Daily Dashboard · Passive Chrome',status:'DEMO',steps:'1 / 1',responses:'—',summary:'과거 확인된 Failed to fetch 사례를 예시로 보여줍니다. 현재 오류가 해결되었는지 검사하지 않습니다.',
+  target:original,name:'Daily Dashboard · Passive Chrome',status:'DEMO',stepsLabel:'1 / 1',responses:'—',summary:'과거 확인된 Failed to fetch 사례를 예시로 보여줍니다. 현재 오류가 해결되었는지 검사하지 않습니다.',
   report:{demo:true,live:false,analysis_mode:'dynamic-passive',sample_verdict:'FAIL (과거 데이터 로딩 오류)',resource_requests:2,resource_fulfilled:1,resource_pending:1,application_fetch_error_visible:true,render_fidelity:'incomplete',screenshot_saved:false,note:'This is a past diagnostic example, not a real Chrome screenshot or a live rerun.'},
   steps:['SAMPLE · approved navigation · completed','SAMPLE · application data fetch · unsettled'],network:['SAMPLE · document requested · fulfilled','SAMPLE · data request · unsettled'],shot:'error'
  }
@@ -37,7 +37,7 @@ function render(mode){
  text('target-mode','● PUBLIC DEMO · no remote requests');
  text('approved-list','이 주소는 데모 표기용입니다. 실행·데이터 수집·분석 요청은 발생하지 않습니다.');
  text('status',x.status);text('time','LIVE ANALYSIS OFF · 샘플 화면');
- text('steps',x.steps);text('responses',x.responses);text('verdict','SAMPLE');
+ text('steps',x.stepsLabel);text('responses',x.responses);text('verdict','SAMPLE');
  text('result-title',x.name+' · 샘플 결과');
  text('report',JSON.stringify(x.report,null,2));text('error','');
  el('run-error').hidden=true;
