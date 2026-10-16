@@ -81,7 +81,7 @@ render();
  const csp="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
  const items=FIELDS.map(k=>'<div class="value-card"><small>'+escape({period:'기간',rows:'결과 행 수',order:'정렬',view:'화면',ready:'준비'}[k])+
   '</small><strong id="'+k+'-state">—</strong></div>').join('');
- const buttons=data.steps.map((s,i)=>'<button data-action="'+s.id+'" type="button">'+
+ const buttons=data.steps.map((s,i)=>'<button id="'+['period','sort','help','refresh'][i]+'" data-action="'+s.id+'" type="button">'+
   escape(['기간 변경','정렬 변경','도움말 화면','데이터 새로고침'][i])+'</button>').join('');
  return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'+
   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
