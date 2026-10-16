@@ -45,10 +45,10 @@ async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);f
     '내부 경로: '+(page.same_origin_paths||[]).join(', '),'주의: 서버 HTML만 분석. 실제 화면·JS 동작·API 통신은 미검증'];
    el('static-summary').hidden=false;el('static-summary').textContent=lines.join('\n');
    showBlueprint(page.frontend_blueprint);
-  }else if(x.mode==='dynamic-passive'){
+  }else if(x.mode==='dynamic-passive'||x.mode==='static-visual'){
    showBlueprint(x.page?.frontend_blueprint);
-   el('static-summary').hidden=false;el('static-summary').textContent=`렌더링된 제목: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.`;
-   el('inspector-summary').textContent=`Passive Chrome · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
+   el('static-summary').hidden=false;el('static-summary').textContent=`${x.mode==='static-visual'?'JS 없이 그린 HTML 제목':'렌더링된 제목'}: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n${x.mode==='static-visual'?'JavaScript 미실행 HTML 화면입니다. 실제 데이터·동작·정상 브라우저 결과와 동일함을 증명하지 않습니다.':'차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.'}`;
+   el('inspector-summary').textContent=`${x.mode==='static-visual'?'Static Visual · JS 차단':'Passive Chrome'} · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
   }else{showBlueprint(null);el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{showBlueprint(null);el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
 
 async function loadDiagnosis(id){
@@ -94,7 +94,7 @@ function setCurrent(run){
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
  el('run').disabled=['queued','running'].includes(run.status);
- el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':'REA BROWSER'}`;
+ el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':run.mode==='static-visual'?'STATIC VISUAL':'REA BROWSER'}`;
  if(run.status==='failed'||run.status==='interrupted')show(run.error);
  else show('');
 }
@@ -139,6 +139,6 @@ api('/api/targets').then(x=>{
  approvedTargets=x.approved_urls||[];
  if(approvedTargets.length && el('target').value===x.fixture) el('target').value=approvedTargets[0];
  el('approved-list').textContent=approvedTargets.length?`승인된 HTTPS 사이트: ${approvedTargets.join(' · ')}`:'외부 사이트는 시작 전 WEB_REA_ALLOWED_URLS 환경변수에 정확한 HTTPS URL을 등록해야 합니다.';
- const update=()=>{const target=el('target').value;const yes=approvedTargets.includes(target);el('analysis-mode').disabled=!yes;el('target-mode').textContent=target===x.fixture?'● REA controlled browser':yes?(el('analysis-mode').value==='static-html'?'● Approved HTTPS · static HTML':'● Approved HTTPS · passive Chrome, no clicks'):'● Not approved';};
+ const update=()=>{const target=el('target').value;const yes=approvedTargets.includes(target);el('analysis-mode').disabled=!yes;el('target-mode').textContent=target===x.fixture?'● REA controlled browser':yes?(el('analysis-mode').value==='static-html'?'● Approved HTTPS · static HTML':el('analysis-mode').value==='static-visual'?'● Approved HTTPS · no JS, visual only':'● Approved HTTPS · passive Chrome, no clicks'):'● Not approved';};
  el('target').addEventListener('input',update);el('analysis-mode').addEventListener('change',update);update();
 }).catch(e=>show(e.message));

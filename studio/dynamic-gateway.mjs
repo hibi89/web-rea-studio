@@ -59,4 +59,5 @@ export async function fetchGatewayResource(raw,{resolveHost=lookupDns,request=ht
 export function redactedResourcePath(raw,target){
  try{const u=new URL(raw);return u.origin===new URL(target).origin?u.pathname.slice(0,160):null;}catch{return null;}
 }
+export const STATIC_VISUAL_CSP="default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'";
 export const LOCKDOWN_CSP="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'";

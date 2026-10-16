@@ -3,7 +3,7 @@ import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
-import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from './dynamic-gateway.mjs';
+import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,STATIC_VISUAL_CSP,DYNAMIC_LIMITS} from './dynamic-gateway.mjs';
 import {validateHttpsUrl} from './static-analysis.mjs';
 import {LAYOUT_PROBE,sanitizeRenderedLayout} from './rendered-blueprint.mjs';
 
@@ -168,7 +168,8 @@ const browserJs=`(()=>{
  * All browser network requests route through a bounded Node HTTPS relay, while
  * browser DNS resolution and proxy use are disabled as defense in depth.
  */
-export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs}={}){
+export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs,scriptsDisabled=false}={}){
+ if(typeof scriptsDisabled!=='boolean')throw error('INVALID_RENDER_OPTION','scriptsDisabled must be boolean');
  validateHttpsUrl(target);
  if(typeof browserPath!=='string'||!browserPath.trim())throw error('BROWSER_NOT_FOUND','Chrome path required');
  const profile=await mkdtemp(join(tmpdir(),'webrea-cdp-'));
@@ -187,7 +188,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   await cdp.send('Network.enable',{},sessionId);
   await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
   await cdp.send('Runtime.enable',{},sessionId);
-  await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:PASSIVE_TRACE_SCRIPT},sessionId);
+  if(!scriptsDisabled)await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:PASSIVE_TRACE_SCRIPT},sessionId);
   cdp.on('Network.requestWillBeSent',(event,sid)=>{
    if(sid!==sessionId)return;
    if(networkPaths.size<150)networkPaths.set(event.requestId,sanitizedNetworkTarget(event.request?.url,target));
@@ -233,7 +234,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
      if(metrics.bytes+response.body.length>DYNAMIC_LIMITS.maxBytes)throw error('BUDGET_EXHAUSTED','Resource budget');
      metrics.bytes+=response.body.length;
      const responseHeaders=[{name:'Content-Type',value:response.contentType},{name:'Cache-Control',value:'no-store'},{name:'X-Content-Type-Options',value:'nosniff'}];
-     if(req.resourceType==='Document')responseHeaders.push({name:'Content-Security-Policy',value:LOCKDOWN_CSP});
+     if(req.resourceType==='Document')responseHeaders.push({name:'Content-Security-Policy',value:scriptsDisabled?STATIC_VISUAL_CSP:LOCKDOWN_CSP});
      await cdp.send('Fetch.fulfillRequest',{requestId:req.requestId,responseCode:response.status,responseHeaders,body:response.body.toString('base64')},sessionId);
      metrics.fulfilled++;
      if(events.length<120)events.push({kind:'fulfilled',path,status:response.status,bytes:response.body.length});
@@ -285,9 +286,13 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   }catch{}
   page.frontend_blueprint=layout||{source:'computed-dom',status:'probe-unavailable'};
   const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
-  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only',
-    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:['Passive fetch/XHR observation (no added HTTP requests)','favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+  const mode=scriptsDisabled?'static-visual':'dynamic-passive';
+  const completeness=scriptsDisabled
+   ?assessment.verdict==='FAIL'?'incomplete-static-visual':'static-dom-visual-only'
+   :assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only';
+  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode,completeness,scripts_executed:!scriptsDisabled,
+    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:[...(scriptsDisabled?['JavaScript blocked by CSP; HTML-only visual capture, not real application rendering','No live API calls or interactions']:['Passive fetch/XHR observation (no added HTTP requests)']),'favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
+  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

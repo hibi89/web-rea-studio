@@ -24,7 +24,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
  function classifyTarget(input){
   if(input===null||typeof input!=='object'||Array.isArray(input)||typeof input.target_url!=='string'||Object.keys(input).some(k=>!['target_url','analysis_mode'].includes(k)))throw Error('Only target_url and analysis_mode are accepted');
   if(input.target_url===fixtureUrl){if(input.analysis_mode!==undefined&&input.analysis_mode!=='rea-browser')throw Error('Fixture only supports REA browser analysis');validateTarget({target_url:input.target_url},fixturePort);return {mode:'rea-browser',url:fixtureUrl};}
-  if(allowed.has(input.target_url)){const requested=input.analysis_mode??'static-html';if(!['static-html','dynamic-passive'].includes(requested))throw Error('Invalid analysis mode for approved HTTPS target');return {mode:requested,url:input.target_url};}
+  if(allowed.has(input.target_url)){const requested=input.analysis_mode??'static-html';if(!['static-html','dynamic-passive','static-visual'].includes(requested))throw Error('Invalid analysis mode for approved HTTPS target');return {mode:requested,url:input.target_url};}
   throw Error('Target not approved. Configure the exact authorized HTTPS URL before starting Studio.');
  }
  const store=makeStore(storageDir);
@@ -48,9 +48,10 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      }else if(mode==='static-html'){
       await store.saveInput(meta.id,{kind:'static-html',target_url:url,method:'GET',resources:false});
       execution=await staticExecutor({target:url,dir:store.pathFor(meta.id)});
-     }else if(mode==='dynamic-passive'){
-      await store.saveInput(meta.id,{kind:'dynamic-passive',target_url:url,method:'GET',same_origin_only:true,actions:false});
-      execution=await dynamicExecutor({target:url,browserPath,dir:store.pathFor(meta.id)});
+     }else if(mode==='dynamic-passive'||mode==='static-visual'){
+      const scriptsDisabled=mode==='static-visual';
+      await store.saveInput(meta.id,{kind:mode,target_url:url,method:'GET',same_origin_only:true,actions:false,scripts_disabled:scriptsDisabled});
+      execution=await dynamicExecutor({target:url,browserPath,dir:store.pathFor(meta.id),scriptsDisabled});
      }else throw Error('Unrecognized analysis mode');
      // Both the actual REA executor and its deterministic test double use this result contract.
      const report=execution.report;
@@ -93,7 +94,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     const name=path==='/'?'index.html':path.slice(1);
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
-   if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive']});
+   if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
    const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis))?$/.exec(path);
    if(req.method==='GET'&&match){

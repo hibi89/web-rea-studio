@@ -239,3 +239,37 @@ test('frontend blueprint inspector appears in local Studio UI, not in mock Verce
  assert.match(js,/showBlueprint\(page\.frontend_blueprint\)/);
  assert.match(js,/showBlueprint\(x\.page\?\.frontend_blueprint\)/);
 });
+
+test('static visual mode is opt-in on exact approved URL, routes Chrome with scripts disabled',async()=>{
+ const port2=await freePort(),root=join(home,'p3-visual-mode'),target='https://owner.example.org/visual';
+ const calls=[];
+ const app=createStudioServer({studioPort:port2,fixturePort,storageDir:root,browserPath:'/test/chrome',
+  approvedUrls:[target],dynamicExecutor:async(args)=>{
+   calls.push({target:args.target,scriptsDisabled:args.scriptsDisabled});
+   return {report:{verdict:'PASS',analysis_mode:'static-visual',scripts_executed:false,
+      application_render_status:'not-executed',screenshot_saved:false,failures:[]},
+     inspection:{mode:'static-visual',completeness:'static-dom-visual-only',scripts_executed:false,network:[],page:{title:'Safe initial HTML'}}};
+  }});
+ await app.init();await new Promise(ok=>app.server.listen(port2,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port2, post=body=>fetch(base+'/api/runs',{
+  method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ try{
+  const targets=await (await fetch(base+'/api/targets')).json();
+  assert.ok(targets.external_modes.includes('static-visual'));
+  assert.equal((await post({target_url:target+'/other',analysis_mode:'static-visual'})).status,400);
+  assert.equal((await post({target_url:expected(),analysis_mode:'static-visual'})).status,400);
+  const r=await post({target_url:target,analysis_mode:'static-visual'});
+  assert.equal(r.status,202);
+  const id=(await r.json()).id;
+  const done=await until(async()=>{const meta=await (await fetch(base+'/api/runs/'+id)).json();return meta.status==='completed'?meta:null;});
+  assert.equal(done.mode,'static-visual');
+  assert.deepEqual(calls,[{target,scriptsDisabled:true}]);
+  const report=await(await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(report.scripts_executed,false);
+  assert.equal(report.application_render_status,'not-executed');
+  const inspection=await(await fetch(base+'/api/runs/'+id+'/inspection')).json();
+  assert.equal(inspection.scripts_executed,false);
+  const page=await(await fetch(base+'/')).text();
+  assert.match(page,/value="static-visual"/);
+ }finally{await new Promise(ok=>app.server.close(ok));}
+});

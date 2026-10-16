@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
 import {runInNewContext} from 'node:vm';
-import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
+import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,STATIC_VISUAL_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
 import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget,isIncidentalFavicon,sanitizeClientTrace,PASSIVE_TRACE_SCRIPT} from '../studio/dynamic-browser.mjs';
 
 const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
@@ -178,4 +178,12 @@ test('injected passive tracer preserves rejected fetch and redacts both API quer
  assert.equal(clean.events[2].host,'api.external.example');
  assert.ok(!JSON.stringify(clean).includes('VERY_SECRET'));
  assert.ok(!JSON.stringify(clean).includes('/private/id'));
+});
+
+test('static visual CSP blocks all scripts, fetch and form submissions',()=>{
+ assert.match(STATIC_VISUAL_CSP,/script-src 'none'/);
+ assert.match(STATIC_VISUAL_CSP,/connect-src 'none'/);
+ assert.match(STATIC_VISUAL_CSP,/form-action 'none'/);
+ assert.doesNotMatch(STATIC_VISUAL_CSP,/script-src 'self'/);
+ assert.match(LOCKDOWN_CSP,/script-src 'self'/);
 });
