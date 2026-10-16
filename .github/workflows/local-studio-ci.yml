@@ -37,3 +37,6 @@ jobs:
       - name: Run real Chrome P4 offline acceptance
         timeout-minutes: 2
         run: node tests/p4-chrome-e2e.mjs
+      - name: Run real Chrome F2 controlled action causality acceptance
+        timeout-minutes: 2
+        run: node tests/f2-controlled-chrome-e2e.mjs
