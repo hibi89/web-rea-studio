@@ -15,7 +15,7 @@ before(async()=>{
  port=await freePort();fixturePort=await freePort();home=await mkdtemp(join(tmpdir(),'studio-p1-test-'));
  studio=createStudioServer({studioPort:port,fixturePort,storageDir:join(home,'runs'),browserPath:'/test/chrome',executor:async()=>{
   count++;if(waitRelease)await new Promise(ok=>{const release=waitRelease;waitRelease=()=>{release();ok();};});
-  return {verdict:'PASS',failures:[],step_count:7,completed_steps:7,api_responses_200:1,screenshot_saved:false};
+  return {report:{verdict:'PASS',failures:[],step_count:7,completed_steps:7,api_responses_200:1,screenshot_saved:false},inspection:{schema_version:1,scope:'controlled-fixture-only',steps:[{step_id:'sort',status:'completed'}],network:[]}};
  }});
  await studio.init();await new Promise((ok,bad)=>studio.server.once('error',bad).listen(port,'127.0.0.1',ok));url=`http://127.0.0.1:${port}`;
 });
@@ -72,14 +72,15 @@ test('POST executes exactly one run and GET never invokes analyzer again',async(
  const a=await post();assert.equal(a.status,202);const data=await a.json();assert.match(data.id,/^[0-9a-f-]{36}$/);
  const completed=await until(async()=>{const r=await(await fetch(`${url}/api/runs/${data.id}`)).json();return r.status==='completed'?r:null;});
  assert.equal(completed.verdict,'PASS');const report=await(await fetch(`${url}/api/runs/${data.id}/report`)).json();assert.equal(report.completed_steps,7);
- const before=count;await fetch(url+'/');await fetch(url+'/api/runs');await fetch(`${url}/api/runs/${data.id}`);await fetch(`${url}/api/runs/${data.id}/report`);assert.equal(count,before);
+ const inspection=await(await fetch(`${url}/api/runs/${data.id}/inspection`)).json();assert.equal(inspection.scope,'controlled-fixture-only');assert.equal(inspection.steps[0].step_id,'sort');
+ const before=count;await fetch(url+'/');await fetch(url+'/api/runs');await fetch(`${url}/api/runs/${data.id}`);await fetch(`${url}/api/runs/${data.id}/report`);await fetch(`${url}/api/runs/${data.id}/inspection`);assert.equal(count,before);
 });
 test('concurrent run requests cannot start twice',async()=>{
  let unblock;const barrier=new Promise(ok=>{unblock=ok});
  const previous=studio.server;void previous;
  // Swap the executor in a new isolated server so the other tests stay deterministic.
  const p=await freePort(),root=join(home,'concurrent');let launched=0;
- const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',executor:async()=>{launched++;await barrier;return {verdict:'PASS',failures:[]};}});await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',executor:async()=>{launched++;await barrier;return {report:{verdict:'PASS',failures:[]},inspection:{schema_version:1,steps:[],network:[]}};}});await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
  const endpoint=`http://127.0.0.1:${p}`,payload=JSON.stringify({target_url:expected()}),headers={Origin:endpoint,'Content-Type':'application/json'};
  try{
  const a=await fetch(endpoint+'/api/runs',{method:'POST',headers,body:payload});assert.equal(a.status,202);
@@ -98,4 +99,23 @@ test('crashed queued/running jobs become interrupted on restart',async()=>{
 test('missing evidence is never presented as a screenshot',async()=>{
  const list=await(await fetch(url+'/api/runs')).json();const id=list.runs[0].id;
  const r=await fetch(`${url}/api/runs/${id}/screenshot`);assert.equal(r.status,404);
+});
+
+test('UI exposes inspection section and visible failure state',async()=>{
+ const r=await fetch(url+'/');const html=await r.text();
+ assert.equal(r.status,200);assert.match(html,/id="inspector-steps"/);assert.match(html,/id="run-error"/);
+});
+test('failed analyzer records safe diagnostics without exposing raw stderr',async()=>{
+ const p=await freePort(),root=join(home,'failed-diagnostic');
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',executor:async()=>{throw Object.assign(Error('REA subprocess exited with status 1; inspect local stderr log'),{code:'REA_EXIT_NONZERO'});}});
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const endpoint=`http://127.0.0.1:${p}`;
+ try{
+  const r=await fetch(endpoint+'/api/runs',{method:'POST',headers:{Origin:endpoint,'Content-Type':'application/json'},body:JSON.stringify({target_url:expected()})});
+  assert.equal(r.status,202);const meta=await r.json();
+  const failed=await until(async()=>{const x=await(await fetch(`${endpoint}/api/runs/${meta.id}`)).json();return x.status==='failed'?x:null;});
+  assert.equal(failed.error_code,'REA_EXIT_NONZERO');assert.equal(failed.error.includes('stderr'),true);
+  assert.match(failed.diagnostic_path,/^results\/studio\/runs\/[a-f0-9-]+\/rea-stderr\.log$/);
+  assert.equal((await fetch(`${endpoint}/api/runs/${meta.id}/inspection`)).status,404);
+ }finally{await new Promise(ok=>s.server.close(ok));}
 });

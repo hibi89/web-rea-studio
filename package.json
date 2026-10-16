@@ -1,6 +1,6 @@
 {
   "name": "web-rea-studio-p0",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Web REA Studio P0 verified fixture and P1 local analysis console",
@@ -8,7 +8,8 @@
     "fixture": "node fixtures/site/server.mjs",
     "test": "node --test scripts/*.test.mjs tests/*.test.mjs",
     "check": "node scripts/check-host.mjs",
-    "studio": "node studio/start.mjs"
+    "studio": "node studio/start.mjs",
+    "diagnose": "node studio/diagnose.mjs"
   },
   "engines": {
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"

@@ -68,3 +68,15 @@ powershell -NoProfile -File .\scripts\p0-rea-smoke.ps1 -Execute
 ```
 
 Only a report with `"verdict": "PASS"` passes our controlled-fixture criteria. Do not share raw Evidence from unrelated websites. This does not demonstrate full website reconstruction, source recovery, or generalized security isolation.
+
+## P1-1 local Studio (new)
+
+P0 REA passed the controlled-fixture validation on the user's Windows machine. The new P1-1 Studio is a **local, permission-bounded preview**. It does not yet analyze arbitrary websites and it does not reconstruct original private source code.
+
+```powershell
+git pull --ff-only
+npm test
+npm run studio
+```
+
+Open **http://127.0.0.1:4320/**. Enter `http://127.0.0.1:4317/` (pre-filled), then click **분석 실행**. A single run stores evidence and a summary in `results/studio/runs/`. Existing results can be opened without relaunching analysis. The only supported target is our synthetic fixture until browser-origin containment has been verified. Read [P1_CONSOLE.md](docs/P1_CONSOLE.md) for security boundaries, API, run states, limitations and Windows acceptance criteria.

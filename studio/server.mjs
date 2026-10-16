@@ -31,10 +31,14 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      await store.update(meta.id,{status:'running'});
      const scenario=createScenario(browserPath,url);
      await store.saveInput(meta.id,scenario);
-     const report=await executor({scenario,dir:store.pathFor(meta.id)});
+     const execution=await executor({scenario,dir:store.pathFor(meta.id)});
+     // Both the actual REA executor and its deterministic test double use this result contract.
+     const report=execution.report;
+     if(!report||!['PASS','FAIL'].includes(report.verdict))throw Error('Invalid analyzer report');
      await store.saveReport(meta.id,report);
+     if(execution.inspection)await store.saveInspection(meta.id,execution.inspection);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
-    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message)}).catch(()=>{});}
+    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:`results/studio/runs/${meta.id}/rea-stderr.log`}).catch(()=>{});}
     finally{active=null;}
    })();
    return {meta};
@@ -70,7 +74,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|screenshot))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -79,6 +83,10 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='report'){
       const report=await store.getReport(id);
       return report?respond(res,200,report):respond(res,404,{error:'report_not_ready'});
+    }
+    if(what==='inspection'){
+      const inspection=await store.getInspection(id);
+      return inspection?respond(res,200,inspection):respond(res,404,{error:'inspection_not_ready'});
     }
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);

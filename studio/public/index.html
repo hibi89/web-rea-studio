@@ -15,8 +15,11 @@
       <form id="run-form"><label for="target">TARGET URL</label><div class="input-line"><input type="url" id="target" value="http://127.0.0.1:4317/" required spellcheck="false" autocomplete="off"><button id="run" type="submit">▶ &nbsp; 분석 실행</button></div><div class="form-footer"><span><span class="green-dot"></span> Authorized local fixture</span><span>실행은 버튼을 눌렀을 때만 시작</span></div></form>
     </section>
     <section class="stats"><div class="stat"><div class="stat-label">CURRENT STATUS</div><div class="stat-value" id="status">READY</div><small id="time">아직 선택된 실행 없음</small></div><div class="stat"><div class="stat-label">SCENARIO STEPS</div><div class="stat-value" id="steps">—</div><small>6 actions + initial capture</small></div><div class="stat"><div class="stat-label">API RESPONSES</div><div class="stat-value" id="responses">—</div><small>HTTP 200 observed</small></div><div class="stat"><div class="stat-label">EVIDENCE VALIDATION</div><div class="stat-value" id="verdict">—</div><small>Strict P0 verifier</small></div></section>
+    <div id="run-error" role="alert" class="run-alert" hidden></div>
     <section class="panel results"><div class="section-title"><span class="step-tag">02</span><div><h2>분석 결과</h2><p id="result-title">실행 이력을 선택하거나 새 분석을 시작하세요.</p></div></div>
       <div class="results-grid"><div><h3>검증 리포트</h3><pre id="report">대기 중</pre><p class="hint" id="error" role="status"></p></div><div><h3>화면 증거 (최종 단계)</h3><div class="preview" id="preview"><div class="placeholder">SCREENSHOT UNAVAILABLE</div></div></div></div>
+      <div class="inspector"><h3>증거 구조 분석 · Evidence Inspector</h3><p class="inspector-sub">통제된 테스트 사이트의 구조화된 요약만 표시합니다. 원본 DOM과 요청 본문은 노출하지 않습니다.</p>
+      <div class="inspector-grid"><div><h4>브라우저 행동</h4><div id="inspector-steps" class="inspect-list">분석 완료 후 표시됩니다.</div></div><div><h4>네트워크 이벤트</h4><div id="inspector-network" class="inspect-list">분석 완료 후 표시됩니다.</div></div></div><div class="inspector-foot" id="inspector-summary">증거 요약 대기 중</div></div>
       <div class="bottom-note">RAW EVIDENCE는 로컬 <code>results/studio/runs</code>에만 저장됩니다. 브라우저 화면에서는 민감한 원본 JSON을 노출하지 않습니다.</div>
     </section>
   </main>

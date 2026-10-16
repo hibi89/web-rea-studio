@@ -1,8 +1,9 @@
 import {randomUUID, createHash} from 'node:crypto';
-import {mkdir, readFile, readdir, rename, writeFile, open} from 'node:fs/promises';
+import {mkdir, readFile, readdir, rename, writeFile, open, stat} from 'node:fs/promises';
 import {join, resolve} from 'node:path';
 import {spawn} from 'node:child_process';
 import {validateCapture} from '../scripts/check-capture.mjs';
+import {buildInspection} from './inspection.mjs';
 
 export const STUDIO_RELEASE = 'rea-agents@6.5.0';
 export const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -49,6 +50,8 @@ export function makeStore(basePath) {
     async list(){const out=[];for(const id of await readdir(root)){if(!ID_PATTERN.test(id))continue;const m=await this.get(id);if(m)out.push(m);}return out.sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,50);},
     async saveInput(id,scenario){await writeJsonAtomic(join(pathFor(id),'scenario.json'),scenario);},
     async saveReport(id,report){await writeJsonAtomic(join(pathFor(id),'report.json'),report);},
+    async saveInspection(id,inspection){await writeJsonAtomic(join(pathFor(id),'inspection.json'),inspection);},
+    async getInspection(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'inspection.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async getReport(id){if(!ID_PATTERN.test(id))return null;try{return JSON.parse(await readFile(join(pathFor(id),'report.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     async getScreenshot(id){if(!ID_PATTERN.test(id))return null;try{return await readFile(join(pathFor(id),'screenshot.png'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     pathFor,
@@ -70,19 +73,18 @@ export async function runActualCapture({scenario,dir,timeoutMs=180000}) {
   const win=process.platform==='win32';
   const command=win?(process.env.ComSpec||'cmd.exe'):'npx';
   const args=win?['/d','/s','/c','"npx.cmd -y rea-agents@6.5.0 capture-browser-scenario scenario.json --json"']:['-y','rea-agents@6.5.0','capture-browser-scenario','scenario.json','--json'];
-  let result;
   try {
-    result=await new Promise((ok,bad)=>{
+    await new Promise((ok,bad)=>{
       const child=spawn(command,args,{cwd:dir,stdio:['ignore',outHandle.fd,errHandle.fd],windowsHide:true,env:{...process.env,npm_config_yes:'true'}});
       let finished=false;
-      const timer=setTimeout(()=>{child.kill();if(!finished){finished=true;bad(Error('REA capture timeout; process termination requested'))}},timeoutMs);
-      child.once('error',e=>{clearTimeout(timer);if(!finished){finished=true;bad(e)}});
-      child.once('close',(code,signal)=>{clearTimeout(timer);if(!finished){finished=true;code===0?ok({code}):bad(Error(`REA exit=${code} signal=${signal}; consult local stderr log`))}});
+      const timer=setTimeout(()=>{child.kill();if(!finished){finished=true;bad(Object.assign(Error('REA capture exceeded execution limit; inspect local log'),{code:'REA_TIMEOUT'}))}},timeoutMs);
+      child.once('error',e=>{clearTimeout(timer);if(!finished){finished=true;bad(Object.assign(Error('REA subprocess could not start; inspect browser and npm installation'),{code:'REA_START_FAILED',cause:e}))}});
+      child.once('close',(code,signal)=>{clearTimeout(timer);if(!finished){finished=true;code===0?ok({code}):bad(Object.assign(Error(`REA subprocess exited with status ${code}; inspect local stderr log`),{code:'REA_EXIT_NONZERO'}))}});
     });
   }finally{await Promise.all([outHandle.close(),errHandle.close()]);}
-  const stat=await import('node:fs/promises').then(m=>m.stat(output));
-  if(stat.size>15*1024*1024)throw Error('REA evidence exceeds 15 MiB local safety limit');
-  const capture=JSON.parse(await readFile(output,'utf8'));
+  const fileStat=await stat(output);
+  if(fileStat.size>15*1024*1024)throw Object.assign(Error('REA evidence exceeds 15 MiB local safety limit'),{code:'EVIDENCE_SIZE_LIMIT'});
+  let capture;try{capture=JSON.parse(await readFile(output,'utf8'));}catch{throw Object.assign(Error('REA output is not valid JSON; inspect local stderr log'),{code:'INVALID_REA_JSON'});}
   const report=validateCapture(capture,scenario);
   const resultPayload=capture.normalized_result;
   const artifact=resultPayload?.steps?.at(-1)?.artifacts?.screenshot;
@@ -95,5 +97,5 @@ export async function runActualCapture({scenario,dir,timeoutMs=180000}) {
       await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});screenshot_saved=true;
     }
   }
-  return {...report,screenshot_saved};
+  return {report:{...report,screenshot_saved},inspection:buildInspection(capture,report)};
 }
