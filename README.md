@@ -84,3 +84,9 @@ Open **http://127.0.0.1:4320/**. Enter `http://127.0.0.1:4317/` (pre-filled), th
 ## P1-2 evidence inspector and diagnostics
 
 After `npm run studio`, one controlled fixture analysis stores `report.json`, optional `screenshot.png`, and `inspection.json` for step/API evidence. GET/UI refresh is read-only. For a failed run, run `npm run diagnose` to classify local stderr without printing raw logs. See `docs/P1_INSPECTOR.md`. **Windows real-browser acceptance is still pending for this UI path.**
+
+## Windows P1 storage reliability update (2026-10-16)
+
+The Studio no longer writes its **new Windows runs** under the OneDrive-synced repository folder. Instead it stores run history under `%LOCALAPPDATA%\WebREAStudio\runs`. On startup it copies existing run records from the previous project-local `results/studio/runs` directory, leaving originals unchanged. It records subsequent job-state updates as uniquely named metadata revisions rather than replacing `metadata.json`, avoiding the confirmed `EPERM` replacement failure. `npm run diagnose` uses the same run store.
+
+To apply: stop `npm run studio` with `Ctrl+C`, run `git pull --ff-only`, `npm test`, and `npm run studio`, then submit **one** controlled fixture analysis. Check for `completed`, `PASS`, and a screenshot. Real Windows verification is pending.

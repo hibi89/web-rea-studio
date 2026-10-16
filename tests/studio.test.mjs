@@ -119,3 +119,47 @@ test('failed analyzer records safe diagnostics without exposing raw stderr',asyn
   assert.equal((await fetch(`${endpoint}/api/runs/${meta.id}/inspection`)).status,404);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
+
+test('P2 explicitly approved HTTPS URL submits a static-only job and keeps fixture browser path unchanged',async()=>{
+ const p=await freePort(),root=join(home,'p2-static');
+ const authorized='https://owner.example.org/about',calls=[];
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',approvedUrls:[authorized],
+  executor:async()=>{calls.push('browser');return {report:{verdict:'PASS',failures:[]},inspection:{schema_version:1,scope:'fixture'}};},
+  staticExecutor:async({target})=>{calls.push(target);return {report:{verdict:'PASS',analysis_mode:'static-html',step_count:1,completed_steps:1,api_responses_200:0,screenshot_saved:false,failures:[]},inspection:{scope:'explicit-https-allowlist',mode:'static-html',steps:[{step_id:'https-document',action:'GET',status:'completed'}],network:[],page:{title:'Owned page',summary:{forms:1,links:3}}}};}
+ });
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const base=`http://127.0.0.1:${p}`,headers={Origin:base,'Content-Type':'application/json'};
+ try{
+  const targets=await(await fetch(base+'/api/targets')).json();
+  assert.deepEqual(targets.approved_urls,[authorized]);assert.equal(targets.fixture,expected());
+  for(const rejected of ['https://evil.example.com/','https://owner.example.org/','https://owner.example.org/about?x=1','http://127.0.0.1:4317/']){
+   // Reject all unapproved external scope, while allowing fixture only on the configured fixture port.
+   if(rejected===expected())continue;
+   const r=await fetch(base+'/api/runs',{method:'POST',headers,body:JSON.stringify({target_url:rejected})});
+   assert.equal(r.status,400,rejected);
+  }
+  const r=await fetch(base+'/api/runs',{method:'POST',headers,body:JSON.stringify({target_url:authorized})});
+  assert.equal(r.status,202);
+  const meta=await r.json();assert.equal(meta.mode,'static-html');
+  const completed=await until(async()=>{const x=await(await fetch(base+'/api/runs/'+meta.id)).json();return x.status==='completed'?x:null;});
+  assert.equal(completed.mode,'static-html');assert.deepEqual(calls,[authorized]);
+  const report=await(await fetch(base+'/api/runs/'+meta.id+'/report')).json();
+  assert.equal(report.analysis_mode,'static-html');
+  const inspection=await(await fetch(base+'/api/runs/'+meta.id+'/inspection')).json();
+  assert.equal(inspection.page.title,'Owned page');
+  assert.equal((await fetch(base+'/api/runs/'+meta.id+'/screenshot')).status,404);
+  const list=await(await fetch(base+'/api/runs')).json();assert.equal(list.runs[0].id,meta.id);
+  await fetch(base+'/');await fetch(base+'/api/runs/'+meta.id+'/report');
+  assert.deepEqual(calls,[authorized],'GET must never trigger another external request');
+ }finally{await new Promise(ok=>s.server.close(ok));}
+});
+
+test('P2 missing approved URLs leaves remote host blocked',async()=>{
+ const p=await freePort(),root=join(home,'p2-no-approvals');let calls=0;
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',approvedUrls:[],staticExecutor:async()=>{calls++;throw Error('should not run');}});
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ try{const base=`http://127.0.0.1:${p}`;
+  const r=await fetch(base+'/api/runs',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({target_url:'https://www.example.org/'})});
+  assert.equal(r.status,400);assert.equal(calls,0);
+ }finally{await new Promise(ok=>s.server.close(ok));}
+});

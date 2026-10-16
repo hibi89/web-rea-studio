@@ -111,7 +111,7 @@ export function makeStore(basePath,{move=rename}={}) {
     async create(input){
       const id=randomUUID(),created_at=iso();
       await mkdir(pathFor(id),{recursive:false,mode:0o700});
-      const meta={id,target_url:input.target_url,status:'queued',created_at,updated_at:created_at,engine:STUDIO_RELEASE};
+      const meta={id,target_url:input.target_url,mode:input.mode||'rea-browser',status:'queued',created_at,updated_at:created_at,engine:input.mode==='static-html'?'static-html-v1':STUDIO_RELEASE};
       await writeJsonAtomic(metaPath(id),meta,move);
       return meta;
     },

@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExecutable,runActualCapture,ID_PATTERN} from './core.mjs';
+import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -15,30 +16,44 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+ const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
+ const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
+ function classifyTarget(input){
+  if(input===null||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==1||typeof input.target_url!=='string')throw Error('Only target_url is accepted');
+  if(input.target_url===fixtureUrl){validateTarget(input,fixturePort);return {mode:'rea-browser',url:fixtureUrl};}
+  if(allowed.has(input.target_url))return {mode:'static-html',url:input.target_url};
+  throw Error('Target not approved. Configure the exact authorized HTTPS URL before starting Studio.');
+ }
  const store=makeStore(storageDir);
  let active=null;
  async function begin(input){
-  const url=validateTarget(input,fixturePort);
+  const {url,mode}=classifyTarget(input);
   if(active) return {conflict:true};
   // Reservation happens before the first await; overlapping submissions cannot both start.
   active='reserved';
   try {
-   const meta=await store.create({target_url:url});
+   const meta=await store.create({target_url:url,mode});
    active=meta.id;
    void (async()=>{
     try {
      await store.update(meta.id,{status:'running'});
-     const scenario=createScenario(browserPath,url);
-     await store.saveInput(meta.id,scenario);
-     const execution=await executor({scenario,dir:store.pathFor(meta.id)});
+     let execution;
+     if(mode==='rea-browser'){
+      const scenario=createScenario(browserPath,url);
+      await store.saveInput(meta.id,scenario);
+      execution=await executor({scenario,dir:store.pathFor(meta.id)});
+     }else{
+      await store.saveInput(meta.id,{kind:'static-html',target_url:url,method:'GET',resources:false});
+      execution=await staticExecutor({target:url,dir:store.pathFor(meta.id)});
+     }
      // Both the actual REA executor and its deterministic test double use this result contract.
      const report=execution.report;
      if(!report||!['PASS','FAIL'].includes(report.verdict))throw Error('Invalid analyzer report');
      await store.saveReport(meta.id,report);
      if(execution.inspection)await store.saveInspection(meta.id,execution.inspection);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
-    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:`runs/${meta.id}/rea-stderr.log`}).catch(()=>{});}
+    }catch(e){await store.update(meta.id,{status:'failed',error:safeDetail(e?.message),error_code:typeof e?.code==='string'&&/^[A-Z_]{3,40}$/.test(e.code)?e.code:'ANALYSIS_FAILED',diagnostic_path:mode==='rea-browser'?`runs/${meta.id}/rea-stderr.log`:null}).catch(()=>{});}
     finally{active=null;}
    })();
    return {meta};
@@ -73,6 +88,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     const name=path==='/'?'index.html':path.slice(1);
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
+   if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_mode:'static-html-only'});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
    const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot))?$/.exec(path);
    if(req.method==='GET'&&match){
@@ -100,7 +116,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     let raw='';
     for await (const part of req){raw+=part.toString('utf8');if(Buffer.byteLength(raw)>MAX_BODY)return respond(res,413,{error:'request_too_large'});}
     let input;try{input=JSON.parse(raw);}catch{return respond(res,400,{error:'invalid_json'});}
-    try{validateTarget(input,fixturePort);}catch(e){return respond(res,400,{error:safeDetail(e.message)});}
+    try{classifyTarget(input);}catch(e){return respond(res,400,{error:safeDetail(e.message)});}
     const result=await begin(input);
     return result.conflict?respond(res,409,{error:'analysis_already_running'}):respond(res,202,result.meta);
    }
