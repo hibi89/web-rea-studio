@@ -51,7 +51,7 @@ test('P5 correctly exposes screenshot size differences and overlap area',()=>{
 });
 test('P5 rejects corrupt PNG, malicious dimensions and unsupported pixel formats',()=>{
  assert.throws(()=>sampleChromePng(Buffer.from('invalid')),/P5_INVALID_PNG/);
- const huge=samplePng();huge.writeUInt32BE(100000,16);
+ const huge=samplePng();huge.writeUInt32BE(1000000,16);
  assert.throws(()=>sampleChromePng(huge),/P5_INVALID_DIMENSIONS/);
  const indexed=samplePng();indexed[25]=3;
  assert.throws(()=>sampleChromePng(indexed),/P5_UNSUPPORTED_PNG/);
