@@ -13,3 +13,5 @@
 .diagnosis-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101722;border:1px solid #383d4d;border-radius:8px;padding:14px;color:#d3e1ed;line-height:1.7;font-size:12px;max-height:310px;overflow:auto}
 #diagnosis-copy-status{font-size:12px;color:#bdd5e4}
 @media(max-width:700px){.diagnosis-head{flex-direction:column}}
+
+.blueprint-heading{margin-top:20px!important}.blueprint-output{max-height:380px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.blueprint-output[hidden]{display:none}

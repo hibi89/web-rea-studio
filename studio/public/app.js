@@ -10,6 +10,33 @@ function summarizeNetworkEntry(n){
  return `${kind} · ${n.resource_type||'resource'} · ${dest} · ${state}`;
 }
 function fillList(id,rows,empty){const container=el(id);container.replaceChildren();if(!rows?.length){container.textContent=empty;return;}for(const entry of rows){const item=document.createElement('div');item.className='inspect-item';item.textContent=entry;container.append(item);}}
+function showBlueprint(data){
+ const node=el('frontend-blueprint');
+ if(!data){node.hidden=true;node.textContent='';return;}
+ const lines=[];
+ if(data.source==='html-only'){
+  lines.push('정적 HTML · 화면 실행 전 구조 단서 (원본 디자인 재현 아님)');
+  lines.push('HTML 요소: '+Object.entries(data.tags||{}).filter(([,n])=>n>0).map(([tag,n])=>tag+' '+n).join(' · '));
+  lines.push('스크립트 '+(data.scripts?.total??0)+'개 · inline '+(data.scripts?.inline??0)+'개');
+  lines.push('JS 단서: fetch '+(data.scripts?.fetch_markers??0)+'회 · 이벤트 '+(data.scripts?.event_markers??0)+'회');
+  if(data.scripts?.chart_markers?.length)lines.push('차트 코드 이름 단서: '+data.scripts.chart_markers.join(', '));
+  lines.push('스타일: 내장 CSS '+(data.css?.style_blocks??0)+'블록 · 규칙 '+(data.css?.rule_groups??0)+'그룹');
+  if(data.css?.colors?.length)lines.push('스타일 내 색상: '+data.css.colors.join(' · '));
+  if(data.resources?.length)lines.push('리소스 참조: '+data.resources.slice(0,12).map(d=>d.kind+' '+(d.path||d.host||'—')).join(' / '));
+  lines.push('API 재생: 미실행. API 응답 구조와 접근 권한 확인 전에는 모의 결과를 만들지 않습니다.');
+ }else if(data.source==='computed-dom'&&Array.isArray(data.components)){
+  lines.push('Chrome 화면에서 읽은 레이아웃 · '+(data.viewport?.w??0)+'×'+(data.viewport?.h??0)+' px');
+  lines.push('분석한 요소 '+data.components.length+'개 · canvas '+(data.canvas_count??0)+' · svg '+(data.svg_count??0));
+  for(const c of data.components.slice(0,28)){
+   const r=c.rect||{},s=c.style||{};
+   lines.push(c.tag+' · '+r.x+','+r.y+' · '+r.w+'×'+r.h+' · '+(s.display||'—')+
+    ' · 글자 '+(s.font_size||'—')+' · 색 '+(s.color||'—')+' · 배경 '+(s.background||'—'));
+  }
+  lines.push('주의: 화면이 Failed to fetch 상태라면 이 위치와 스타일은 오류 화면 기준입니다.');
+ }else lines.push('요소 좌표 수집 불가. 기존 DOM/스크린샷 증거는 보존됩니다.');
+ node.textContent=lines.join('\n');node.hidden=false;
+}
+
 async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);fillList('inspector-steps',x.steps?.map(s=>`${s.step_id} · ${s.action} · ${s.status} · ${s.elapsed_ms??'—'}ms`),'행동 없음');fillList('inspector-network',x.network?.map(summarizeNetworkEntry),'네트워크 이벤트 없음');if(x.mode==='static-html'){
    el('inspector-summary').textContent=`STATIC HTML · ${x.completeness} · 단일 HTTPS 요청 (브라우저 실행 없음)`;
    const page=x.page||{}, summary=page.summary||{};
@@ -17,10 +44,12 @@ async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);f
     '주요 제목: '+(page.headings||[]).map(h=>`H${h.level} ${h.text}`).join(' / '),
     '내부 경로: '+(page.same_origin_paths||[]).join(', '),'주의: 서버 HTML만 분석. 실제 화면·JS 동작·API 통신은 미검증'];
    el('static-summary').hidden=false;el('static-summary').textContent=lines.join('\n');
+   showBlueprint(page.frontend_blueprint);
   }else if(x.mode==='dynamic-passive'){
+   showBlueprint(x.page?.frontend_blueprint);
    el('static-summary').hidden=false;el('static-summary').textContent=`렌더링된 제목: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.`;
    el('inspector-summary').textContent=`Passive Chrome · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
-  }else{el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
+  }else{showBlueprint(null);el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{showBlueprint(null);el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
 
 async function loadDiagnosis(id){
  const panel=el('diagnosis-panel');

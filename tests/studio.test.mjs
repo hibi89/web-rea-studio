@@ -231,3 +231,11 @@ test('actual local Studio has failure postmortem panel',async()=>{
  assert.match(h,/id="diagnosis-panel"/);
  assert.match(js,/\/diagnosis/);
 });
+
+test('frontend blueprint inspector appears in local Studio UI, not in mock Vercel preview',async()=>{
+ const page=await(await fetch(url+'/')).text();
+ const js=await(await fetch(url+'/app.js')).text();
+ assert.match(page,/id="frontend-blueprint"/);
+ assert.match(js,/showBlueprint\(page\.frontend_blueprint\)/);
+ assert.match(js,/showBlueprint\(x\.page\?\.frontend_blueprint\)/);
+});
