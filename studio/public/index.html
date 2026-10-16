@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Web REA Studio · P1</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<div class="shell">
+  <aside class="sidebar"><div class="brand"><span class="mark">R</span><div><strong>WEB REA</strong><small>STUDIO / LOCAL</small></div></div>
+    <div class="rail-heading">WORKSPACE</div><nav><a class="selected" href="/" aria-current="page">◈ &nbsp; Analysis Console</a></nav>
+    <div class="rail-heading">RECENT RUNS</div><div id="history" class="history"><p class="muted">저장된 실행 이력을 불러오는 중</p></div>
+    <div class="sidebar-bottom"><span class="green-dot"></span> Local only <div class="sidebar-note">REA 6.5.0 · P1 Preview</div></div>
+  </aside>
+  <main class="content">
+    <header class="topbar"><span>WORKSPACE / ANALYSIS</span><span class="pill">CONTROLLED FIXTURE MODE</span></header>
+    <section class="intro"><span class="eyebrow">CAPTURE · INSPECT · VERIFY</span><h1>Website Analysis Studio<span class="accent">.</span></h1><p>브라우저 행동을 실제로 실행하고, 검증된 증거를 저장해 다시 조회합니다.</p></section>
+    <section class="panel setup"><div class="section-title"><span class="step-tag">01</span><div><h2>분석 대상 설정</h2><p>첫 버전은 우리가 직접 만든 테스트 사이트만 허용합니다.</p></div></div>
+      <form id="run-form"><label for="target">TARGET URL</label><div class="input-line"><input type="url" id="target" value="http://127.0.0.1:4317/" required spellcheck="false" autocomplete="off"><button id="run" type="submit">▶ &nbsp; 분석 실행</button></div><div class="form-footer"><span><span class="green-dot"></span> Authorized local fixture</span><span>실행은 버튼을 눌렀을 때만 시작</span></div></form>
+    </section>
+    <section class="stats"><div class="stat"><div class="stat-label">CURRENT STATUS</div><div class="stat-value" id="status">READY</div><small id="time">아직 선택된 실행 없음</small></div><div class="stat"><div class="stat-label">SCENARIO STEPS</div><div class="stat-value" id="steps">—</div><small>6 actions + initial capture</small></div><div class="stat"><div class="stat-label">API RESPONSES</div><div class="stat-value" id="responses">—</div><small>HTTP 200 observed</small></div><div class="stat"><div class="stat-label">EVIDENCE VALIDATION</div><div class="stat-value" id="verdict">—</div><small>Strict P0 verifier</small></div></section>
+    <section class="panel results"><div class="section-title"><span class="step-tag">02</span><div><h2>분석 결과</h2><p id="result-title">실행 이력을 선택하거나 새 분석을 시작하세요.</p></div></div>
+      <div class="results-grid"><div><h3>검증 리포트</h3><pre id="report">대기 중</pre><p class="hint" id="error" role="status"></p></div><div><h3>화면 증거 (최종 단계)</h3><div class="preview" id="preview"><div class="placeholder">SCREENSHOT UNAVAILABLE</div></div></div></div>
+      <div class="bottom-note">RAW EVIDENCE는 로컬 <code>results/studio/runs</code>에만 저장됩니다. 브라우저 화면에서는 민감한 원본 JSON을 노출하지 않습니다.</div>
+    </section>
+  </main>
+</div><script src="/app.js" defer></script>
+</body></html>

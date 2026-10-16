@@ -1,17 +1,32 @@
-# Web REA Studio requirements v1
+# Web REA Studio: requirements baseline
 
-## Objective
-Build a controlled web reverse-engineering assistant: authorized browser observation, evidence-based UI and behavior specification, independent implementation, and reproducible comparison.
+## Goal
+Authorized website observation → evidence graph → behavior/spec inference → independently implemented UI and backend where feasible → behavior/screenshot comparison.
 
-## Stages
-P0: source audit, local fixture and REA smoke test. P1: approved target capture and evidence explorer. P2: generation. P3: compare-and-repair. P4: proprietary adapters.
+## Scope
+P0 source audit, host compatibility, controlled fixture, REA interaction smoke. P1 guided exploration and evidence browser. P2 AI spec and code generation. P3 verified compare-and-repair. P4 own adapters beyond the original REA.
 
-## Requirements
-1. Explicit authorized origins, paths and actions. No auth bypass, credential harvesting, probing private hosts or state-changing requests by default.
-2. Separate passive CDP from active Playwright capture.
-3. Maintain provenance, unknown coverage and evidence completeness.
-4. A browser refresh must never trigger analysis again.
-5. Keep local evidence out of GitHub and external AI calls without separate consent.
-6. Pinned upstream REA 6.5.0 and a removable adapter layer.
-7. Stop and pivot after two unsuccessful materially equivalent attempts.
-8. P0 exit condition: owner Windows browser REA evidence confirms clicks, DOM/accessibility and no private-data leaks.
+## Functional
+1. URL and exact-origin + allowed path approval before capture.
+2. Passive CDP capture (non-mutating), owned Playwright scenario capture (explicit actions) are separate capabilities.
+3. Store evidence and each inference with provenance and unknown coverage.
+4. Capture runs are user initiated; reloading the UI is read-only.
+5. Export source files, independent tests, and verification reports without assuming original backend/database equivalence.
+6. Resume jobs at a safe checkpoint, deduplicate same requests, bound actions/tokens/budget.
+
+## Nonfunctional
+- Safe by default: deny unexpected origins, IP/localhost targets unless explicit local-test mode, stop on navigation outside approved origin; respect robots/site permissions and legal constraints.
+- Credentials and observed secrets must not leave the approved local device without separate consent.
+- Bind CDP to loopback with a dedicated browser profile.
+- One actual successful browser fixture run is required before P0 completion.
+- Planned technologies: Node.js/TypeScript, React/Vite, SQLite, Playwright/CDP, REA via pinned CLI/MCP. Actual adapter APIs require runtime verification.
+
+## Acceptance
+Refer to `docs/P0_CHECKLIST.md`; P1 requires verified P0 runtime observations.
+
+## P1-1 boundary (implemented)
+- Local studio binds `127.0.0.1`, validates Host/Origin, and accepts only exact controlled fixture URL.
+- Every run must be explicitly requested with POST; GET routes only read saved metadata, reports, or screenshots.
+- At most one active run; previous interrupted states are retained, not silently retried.
+- Evidence is stored in `results/` and excluded from Git. Current storage is JSON files and local PNG, **not** the planned SQLite schema.
+- Real Windows execution under `npm run studio` remains an acceptance gate, separately from mock tests.
