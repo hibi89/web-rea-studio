@@ -60,12 +60,26 @@ website cloning. No extra `WEB_REA_ALLOWED_URLS` environment variable is
 needed for the checked-in target. The existing REA-controlled fixture remains
 available by entering `http://127.0.0.1:4317/` manually.
 
-## P2-2 live site failure and evidence-quality fix (2026-10-16)
+## P2-2a passive live-page browser preview
 
-The owner captured a PNG and DOM for the approved dashboard. However, the screenshot
-showed a page-level `Failed to fetch` report error, not the intended dashboard.
-Earlier `PASS` only meant a PNG was stored. This revision treats visible fetch
-errors and unsettled resource requests as a failed render verdict, retains the
-diagnostic screenshot even on FAIL, and logs request-start events using only
-same-origin pathnames. The cause of the site's failed data request is not fixed;
-inspect the evidence network list before changing any network allowlist.
+The approved HTTPS site can now be analyzed in **Static HTML** (unchanged default)
+or an explicitly selected **Passive Browser** mode. The passive mode uses a fresh
+Chrome DevTools session with restricted same-origin GET relay requests. It runs
+page JavaScript and records a screenshot, basic DOM structure, blocked/fulfilled
+resource metadata. No clicks, sign-in, full crawling, browser-source recovery,
+or external-domain fetches are enabled. See [P2_DYNAMIC.md](docs/P2_DYNAMIC.md).
+
+This is a first developer preview; real Windows end-to-end success has not been
+established. The existing P1 REA fixture and P2 static HTML tests remain intact.
+
+
+## P2-2 live site failure (2026-10-16)
+
+The owner successfully captured a real PNG and DOM for the approved site, but the
+captured page displayed `Failed to fetch` instead of the working dashboard.
+Older P2-2a reports incorrectly used `PASS` to mean screenshot stored, even when
+the application's report failed. The revised code marks visible fetch failure
+or unsettled requests as `FAIL`, saves the diagnostic screenshot, and keeps
+browser-only capture status separate from working application rendering.
+A broken data request is **not yet repaired**. Inspect the saved network event
+summary before allowing additional origins or changing the request policy.

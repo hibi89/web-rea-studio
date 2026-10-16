@@ -9,14 +9,45 @@ import {validateHttpsUrl} from './static-analysis.mjs';
 const error=(code,message)=>Object.assign(Error(message),{code});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
-/** A screenshot of an app error is evidence, not successful dashboard rendering. */
+/** Distinguish successful screenshot capture from successful app rendering.
+ * A screenshot of an error message is diagnostic evidence, not successful reproduction.
+ */
 export function assessPassiveRender(page,metrics){
- const pending=Math.max(0,(metrics.requested||0)-(metrics.fulfilled||0)-(metrics.blocked||0));
+ const pending=typeof metrics.pending==='number'?metrics.pending:Math.max(0,(metrics.requested||0)-(metrics.fulfilled||0)-(metrics.blocked||0));
  const failures=[];
  if(page?.application_fetch_error_visible===true)failures.push('application_fetch_error_visible');
  if(pending>0)failures.push('resource_requests_unsettled');
  return {verdict:failures.length?'FAIL':'PASS',failures,pending,
   render_fidelity:failures.length?'incomplete':metrics.blocked?'partial':'unverified'};
+}
+
+
+/** Avoid sampling the page while delayed scripts are still issuing API requests.
+ * Exit once the minimum render time and an actual quiet interval have elapsed,
+ * and every CDP Fetch interception has settled. Hard deadline prevents hangs.
+ */
+export async function waitForPassiveIdle({snapshot,minWaitMs=5000,quietMs=1800,maxWaitMs=22000,pollMs=100,clock=Date.now,sleep=wait}={}){
+ const began=clock();let lastChange=began;
+ let previous='';
+ while(clock()-began<maxWaitMs){
+  const value=snapshot();
+  const key=`${value.requested}/${value.settled}/${value.pending}`;
+  if(key!==previous){lastChange=clock();previous=key;}
+  if(clock()-began>=minWaitMs && value.pending===0 && clock()-lastChange>=quietMs)return {idle:true,wait_ms:clock()-began};
+  await sleep(pollMs);
+ }
+ return {idle:false,wait_ms:clock()-began};
+}
+
+export function sanitizedNetworkTarget(raw,approved){
+ try{
+  const u=new URL(raw),owner=new URL(approved);
+  if(u.origin===owner.origin)return {path:u.pathname.slice(0,160),scope:'approved-origin'};
+  if(u.protocol!=='https:')return {path:null,scope:'other-scheme'};
+  if(u.username||u.password)return {path:null,scope:'credential-url'};
+  if(!/^[a-z0-9.-]{1,180}$/i.test(u.hostname))return {path:null,scope:'other-origin'};
+  return {path:null,scope:'other-origin',host:u.hostname.toLowerCase()};
+ }catch{return {path:null,scope:'invalid-url'};}
 }
 
 export class CdpClient{
@@ -61,7 +92,7 @@ async function getDevtoolsPort(profile,child){
 }
 const browserJs=`(()=>{
  const clean=s=>String(s??'').replace(/[\\x00-\\x1f]/g,' ').slice(0,120);
- // Only a boolean error signal crosses the browser boundary, not body text.
+ // Only a boolean error signal crosses the browser boundary, not the page text.
  const visibleText=String(document.body?.innerText||'').slice(0,100000);
  const application_fetch_error_visible=/failed to fetch|보고서를 불러오지 못했습니다/i.test(visibleText);
  return {title:clean(document.title),state:document.readyState,application_fetch_error_visible,
@@ -82,6 +113,8 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
  const flags=['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-update','--disable-sync','--disable-quic','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',`--user-data-dir=${profile}`,'about:blank'];
  let child,cdp,sessionId;
  const events=[],metrics={requested:0,fulfilled:0,blocked:0,bytes:0},start=Date.now(),tasks=new Set();
+ const pendingIds=new Set(),networkPaths=new Map();
+ let chromeFailures=0;
  try{
   child=launch(browserPath,flags,{stdio:'ignore',windowsHide:true});
   const {port,path}=await getDevtoolsPort(profile,child);
@@ -92,34 +125,59 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   await cdp.send('Network.enable',{},sessionId);
   await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
   await cdp.send('Runtime.enable',{},sessionId);
+  cdp.on('Network.requestWillBeSent',(event,sid)=>{
+   if(sid!==sessionId)return;
+   if(networkPaths.size<150)networkPaths.set(event.requestId,sanitizedNetworkTarget(event.request?.url,target));
+  });
+  cdp.on('Network.loadingFailed',(event,sid)=>{
+   if(sid!==sessionId)return;
+   chromeFailures++;
+   const details=networkPaths.get(event.requestId)||{path:null,scope:'unknown'};
+   // Do not send the browser's unsanitized error strings or any URL query to UI.
+   const reason=event.blockedReason&&/^[a-zA-Z_]{1,40}$/.test(event.blockedReason)?event.blockedReason:
+    event.corsErrorStatus?'cors_error':/ERR_BLOCKED_BY_CLIENT/.test(event.errorText||'')?'blocked_by_client':'network_failed';
+   if(events.length<120)events.push({kind:'browser-failed',...details,reason});
+  });
   cdp.on('Fetch.requestPaused',(req,sid)=>{
    if(sid!==sessionId)return;
+   pendingIds.add(req.requestId);
    const promise=(async()=>{
     metrics.requested++;
     const approved=approveBrowserRequest({url:req.request?.url,method:req.request?.method,resourceType:req.resourceType},{target,seen:metrics.requested-1,bytes:metrics.bytes});
     const path=redactedResourcePath(req.request?.url,target);
-    // Record request start even if it is still unresolved at screenshot time.
-    // Same-origin path only; no query strings or credentials are retained.
-    events.push({kind:'requested',path,resource_type:req.resourceType});
-    if(!approved.allowed){metrics.blocked++;events.push({kind:'blocked',path,reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
+    // Record the request even if it remains pending when the screenshot is taken.
+    // Only same-origin pathname metadata is retained; query parameters are removed.
+    if(events.length<120)events.push({kind:'requested',...sanitizedNetworkTarget(req.request?.url,target),resource_type:req.resourceType});
+    if(!approved.allowed){metrics.blocked++;if(events.length<120)events.push({kind:'blocked',...sanitizedNetworkTarget(req.request?.url,target),reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
     try{
      const response=await relay(approved.url);
      if(metrics.bytes+response.body.length>DYNAMIC_LIMITS.maxBytes)throw error('BUDGET_EXHAUSTED','Resource budget');
-     metrics.bytes+=response.body.length;metrics.fulfilled++;
-     events.push({kind:'fulfilled',path,status:response.status,bytes:response.body.length});
+     metrics.bytes+=response.body.length;
      const responseHeaders=[{name:'Content-Type',value:response.contentType},{name:'Cache-Control',value:'no-store'},{name:'X-Content-Type-Options',value:'nosniff'}];
      if(req.resourceType==='Document')responseHeaders.push({name:'Content-Security-Policy',value:LOCKDOWN_CSP});
      await cdp.send('Fetch.fulfillRequest',{requestId:req.requestId,responseCode:response.status,responseHeaders,body:response.body.toString('base64')},sessionId);
-    }catch(e){metrics.blocked++;events.push({kind:'blocked',path,reason:typeof e.code==='string'?e.code:'REQUEST_FAILED'});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId).catch(()=>{});}
-   })();tasks.add(promise);promise.finally(()=>tasks.delete(promise));
+     metrics.fulfilled++;
+     if(events.length<120)events.push({kind:'fulfilled',path,status:response.status,bytes:response.body.length});
+    }catch(e){
+     metrics.blocked++;
+     const reason=typeof e.code==='string'&&/^[A-Z_]{3,50}$/.test(e.code)?e.code:'REQUEST_FAILED';
+     if(events.length<120)events.push({kind:'blocked',path,reason});
+     await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId).catch(()=>{});
+    }
+   })();tasks.add(promise);
+   void promise.finally(()=>{tasks.delete(promise);pendingIds.delete(req.requestId);}).catch(()=>{});
   });
   await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]},sessionId);
   const navigated=await cdp.send('Page.navigate',{url:target},sessionId);
   if(navigated.errorText)throw error('NAVIGATION_FAILED',`Target navigation failed (${String(navigated.errorText).slice(0,100)}); no screenshot claimed`);
-  // Give bounded time for scripts that only use allowed same-origin resources.
-  const settleUntil=Math.min(Date.now()+8000,start+timeoutMs-3000);
-  while(Date.now()<settleUntil &&(tasks.size>0||Date.now()<start+1800))await wait(180);
-  await Promise.allSettled([...tasks]);
+  // Allow late async API requests to appear and actually settle. In particular,
+  // Chrome navigates before JS-created fetches necessarily begin. The old logic
+  // could leave after 1.8s and capture a page whose API was still loading.
+  const budget=Math.max(1500,Math.min(22000,start+timeoutMs-4000-Date.now()));
+  const idle=await waitForPassiveIdle({snapshot:()=>({requested:metrics.requested,
+    settled:metrics.fulfilled+metrics.blocked,pending:pendingIds.size}),
+    maxWaitMs:budget,minWaitMs:Math.min(5000,Math.floor(budget*0.45))});
+  if(!idle.idle && events.length<120)events.push({kind:'wait-timeout',pending:pendingIds.size});
   const runtime=await cdp.send('Runtime.evaluate',{expression:browserJs,returnByValue:true,awaitPromise:false},sessionId);
   const page=runtime.result?.value;
   if(!page||typeof page!=='object')throw error('DOM_CAPTURE_FAILED','Browser page summary unavailable');
@@ -132,10 +190,10 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   if(png.length<100||png.length>5*1024*1024||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw error('SCREENSHOT_INVALID','PNG capture missing/invalid');
   const screenshot_sha256=createHash('sha256').update(png).digest('hex');
   await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});
-  const assessment=assessPassiveRender(page,metrics);
+  const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
   const inspection={schema_version:3,scope:'explicit-https-allowlist',mode:'dynamic-passive',completeness:assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only',
-    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:events.slice(0,75),limitations:['No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+    browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:events.slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size},limitations:['No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
+  const report={verdict:assessment.verdict,analysis_mode:'dynamic-passive',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,screenshot_saved:true,screenshot_sha256,render_fidelity:assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

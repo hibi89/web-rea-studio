@@ -3,8 +3,14 @@ const state={id:null,timer:null};
 async function api(url,options){const res=await fetch(url,{cache:'no-store',...options});const body=await res.json();if(!res.ok)throw Error(body.error||`HTTP ${res.status}`);return body;}
 function show(msg){el('error').textContent=msg||'';}
 function diagnostic(run){const area=el('run-error');if(run.status==='failed'||run.status==='interrupted'){area.hidden=false;area.textContent=`분석 실패 · ${run.error_code||'CHECK_LOG'} · ${run.error||'실행 기록을 확인하십시오'}`+(run.diagnostic_path?` · 진단 로그: ${run.diagnostic_path}`:'');}else{area.hidden=true;area.textContent='';}}
+function summarizeNetworkEntry(n){
+ const kind=String(n.kind||'event').toUpperCase();
+ const dest=n.path||(n.host?`[external] ${n.host}`:n.scope||'—');
+ const state=n.reason||n.status||'—';
+ return `${kind} · ${n.resource_type||'resource'} · ${dest} · ${state}`;
+}
 function fillList(id,rows,empty){const container=el(id);container.replaceChildren();if(!rows?.length){container.textContent=empty;return;}for(const entry of rows){const item=document.createElement('div');item.className='inspect-item';item.textContent=entry;container.append(item);}}
-async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);fillList('inspector-steps',x.steps?.map(s=>`${s.step_id} · ${s.action} · ${s.status} · ${s.elapsed_ms??'—'}ms`),'행동 없음');fillList('inspector-network',x.network?.map(n=>`${n.kind.toUpperCase()} · ${n.method||'—'} ${n.path||'—'} ${n.status||''}`),'네트워크 이벤트 없음');if(x.mode==='static-html'){
+async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);fillList('inspector-steps',x.steps?.map(s=>`${s.step_id} · ${s.action} · ${s.status} · ${s.elapsed_ms??'—'}ms`),'행동 없음');fillList('inspector-network',x.network?.map(summarizeNetworkEntry),'네트워크 이벤트 없음');if(x.mode==='static-html'){
    el('inspector-summary').textContent=`STATIC HTML · ${x.completeness} · 단일 HTTPS 요청 (브라우저 실행 없음)`;
    const page=x.page||{}, summary=page.summary||{};
    const lines=[`제목: ${page.title||'—'}`,`버튼 ${summary.buttons??0} · 입력 ${summary.inputs??0} · 폼 ${summary.forms??0} · 링크 ${summary.links??0} · 스크립트 ${summary.scripts??0}`,
@@ -13,7 +19,7 @@ async function inspect(id){try{const x=await api(`/api/runs/${id}/inspection`);f
    el('static-summary').hidden=false;el('static-summary').textContent=lines.join('\n');
   }else if(x.mode==='dynamic-passive'){
    el('static-summary').hidden=false;el('static-summary').textContent=`렌더링된 제목: ${x.page?.title||'—'}\n버튼 ${x.page?.counts?.buttons??0} · 입력 ${x.page?.counts?.inputs??0} · 링크 ${x.page?.counts?.links??0}\n차단된 외부 리소스는 화면 완성도에 영향을 줄 수 있습니다. 클릭/폼 제출은 실행하지 않습니다.`;
-   el('inspector-summary').textContent=`Passive Chrome · ${x.completeness} · same-origin GET only`;
+   el('inspector-summary').textContent=`Passive Chrome · ${x.completeness} · 미완료 ${x.network_diagnostics?.pending_requests??'—'}개 · 브라우저 통신 실패 ${x.network_diagnostics?.browser_failures??'—'}건`;
   }else{el('static-summary').hidden=true;el('static-summary').textContent='';el('inspector-summary').textContent=`${x.browser?.product||'Browser'} ${x.browser?.version||''} · 증거 ${x.completeness} · 버튼/입력 ${x.page?.controls?.map(c=>c.id).join(', ')||'—'}`;}}catch{el('static-summary').hidden=true;fillList('inspector-steps',[],'구조화된 증거 없음');fillList('inspector-network',[],'검증 가능한 네트워크 자료 없음');el('inspector-summary').textContent='증거 요약을 사용할 수 없습니다.';}}
 function setCurrent(run){
  state.id=run.id;

@@ -41,3 +41,33 @@ Node unit and Studio API tests validate URL admission, same-origin GET rules, pr
 - Capture screenshots before/after and correlate DOM changes and same-origin API results.
 - Build a source-attributed UI specification and compare independent reimplementations against recorded evidence.
 - Consider hardened OS-level network containment and an automated Windows browser E2E in a controlled isolated environment before broadening beyond the selected site.
+
+## 2026-10-16: request-completion and diagnostics regression
+
+A real Windows browser capture showed `FAILED / resource_requests_unsettled`: two
+intercepted requests, only one fulfilled, and a screenshot displaying
+`보고서를 불러오지 못했습니다 / Failed to fetch`. Previously the passive inspector
+sampled network tasks shortly after navigation and could leave before delayed
+JavaScript fetches settled.
+
+Changes:
+- Bounded idle barrier waits for late JS requests, then a quiet interval after
+  the last request settles; deadline still caps the wait at 22 seconds.
+- CDP Fetch requests remain explicitly pending until the Chrome fulfillment
+  or failure command resolves, rather than being counted as fulfilled before
+  delivery to the browser.
+- Network events record request starts, same-origin pathnames only (no query
+  strings), third-party hostnames (without paths/queries), and sanitized browser
+  failure categories. No new host is authorized automatically.
+- A screenshot of an app error, or a page with pending resource requests,
+  remains a FAIL. The failed screenshot is preserved for diagnosis.
+- `npm run diagnose` now includes bounded, redacted network diagnostics for
+  the latest failed passive-browser run, **without initiating another run**.
+
+Tests cover late request settlement, permanently pending request deadlines,
+redaction of third-party URLs, and local diagnostic file interpretation.
+All tests are Node/mock or local HTTP tests; the authoring container's Chrome
+still returns `ERR_BLOCKED_BY_ADMINISTRATOR` when navigating externally.
+**Live Windows re-verification is required.** A different-origin report API,
+redirect, CSP/CORS issue, or TLS/network timeout can still require a separate
+explicitly approved remedy after inspecting the diagnostic evidence.

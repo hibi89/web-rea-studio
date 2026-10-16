@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
-import {CdpClient,assessPassiveRender} from '../studio/dynamic-browser.mjs';
+import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget} from '../studio/dynamic-browser.mjs';
 
 const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
 const request=(url,resourceType='Document',method='GET')=>({url,resourceType,method});
@@ -81,17 +81,52 @@ test('CDP client addresses commands by sessionId and rejects errors/disconnectio
  await assert.rejects(c,{code:'CDP_DISCONNECTED'});
 });
 
-test('a captured application fetch error must not pass render acceptance',()=>{
- const x=assessPassiveRender({application_fetch_error_visible:true},{requested:2,fulfilled:2,blocked:0});
- assert.equal(x.verdict,'FAIL');assert.deepEqual(x.failures,['application_fetch_error_visible']);
+
+test('capturing a screenshot of a Failed to fetch application error must fail acceptance',()=>{
+ const assessment=assessPassiveRender({application_fetch_error_visible:true},{requested:2,fulfilled:2,blocked:0});
+ assert.equal(assessment.verdict,'FAIL');
+ assert.deepEqual(assessment.failures,['application_fetch_error_visible']);
+ assert.equal(assessment.render_fidelity,'incomplete');
 });
-test('unsettled requests are not silently counted as completed',()=>{
- const x=assessPassiveRender({application_fetch_error_visible:false},{requested:2,fulfilled:1,blocked:0});
- assert.equal(x.verdict,'FAIL');assert.equal(x.pending,1);
+test('unfinished network requests cannot be silently counted as successful rendering',()=>{
+ const assessment=assessPassiveRender({application_fetch_error_visible:false},{requested:2,fulfilled:1,blocked:0});
+ assert.equal(assessment.verdict,'FAIL');
+ assert.equal(assessment.pending,1);
+ assert.deepEqual(assessment.failures,['resource_requests_unsettled']);
 });
-test('full capture pass still does not claim visual equivalence',()=>{
- const x=assessPassiveRender({application_fetch_error_visible:false},{requested:3,fulfilled:3,blocked:0});
- assert.equal(x.verdict,'PASS');assert.equal(x.render_fidelity,'unverified');
+test('complete passive capture remains capture PASS without claiming visual equivalence',()=>{
+ const result=assessPassiveRender({application_fetch_error_visible:false},{requested:3,fulfilled:3,blocked:0});
+ assert.equal(result.verdict,'PASS');
+ assert.equal(result.render_fidelity,'unverified');
  const partial=assessPassiveRender({application_fetch_error_visible:false},{requested:4,fulfilled:3,blocked:1});
+ assert.equal(partial.verdict,'PASS');
  assert.equal(partial.render_fidelity,'partial');
+});
+
+
+test('passive idle barrier waits for a late API request and its completion',async()=>{
+ const started=Date.now();let requested=0,settled=0,pending=0;
+ const a=setTimeout(()=>{requested++;pending=1;},35);
+ const b=setTimeout(()=>{settled=1;pending=0;},135);
+ try{
+  const result=await waitForPassiveIdle({snapshot:()=>({requested,settled,pending}),minWaitMs:80,quietMs:45,maxWaitMs:1200,pollMs:7});
+  assert.equal(result.idle,true);
+  assert.ok(Date.now()-started>=155,'must allow late response and a quiet interval');
+ }finally{clearTimeout(a);clearTimeout(b);}
+});
+test('passive idle barrier times out on hanging API rather than claiming it settled',async()=>{
+ const result=await waitForPassiveIdle({snapshot:()=>({requested:2,settled:1,pending:1}),minWaitMs:10,quietMs:10,maxWaitMs:70,pollMs:5});
+ assert.equal(result.idle,false);
+ assert.ok(result.wait_ms>=60);
+ assert.equal(assessPassiveRender({application_fetch_error_visible:false},{requested:2,fulfilled:1,blocked:0,pending:1}).verdict,'FAIL');
+});
+test('network diagnostics retain source host but never query, secret, credential or external path',()=>{
+ const base=target;
+ const own=sanitizedNetworkTarget(base+'_api/report?token=private',base);
+ assert.deepEqual(own,{path:'/_api/report',scope:'approved-origin'});
+ const foreign=sanitizedNetworkTarget('https://cdn.example.net/private/foo?secret=abc',base);
+ assert.equal(foreign.host,'cdn.example.net');assert.equal(foreign.path,null);
+ assert.equal(JSON.stringify(foreign).includes('secret'),false);
+ assert.equal(JSON.stringify(foreign).includes('/private/'),false);
+ assert.equal(sanitizedNetworkTarget('http://169.254.169.254/private?token=abc',base).scope,'other-scheme');
 });

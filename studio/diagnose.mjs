@@ -30,7 +30,30 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
  // Never print raw stderr, API payloads, or token-bearing URLs.
  let stderr='';try{stderr=(await readFile(errPath,'utf8')).slice(-60000);}catch(e){if(e.code!=='ENOENT')throw e;}
  const diagnosis=infer(stderr)||infer(String(meta.error||''))||meta.error_code||'UNKNOWN';
- return {found:true,id:meta.id,status:meta.status,diagnosis,
+ const report=await store.getReport(meta.id);
+ const inspection=await store.getInspection(meta.id);
+ const isPassive=meta.mode==='dynamic-passive';
+ // The remote page's URLs and network payloads stay local. Only approved origin
+ // pathnames (no query) and external hostnames are shown, with strict bounds.
+ const safeSegment=value=>typeof value==='string'&&value.length<170&&
+  /^[a-zA-Z0-9_./\-%]+$/.test(value)?value.slice(0,120):null;
+ const externalHost=value=>typeof value==='string'&&value.length<180&&
+  /^[a-z0-9.-]+$/.test(value)?value:null;
+ const network=isPassive&&Array.isArray(inspection?.network)?inspection.network.slice(-25).map(event=>({
+   kind:safeSegment(event.kind)||'unknown',
+   path:safeSegment(event.path),
+   external_host:externalHost(event.host),
+   resource_type:safeSegment(event.resource_type),
+   reason:safeSegment(event.reason),
+   status:Number.isInteger(event.status)?event.status:null,
+ })).filter(event=>event.kind!=='unknown'):[];
+ return {found:true,id:meta.id,status:meta.status,mode:meta.mode||null,diagnosis,
+  ...(isPassive?{passive_browser:{verdict:report?.verdict||'UNKNOWN',
+    failures:Array.isArray(report?.failures)?report.failures.filter(x=>/^[a-z_]{3,50}$/.test(x)).slice(0,10):[],
+    requested:report?.resource_requests??null,fulfilled:report?.resource_fulfilled??null,
+    blocked:report?.resource_blocked??null,pending:report?.resource_pending??null,
+    browser_failures:report?.chrome_network_failures??null,
+    recent_network_events:network}}:{}),
   files:{scenario_bytes:await metrics(join(runDir,'scenario.json')),evidence_bytes:await metrics(join(runDir,'rea-capture.json')),stderr_bytes:await metrics(errPath),report_bytes:await metrics(join(runDir,'report.json')),inspection_bytes:await metrics(join(runDir,'inspection.json'))},
   stderr_path:`runs/${meta.id}/rea-stderr.log`,
   next_action:diagnosis==='UNKNOWN'?'Inspect the local stderr log; do not publish raw logs.':'Use this diagnosis together with the run status to identify the failing stage.',

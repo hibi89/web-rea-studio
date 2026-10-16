@@ -1,4 +1,4 @@
-# Status — P1-1 CODE READY / REAL WINDOWS VERIFICATION PENDING — 2026-10-16
+# Status — P1 / P2-1 WINDOWS VERIFIED; P2-2a WINDOWS VERIFICATION PENDING — 2026-10-16
 
 ## P0 (controlled fixture)
 - User's Windows PC (Node 24.21, Chrome, REA 6.5.0): last live run reported `PASS`, `completed_steps: 7/7`, `api_responses_200: 1`, `completeness: complete`, `dropped_events: 0`.
@@ -47,9 +47,17 @@ Next: owner runs `git pull --ff-only`, `npm test`, `npm run studio`, and perform
 - Private repo now contains `config/approved-targets.json`; the local Studio loads it and pre-fills the input. No wildcard or unrestricted browser navigation.
 - Static HTTPS extraction tests: in-sandbox 57/57 Node tests PASS after adding four approval/config tests. Browser visit and live remote HTTPS response were not tested in this environment; P2 live acceptance pending.
 
-## P2-2 Windows feedback (2026-10-16)
-- Passive Chrome captured a screenshot of `보고서를 불러오지 못했습니다 / Failed to fetch`.
-- Old report erroneously showed PASS, despite resource_requests=2, resource_fulfilled=1 and render_fidelity=unverified.
-- Revised acceptance distinguishes successful capture from working app rendering; pending requests and visible fetch errors cause FAIL.
-- Screenshot remains available after FAIL, and request-start paths are logged without query strings.
-- Actual data-fetch failure root cause still pending network event inspection; do not broaden origins blindly.
+## P2-2a passive dynamic browser (2026-10-16)
+- Owner already demonstrated Windows P1 REA fixture E2E PASS and P2-1 authorized live HTTPS static-html PASS on `https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/`.
+- Added independent Node/Chrome CDP passive adapter with a validated same-origin GET resource relay, ephemeral browser profile, restricted CSP and Chrome DNS/proxy flags; no external REA scenario or arbitrary clicks.
+- First browser analysis is explicit opt-in, not the default. Static site URL is unchanged and exact-match authorization remains in force.
+- Local Node mock/unit tests: 63/63 passed. The authoring environment's Chromium is blocked by policy with `net::ERR_BLOCKED_BY_ADMINISTRATOR`; this is **not** a Chrome E2E success.
+- Next: update Windows checkout, run npm test, start Studio and select Passive Browser once, review report, screenshot and blocked request count. Only then consider P2-2a proven.
+
+
+## P2-2 real Windows result (2026-10-16)
+- Owner observed `COMPLETED / PASS` and stored a PNG, but screenshot says `보고서를 불러오지 못했습니다`, `Failed to fetch`.
+- Report: two resource requests, only one fulfilled, none blocked, render fidelity unverified.
+- This is **failed application rendering**, not successful dashboard reproduction.
+- Fail-closed report detection and pending request counters added; diagnostic PNG retained even on FAIL.
+- Underlying data request failure still requires per-request event inspection; no additional domains approved.
