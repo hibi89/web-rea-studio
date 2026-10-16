@@ -111,6 +111,19 @@ export function sanitizeClientTrace(trace,target){
  return {fetches:bound(trace?.fetches),rejections:bound(trace?.rejections),xhrs:bound(trace?.xhrs),events:safeEvents};
 }
 
+export const STATIC_VISUAL_VIEWPORT=Object.freeze({width:1440,height:900,deviceScaleFactor:1,mobile:false});
+export function staticVisualCaptureSpec(layout,{width=1440,height=900,maxHeight=4000}={}){
+ const proposed=layout?.cssContentSize?.height??layout?.contentSize?.height;
+ const pageHeight=typeof proposed==='number'&&Number.isFinite(proposed)&&proposed>0?Math.ceil(proposed):height;
+ const heightUsed=Math.min(maxHeight,Math.max(height,pageHeight));
+ return {clip:{x:0,y:0,width,height:heightUsed,scale:1},
+  page_height:pageHeight,truncated:pageHeight>maxHeight};
+}
+export function screenshotPngDimensions(png){
+ if(!Buffer.isBuffer(png)||png.length<24||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))return null;
+ return {width:png.readUInt32BE(16),height:png.readUInt32BE(20)};
+}
+
 export class CdpClient{
  constructor(ws){
   this.ws=ws;this.next=1;this.pending=new Map();this.handlers=new Map();
@@ -185,6 +198,8 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   const created=await cdp.send('Target.createTarget',{url:'about:blank'});
   sessionId=(await cdp.send('Target.attachToTarget',{targetId:created.targetId,flatten:true})).sessionId;
   await cdp.send('Page.enable',{},sessionId);
+  // Only the opt-in Static Visual mode changes viewport size.
+  if(scriptsDisabled)await cdp.send('Emulation.setDeviceMetricsOverride',STATIC_VISUAL_VIEWPORT,sessionId);
   await cdp.send('Network.enable',{},sessionId);
   await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
   await cdp.send('Runtime.enable',{},sessionId);
@@ -265,10 +280,29 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   const observedUrl=frame.frameTree?.frame?.url;
   if(observedUrl!==target)throw error('NAVIGATION_OUT_OF_SCOPE','Chrome final URL differs from approved URL');
   if(metrics.fulfilled===0)throw error('NO_APPROVED_RESPONSE','No document or resources could be loaded');
-  const shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true},sessionId);
+  let region=null,captureVariant=scriptsDisabled?'viewport-fallback':'viewport';
+  if(scriptsDisabled){
+   try{
+    const m=await cdp.send('Page.getLayoutMetrics',{},sessionId,2500);
+    region=staticVisualCaptureSpec(m);
+   }catch{}
+  }
+  let shot;
+  if(scriptsDisabled&&region){
+   try{
+    shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,fromSurface:true,clip:region.clip},sessionId);
+    captureVariant=region.truncated?'full-page-bounded':'full-page';
+   }catch{
+    // Only one fallback; the screenshot is not silently reported as full page.
+    shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true},sessionId);
+   }
+  }else shot=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false,fromSurface:true},sessionId);
   const png=Buffer.from(shot.data||'','base64');
   if(png.length<100||png.length>5*1024*1024||!png.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw error('SCREENSHOT_INVALID','PNG capture missing/invalid');
   const screenshot_sha256=createHash('sha256').update(png).digest('hex');
+  const screenshotSize=screenshotPngDimensions(png);
+  if(!screenshotSize||screenshotSize.width<1||screenshotSize.width>4000||screenshotSize.height<1||screenshotSize.height>5000)
+   throw error('SCREENSHOT_INVALID','PNG screenshot dimensions invalid');
   await writeFile(join(dir,'screenshot.png'),png,{mode:0o600});
   // Recheck DOM after screenshot because the browser may paint a newer error
   // than the first Runtime.evaluate snapshot observed.
@@ -290,9 +324,9 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   const completeness=scriptsDisabled
    ?assessment.verdict==='FAIL'?'incomplete-static-visual':'static-dom-visual-only'
    :assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only';
-  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode,completeness,scripts_executed:!scriptsDisabled,
+  const inspection={schema_version:3,scope:'explicit-https-allowlist',mode,completeness,scripts_executed:!scriptsDisabled,screen_capture:{width:screenshotSize.width,height:screenshotSize.height,variant:captureVariant,truncated:region?.truncated===true&&captureVariant==='full-page-bounded'},
     browser:{product:'Chrome/CDP',version:null},page,steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:[...(scriptsDisabled?['JavaScript blocked by CSP; HTML-only visual capture, not real application rendering','No live API calls or interactions']:['Passive fetch/XHR observation (no added HTTP requests)']),'favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,screenshot_width:screenshotSize.width,screenshot_height:screenshotSize.height,screenshot_variant:captureVariant,screenshot_truncated:region?.truncated===true&&captureVariant==='full-page-bounded',render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}

@@ -89,6 +89,8 @@ el('copy-diagnosis').addEventListener('click',async()=>{
 
 function setCurrent(run){
  state.id=run.id;
+ el('open-screenshot').hidden=true;
+ el('open-screenshot').removeAttribute('href');
  el('diagnosis-panel').hidden=true;
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
@@ -120,6 +122,9 @@ async function select(id){
   if(['failed','interrupted'].includes(run.status))await loadDiagnosis(id);
   el('preview').replaceChildren();
   if((run.status==='completed'||run.status==='failed')&&run.mode!=='static-html'&&screenshotSaved){
+   const link=el('open-screenshot');
+   link.href=`/api/runs/${id}/screenshot`;
+   link.hidden=false;
    const img=document.createElement('img');img.alt='REA 최종 화면 캡처';img.src=`/api/runs/${id}/screenshot`;img.onerror=()=>{img.remove();const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.textContent='SCREENSHOT UNAVAILABLE';el('preview').append(placeholder);};el('preview').append(img);
   }
   if(run.status==='completed'&&run.mode==='static-html'){const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.textContent='STATIC HTML ONLY · NO SCREENSHOT';el('preview').append(placeholder);}

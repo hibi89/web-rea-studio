@@ -4,7 +4,7 @@ import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
 import {runInNewContext} from 'node:vm';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,STATIC_VISUAL_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
-import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget,isIncidentalFavicon,sanitizeClientTrace,PASSIVE_TRACE_SCRIPT} from '../studio/dynamic-browser.mjs';
+import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget,isIncidentalFavicon,sanitizeClientTrace,PASSIVE_TRACE_SCRIPT,STATIC_VISUAL_VIEWPORT,staticVisualCaptureSpec,screenshotPngDimensions} from '../studio/dynamic-browser.mjs';
 
 const target='https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/';
 const request=(url,resourceType='Document',method='GET')=>({url,resourceType,method});
@@ -186,4 +186,23 @@ test('static visual CSP blocks all scripts, fetch and form submissions',()=>{
  assert.match(STATIC_VISUAL_CSP,/form-action 'none'/);
  assert.doesNotMatch(STATIC_VISUAL_CSP,/script-src 'self'/);
  assert.match(LOCKDOWN_CSP,/script-src 'self'/);
+});
+
+test('Static Visual renders at desktop CSS viewport without switching existing passive mode',()=>{
+ assert.deepEqual(STATIC_VISUAL_VIEWPORT,{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+ assert.deepEqual(staticVisualCaptureSpec({cssContentSize:{height:2300}}),{
+  clip:{x:0,y:0,width:1440,height:2300,scale:1},page_height:2300,truncated:false});
+ assert.deepEqual(staticVisualCaptureSpec({cssContentSize:{height:100}}).clip,{
+  x:0,y:0,width:1440,height:900,scale:1});
+ const huge=staticVisualCaptureSpec({cssContentSize:{height:25000}});
+ assert.equal(huge.clip.height,4000);
+ assert.equal(huge.truncated,true);
+ const broken=staticVisualCaptureSpec({});
+ assert.equal(broken.clip.height,900);
+});
+test('PNG dimensions are parsed from screenshot evidence and bounded',()=>{
+ const png=Buffer.alloc(32);Buffer.from('89504e470d0a1a0a','hex').copy(png);
+ png.writeUInt32BE(1440,16);png.writeUInt32BE(2300,20);
+ assert.deepEqual(screenshotPngDimensions(png),{width:1440,height:2300});
+ assert.equal(screenshotPngDimensions(Buffer.from('not-png')),null);
 });

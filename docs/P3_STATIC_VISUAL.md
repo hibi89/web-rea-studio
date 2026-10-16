@@ -20,3 +20,15 @@ This is an **opt-in mode** for one explicitly approved public HTTPS URL.
 - Static HTML and Passive Browser modes remain available and unchanged.
 - Node regression tests do **not** prove that Chrome on Windows will render
   the target correctly. Inspect the new screenshot before claiming visual parity.
+
+
+## Full page desktop capture
+The opt-in Static Visual browser now uses a 1440×900 CSS-pixel desktop
+viewport and attempts a complete document-height screenshot, bounded to
+4000 pixels in height. It reports the *actual* PNG width, height,
+capture variant and truncation in the persisted report, separately from
+`application_render_status=not-executed`. If a full-height CDP capture
+fails, it makes one viewport-only fallback and labels that evidence accordingly.
+The UI provides a same-origin link to inspect the actual screenshot size.
+The same-origin read-only network restrictions and page-script block remain.
+Real Windows Chrome validation is required in addition to automated Node tests.
