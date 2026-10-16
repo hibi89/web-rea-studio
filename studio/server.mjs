@@ -10,7 +10,8 @@ import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from './evidence-manifest.mjs';
-import {verifyControlledF2Actions} from './controlled-f2-browser.mjs';
+import {verifyControlledF2Actions,verifyControlledF4Replay} from './controlled-f2-browser.mjs';
+import {generateControlledInteractiveHtml} from './behavior-reconstruction.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -23,7 +24,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
@@ -50,10 +51,11 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    void (async()=>{
     try {
      await store.update(meta.id,{status:'running'});
-     let execution;
+     let execution,controlledEvidence=null;
      if(mode==='fixture-causal'){
       await store.saveInput(meta.id,{kind:mode,scope:'controlled-synthetic-only',actions:'four-fixed-synthetic-controls',network:'in-memory-only'});
       const evidence=await controlledExecutor({browserPath});
+      controlledEvidence=evidence;
       if(evidence?.source!=='controlled-f2-chrome'||evidence.scope!=='in-memory-synthetic-only'||
        evidence.verified_actions!==4||evidence.verified_action_api_links!==2)
         throw Error('F2_CONTROLLED_EVIDENCE_INVALID');
@@ -99,6 +101,38 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      // Both the actual REA executor and its deterministic test double use this result contract.
      const report=execution.report;
      if(!report||!['PASS','FAIL'].includes(report.verdict))throw Error('Invalid analyzer report');
+     if(mode==='fixture-causal'){
+      report.behavior_reconstruction_available=false;
+      report.behavior_reconstruction_status='unavailable';
+      try{
+       const prototypeHtml=generateControlledInteractiveHtml(controlledEvidence);
+       if(Buffer.byteLength(prototypeHtml)>80000)throw Error('F4_PROTOTYPE_TOO_LARGE');
+       const replay=await prototypeExecutor({browserPath,prototypeHtml});
+       if(replay?.source!=='controlled-f4-replay'||
+          replay.scope!=='generated-synthetic-only'||replay.passed_steps!==4||
+          replay.executed_actions!==4||replay.real_api_requests!==0||
+          replay.simulated_api_calls!==2||
+          !Array.isArray(replay.steps)||replay.steps.length!==4)
+         throw Error('F4_REPLAY_EVIDENCE_INVALID');
+       for(let i=0;i<4;i++){
+        if(replay.steps[i].state_after?.period!==controlledEvidence.steps[i].state_after.period||
+           replay.steps[i].state_after?.rows!==controlledEvidence.steps[i].state_after.rows||
+           replay.steps[i].state_after?.order!==controlledEvidence.steps[i].state_after.order||
+           replay.steps[i].state_after?.view!==controlledEvidence.steps[i].state_after.view||
+           replay.steps[i].state_after?.ready!==controlledEvidence.steps[i].state_after.ready)
+          throw Error('F4_REPLAY_STATE_MISMATCH');
+       }
+       await writeFile(join(store.pathFor(meta.id),'behavior-prototype.html'),
+        prototypeHtml,{flag:'wx',mode:0o600});
+       report.behavior_reconstruction_available=true;
+       report.behavior_reconstruction_status='verified-synthetic-only';
+       report.behavior_replay_actions=4;
+       report.behavior_replay_simulated_api_calls=2;
+       report.behavior_replay_real_api_requests=0;
+      }catch{
+       report.behavior_reconstruction_status='unavailable';
+      }
+     }
      if(execution.inspection)await store.saveInspection(meta.id,execution.inspection);
      if(mode==='static-visual'){
       // Independent HTML reconstruction contains sanitized geometry only, not
@@ -197,7 +231,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|behavior-prototype|behavior-prototype-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -220,6 +254,20 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='behavior-prototype'||what==='behavior-prototype-download'){
+      if(meta.mode!=='fixture-causal')return respond(res,404,{error:'behavior_prototype_not_available'});
+      const report=await store.getReport(id);
+      if(report?.behavior_reconstruction_available!==true)
+       return respond(res,404,{error:'behavior_prototype_not_available'});
+      let document;
+      try{document=await readFile(join(store.pathFor(id),'behavior-prototype.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'behavior_prototype_not_available'});throw e;}
+      return respond(res,200,document,'text/html; charset=utf-8',{
+       'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'",
+       ...(what==='behavior-prototype-download'?
+        {'Content-Disposition':'attachment; filename="rea-controlled-interactive-prototype.html"'}:{})
+      });
     }
     if(what==='manifest'){
       const manifest=await store.getManifest(id);

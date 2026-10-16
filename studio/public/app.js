@@ -153,6 +153,10 @@ function setCurrent(run){
  el('open-screenshot').removeAttribute('href');
  el('p4-panel').hidden=true;
  el('f3-panel').hidden=true;
+ el('f4-panel').hidden=true;
+ for(const linkId of ['open-behavior','download-behavior']){
+  el(linkId).hidden=true;el(linkId).removeAttribute('href');
+ }
  for(const linkId of ['download-manifest','download-reconstruction']){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
@@ -183,14 +187,25 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':run.mode==='fixture-causal'?'합성 Chrome 행동/API 검증 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
   if(manifestAvailable&&!active){
    el('f3-panel').hidden=false;
    const link=el('download-manifest');link.href=`/api/runs/${id}/manifest`;link.hidden=false;
+  }
+  if(run.mode==='fixture-causal'&&!active){
+   el('f4-panel').hidden=false;
+   el('f4-status').textContent=behaviorAvailable
+    ?'Chrome 실험과 독립 앱의 4개 행동이 일치했습니다. 실제 API 요청은 0건입니다.'
+    :'검증된 독립 앱이 없습니다. F2 실험 기록은 별도로 확인할 수 있습니다.';
+   if(behaviorAvailable){
+    const preview=el('open-behavior'),download=el('download-behavior');
+    preview.href=`/api/runs/${id}/behavior-prototype`;preview.hidden=false;
+    download.href=`/api/runs/${id}/behavior-prototype-download`;download.hidden=false;
+   }
   }
   if(run.mode==='static-visual'&&!active){
    el('p4-panel').hidden=false;

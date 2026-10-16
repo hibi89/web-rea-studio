@@ -74,6 +74,9 @@ export function buildEvidenceManifest(inspection,report){
     description:dependencies.length?'Passive request events grouped; attribution unknown':'No external/passive request relation confirmed'},
   {id:'script-execution',status:mode==='static-visual'?'disabled':mode==='static-html'?'not-run':'observed',
     description:'Mode-specific script execution; does not imply tested interaction'},
+  {id:'behavioral-prototype',status:report?.behavior_reconstruction_available===true?
+    'verified-synthetic-only':'not-generated',
+    description:'Standalone fixed synthetic 4-action replay; not a third-party website clone'},
   {id:'generated-ui',status:report?.reconstruction_available===true?'generated':'not-generated',
     description:'Static geometry reconstruction only; not working original application'}
  ];
@@ -87,11 +90,14 @@ export function buildEvidenceManifest(inspection,report){
    attribution_scope:mode==='fixture-causal'?'controlled-synthetic-only':'unverified'},
   controlled_scenario:fixture,
   generated_artifacts:{standalone_html:report?.reconstruction_available===true,
+   interactive_prototype:report?.behavior_reconstruction_available===true&&mode==='fixture-causal',
+   interaction_verification_scope:report?.behavior_reconstruction_available===true&&mode==='fixture-causal'?
+    'synthetic-only':'not-verified',
    screenshot:report?.screenshot_saved===true,
    pixel_comparison:report?.visual_comparison_available===true},
   findings,errors,
   limitations:['No recovered private source, credentials or server logic',
     'Button/API causality is verified only for fixed synthetic fixture, never external sites',
     'Only measured static geometry can be regenerated',
-    'No live data or interaction correctness implied']};
+    'Interactive prototype replays ONLY synthetic fixture; external interaction correctness never implied']};
 }

@@ -481,7 +481,7 @@ test('F2 synthetic fixture mode is gated to fixture URL and persists verified ac
  const helped={...sorted,view:'help'};
  const causalEvidence={
   source:'controlled-f2-chrome',scope:'in-memory-synthetic-only',
-  verified_actions:4,verified_action_api_links:2,denied_unknown_requests:0,
+  verified_actions:4,verified_action_api_links:2,initial_api_requests:1,denied_unknown_requests:0,
   steps:[
    baseStep('change-period',['period','rows'],1,initial,period),
    baseStep('sort-rows',['order'],0,period,sorted),
@@ -494,6 +494,14 @@ test('F2 synthetic fixture mode is gated to fixture URL and persists verified ac
   controlledExecutor:async({browserPath})=>{
    attempts++;assert.equal(browserPath,'/test/chrome');
    return causalEvidence;
+  },
+  prototypeExecutor:async({browserPath,prototypeHtml})=>{
+   assert.equal(browserPath,'/test/chrome');
+   assert.match(prototypeHtml,/Synthetic Behavior Replay/);
+   assert.doesNotMatch(prototypeHtml,/\bfetch\s*\(/);
+   return {source:'controlled-f4-replay',scope:'generated-synthetic-only',
+    passed_steps:4,executed_actions:4,real_api_requests:0,simulated_api_calls:2,
+    steps:causalEvidence.steps.map(step=>({state_after:step.state_after}))};
   }});
  await app.init();await new Promise(ok=>app.server.listen(port2,'127.0.0.1',ok));
  const base='http://127.0.0.1:'+port2;
@@ -511,6 +519,9 @@ test('F2 synthetic fixture mode is gated to fixture URL and persists verified ac
   assert.equal(rep.analysis_mode,'fixture-causal');
   assert.equal(rep.verified_action_api_links,2);
   assert.equal(rep.completed_steps,4);
+  assert.equal(rep.behavior_reconstruction_available,true);
+  assert.equal(rep.behavior_reconstruction_status,'verified-synthetic-only');
+  assert.equal(rep.behavior_replay_real_api_requests,0);
   assert.equal(rep.evidence_manifest_available,true);
   const ins=await(await fetch(base+'/api/runs/'+id+'/inspection')).json();
   assert.equal(ins.exploration.state_transitions.changed_steps,3);
@@ -522,14 +533,55 @@ test('F2 synthetic fixture mode is gated to fixture URL and persists verified ac
   assert.equal(manifest.network.causal_links_verified,2);
   assert.equal(manifest.network.attribution_scope,'controlled-synthetic-only');
   assert.equal(manifest.controlled_scenario.verified_action_api_links,2);
+  assert.equal(manifest.generated_artifacts.interactive_prototype,true);
+  assert.equal(manifest.generated_artifacts.interaction_verification_scope,'synthetic-only');
+  assert.equal(manifest.findings.find(f=>f.id==='behavioral-prototype').status,'verified-synthetic-only');
+  const preview=await fetch(base+'/api/runs/'+id+'/behavior-prototype');
+  assert.equal(preview.status,200);
+  assert.match(preview.headers.get('content-security-policy'),/connect-src 'none'/);
+  const html=await preview.text();
+  assert.match(html,/data-action="refresh"/);
+  assert.doesNotMatch(html,/\bfetch\s*\(|https?:\/\//);
+  const download=await fetch(base+'/api/runs/'+id+'/behavior-prototype-download');
+  assert.equal(download.status,200);
+  assert.match(download.headers.get('content-disposition'),/attachment.*html/);
+  assert.equal(await download.text(),html);
   assert.equal(manifest.controlled_scenario.state_transitions[0].changes[0].field,'period');
   assert.equal(manifest.controlled_scenario.state_transitions[0].changes[0].to,30);
   assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction')).status,404);
+  assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/behavior-prototype')).status,404);
   const homePage=await(await fetch(base+'/')).text();
   assert.match(homePage,/value="fixture-causal"/);
   assert.equal(attempts,1);
   await fetch(base+'/api/runs/'+id+'/report');
   await fetch(base+'/api/runs/'+id+'/manifest');
   assert.equal(attempts,1);
+ }finally{await new Promise(ok=>app.server.close(ok));}
+});
+
+test('F4 cannot serve a synthetic interactive prototype from any HTTPS target or unverified fixture run',async()=>{
+ const port2=await freePort(),root=join(home,'f4-rejected');
+ const controlledUrl='http://127.0.0.1:'+fixturePort+'/';
+ const remoteUrl='https://owner.example.org/f4-check';
+ const app=createStudioServer({studioPort:port2,fixturePort,storageDir:root,
+  browserPath:'/fake/chrome',approvedUrls:[remoteUrl],controlledExecutor:async()=>({
+   source:'controlled-f2-chrome',scope:'in-memory-synthetic-only',
+   verified_actions:4,verified_action_api_links:2,steps:[
+    {step_id:'change-period',action:'click',status:'completed',state_before:{},state_after:{},changed_fields:[],network_requests:1,endpoint_paths:['/api/rows']}
+   ]
+  })});
+ await app.init();await new Promise(ok=>app.server.listen(port2,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port2;
+ const post=body=>fetch(base+'/api/runs',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ try{
+  assert.equal((await post({target_url:remoteUrl,analysis_mode:'fixture-causal'})).status,400);
+  const result=await post({target_url:controlledUrl,analysis_mode:'fixture-causal'});
+  assert.equal(result.status,202);
+  const id=(await result.json()).id;
+  await until(async()=>{const x=await(await fetch(base+'/api/runs/'+id)).json();return x.status==='completed';});
+  const report=await(await fetch(base+'/api/runs/'+id+'/report')).json();
+  assert.equal(report.behavior_reconstruction_available,false);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/behavior-prototype')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/behavior-prototype-download')).status,404);
  }finally{await new Promise(ok=>app.server.close(ok));}
 });

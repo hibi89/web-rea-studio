@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {verifyControlledF2Actions,classifyControlledF2Request} from '../studio/controlled-f2-browser.mjs';
+import {verifyControlledF2Actions,verifyControlledF4Replay,classifyControlledF2Request} from '../studio/controlled-f2-browser.mjs';
+import {generateControlledInteractiveHtml} from '../studio/behavior-reconstruction.mjs';
 const good='https://webrea-controlled-fixture.example.org/';
 assert.equal(classifyControlledF2Request(good,'GET').kind,'document');
 assert.equal(classifyControlledF2Request(good+'api/rows?period=7','GET').period,7);
@@ -31,3 +32,22 @@ console.log(JSON.stringify({controlled_f2_chrome:'PASS',
  action_to_request_counts:evidence.steps.map(s=>s.network_requests),
  actions_with_dom_changes:evidence.steps.filter(s=>s.changed_fields.length).length,
  unknown_requests_denied:evidence.denied_unknown_requests}));
+
+const prototypeHtml=generateControlledInteractiveHtml(evidence);
+const replay=await verifyControlledF4Replay({browserPath:process.env.CHROME_BIN,prototypeHtml});
+assert.equal(replay.source,'controlled-f4-replay');
+assert.equal(replay.scope,'generated-synthetic-only');
+assert.equal(replay.executed_actions,4);
+assert.equal(replay.passed_steps,4);
+assert.equal(replay.real_api_requests,0);
+assert.equal(replay.simulated_api_calls,2);
+assert.deepEqual(replay.steps.map(s=>s.simulated_api_calls),[1,0,0,1]);
+assert.deepEqual(replay.steps.map(s=>s.state_after),evidence.steps.map(s=>s.state_after));
+assert.doesNotMatch(JSON.stringify(replay),/password|SECRET|token=|https?:\/\//i);
+console.log(JSON.stringify({
+ controlled_f4_reconstruction:'PASS',
+ generated_html_bytes:Buffer.byteLength(prototypeHtml),
+ replayed_actions:replay.passed_steps,
+ simulated_api_calls:replay.simulated_api_calls,
+ actual_api_calls:replay.real_api_requests
+}));

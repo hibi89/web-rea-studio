@@ -62,13 +62,21 @@ const STATE=String.raw`(()=>{const g=x=>document.getElementById(x)?.textContent;
  period:Number(g('period-state')),order:g('sort-state'),
  view:g('view-state'),rows:Number(g('rows')),ready:g('ready')==='yes'
 }})()`;
+const STATE_REPLAY=String.raw`(()=>{const g=x=>document.getElementById(x)?.textContent;return {
+ period:Number(g('period-state')),order:g('order-state'),
+ view:g('view-state'),rows:Number(g('rows-state')),ready:g('ready-state')==='yes'
+}})()`;
 const actions=[
  {name:'change-period',selector:'#period',requests:1,expect:s=>s.period===30&&s.rows===8},
  {name:'sort-rows',selector:'#sort',requests:0,expect:s=>s.order==='desc'},
  {name:'open-help',selector:'#help',requests:0,expect:s=>s.view==='help'},
  {name:'refresh',selector:'#refresh',requests:1,expect:s=>s.rows===8}
 ];
-export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
+export async function verifyControlledF2Actions({browserPath,launch=spawn,prototypeHtml=null}={}){
+ const replay=typeof prototypeHtml==='string';
+ if(prototypeHtml!==null&&(!replay||prototypeHtml.length>75000||prototypeHtml.length<1000||
+    !prototypeHtml.includes('<title>Web REA · Synthetic Behavior Replay</title>')||
+    !prototypeHtml.includes('connect-src &#39;none&#39;')))throw Error('F4_UNTRUSTED_REPLAY_DOCUMENT');
  if(typeof browserPath!=='string'||!browserPath.trim())throw Error('F2_BROWSER_REQUIRED');
  const profile=await mkdtemp(join(tmpdir(),'webrea-f2-controlled-'));
  let child,cdp,sid;const requests=[];let denied=0,failures=0;
@@ -89,16 +97,21 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
   cdp.on('Fetch.requestPaused',async(e,session)=>{
    if(session!==sid)return;
    const decision=classify(e.request?.url,e.request?.method);
+   // In F4 replay the only allowed resource is the initial in-memory page.
+   // The generated application must not call /api/rows or any other API.
+   const allowed=decision&&(replay?decision.kind==='document':true);
    try{
-    if(!decision){denied++;await cdp.send('Fetch.failRequest',
+    if(!allowed){denied++;await cdp.send('Fetch.failRequest',
       {requestId:e.requestId,errorReason:'BlockedByClient'},sid);return;}
-    const content=decision.kind==='document'?html:JSON.stringify({count:decision.period===7?3:8});
+    const content=decision.kind==='document'?(replay?prototypeHtml:html):
+     JSON.stringify({count:decision.period===7?3:8});
     if(decision.kind==='api')requests.push({path:'/api/rows',method:'GET'});
     const headers=[{name:'Content-Type',value:decision.kind==='document'?
       'text/html; charset=utf-8':'application/json; charset=utf-8'},
       {name:'Cache-Control',value:'no-store'}];
     if(decision.kind==='document')headers.push({name:'Content-Security-Policy',
-      value:"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; form-action 'none'"});
+      value:replay?"default-src 'none'; script-src 'unsafe-inline'; connect-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; frame-src 'none'; form-action 'none'":
+       "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; form-action 'none'"});
     await cdp.send('Fetch.fulfillRequest',{requestId:e.requestId,responseCode:200,
       responseHeaders:headers,body:Buffer.from(content).toString('base64')},sid);
    }catch{failures++;}
@@ -107,7 +120,7 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
   const navigation=await cdp.send('Page.navigate',{url:TARGET},sid);
   if(navigation.errorText)throw Error('F2_NAVIGATION_FAILED');
   const readState=async()=>{
-   const v=(await cdp.send('Runtime.evaluate',{expression:STATE,returnByValue:true},sid)).result?.value;
+   const v=(await cdp.send('Runtime.evaluate',{expression:replay?STATE_REPLAY:STATE,returnByValue:true},sid)).result?.value;
    return v&&[7,30].includes(v.period)&&['asc','desc'].includes(v.order)&&
     ['table','help'].includes(v.view)&&Number.isInteger(v.rows)&&
     v.rows>=0&&v.rows<=100&&typeof v.ready==='boolean'?v:null;
@@ -121,7 +134,16 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
    throw Error('F2_CONTROLLED_STATE_TIMEOUT');
   }
   let prior=await until(s=>s.ready&&s.period===7&&s.rows===3);
-  if(requests.length!==1)throw Error('F2_INITIAL_API_UNEXPECTED');
+  if(replay?requests.length!==0:requests.length!==1)throw Error('F2_INITIAL_API_UNEXPECTED');
+  async function simulatedCount(){
+   const output=(await cdp.send('Runtime.evaluate',{
+    expression:"Number(document.getElementById('api-simulated')?.textContent)",
+    returnByValue:true},sid)).result?.value;
+   if(!Number.isSafeInteger(output)||output<0||output>10)throw Error('F4_INVALID_SIMULATED_COUNTER');
+   return output;
+  }
+  let previousSimulated=replay?await simulatedCount():0;
+  if(replay&&previousSimulated!==1)throw Error('F4_REPLAY_INITIAL_STATE_INVALID');
   const steps=[];
   for(const a of actions){
    const offset=requests.length;
@@ -130,16 +152,34 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
    if(clicked!==true)throw Error('F2_CONTROL_MISSING');
    const state=await until(s=>s.ready&&a.expect(s));
    const calls=requests.slice(offset);
-   if(calls.length!==a.requests)throw Error('F2_API_LINK_MISMATCH');
+   let simulatedDelta=0;
+   if(replay){
+    const simulated=await simulatedCount();
+    simulatedDelta=simulated-previousSimulated;
+    previousSimulated=simulated;
+    if(calls.length!==0||simulatedDelta!==a.requests)throw Error('F4_REPLAY_NETWORK_MISMATCH');
+   }else if(calls.length!==a.requests)throw Error('F2_API_LINK_MISMATCH');
    const fields=Object.keys(state).filter(k=>k!=='ready'&&state[k]!==prior[k]);
    if(!fields.length&&a.name!=='refresh')throw Error('F2_EXPECTED_CHANGE_MISSING');
    steps.push({step_id:a.name,action:'click',status:'completed',
     changed_fields:fields,state_before:prior,state_after:state,
-    network_requests:calls.length,endpoint_paths:[...new Set(calls.map(v=>v.path))],
-    attribution:'verified-in-controlled-single-action-window'});
+    network_requests:calls.length,
+    ...(replay?{simulated_api_calls:simulatedDelta}:{}),
+    endpoint_paths:[...new Set(calls.map(v=>v.path))],
+    attribution:replay?'verified-local-simulation':'verified-in-controlled-single-action-window'});
    prior=state;
   }
   if(failures)throw Error('F2_INTERCEPTION_FAILURE');
+  if(replay){
+   if(requests.length!==0)throw Error('F4_REPLAY_MADE_HTTP_CALLS');
+   return {source:'controlled-f4-replay',scope:'generated-synthetic-only',
+    executed_actions:steps.length,passed_steps:steps.length,
+    real_api_requests:0,simulated_api_calls:steps.reduce((n,step)=>n+step.simulated_api_calls,0),
+    steps:steps.map(step=>({step_id:step.step_id,status:step.status,
+     state_after:step.state_after,simulated_api_calls:step.simulated_api_calls})),
+    limitations:['Only isolated generated synthetic HTML was exercised',
+     'Simulated API counter is not a real request or backend reproduction']};
+  }
   return {source:'controlled-f2-chrome',scope:'in-memory-synthetic-only',
    verified_actions:steps.length,verified_action_api_links:steps.filter(x=>x.network_requests).length,
    initial_api_requests:1,denied_unknown_requests:denied,steps,
@@ -150,4 +190,9 @@ export async function verifyControlledF2Actions({browserPath,launch=spawn}={}){
   if(child&&child.exitCode===null)try{child.kill();}catch{}
   await rm(profile,{recursive:true,force:true,maxRetries:4,retryDelay:150}).catch(()=>{});
  }
+}
+
+export async function verifyControlledF4Replay({browserPath,prototypeHtml,launch=spawn}={}){
+ if(typeof prototypeHtml!=='string')throw Error('F4_DOCUMENT_REQUIRED');
+ return verifyControlledF2Actions({browserPath,launch,prototypeHtml});
 }
