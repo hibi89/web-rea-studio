@@ -58,6 +58,7 @@ list().then(async()=>{const {runs}=await api('/api/runs');if(runs.length)await s
 let approvedTargets=[];
 api('/api/targets').then(x=>{
  approvedTargets=x.approved_urls||[];
+ if(approvedTargets.length && el('target').value===x.fixture) el('target').value=approvedTargets[0];
  el('approved-list').textContent=approvedTargets.length?`승인된 HTTPS 정적 분석: ${approvedTargets.join(' · ')}`:'외부 사이트는 시작 전 WEB_REA_ALLOWED_URLS 환경변수에 정확한 HTTPS URL을 등록해야 합니다.';
  const update=()=>{const target=el('target').value;el('target-mode').textContent=target===x.fixture?'● REA controlled browser':approvedTargets.includes(target)?'● Approved HTTPS · static HTML only':'● Not approved';};
  el('target').addEventListener('input',update);update();

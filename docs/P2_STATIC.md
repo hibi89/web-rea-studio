@@ -34,3 +34,34 @@ Open `http://127.0.0.1:4320/`. Paste exactly the approved URL into TARGET URL an
 ## Next P2-2
 
 After one authorized site passes the passive static capture, add an independently enforced browser request allowlist/redirect containment, content and secret redaction, opt-in click scenarios, and screenshot/dynamic DOM capture; verify on the owner's Windows machine before advertising generalized website cloning.
+
+
+## First user-selected HTTPS target (2026-10-16)
+
+The private repository now includes an exact reviewed selection in
+`config/approved-targets.json`:
+`https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/`.
+This single-page approval was provided by the user for the first P2-1 run. It
+is **not** a wildcard or permission to browse other paths/subdomains.
+
+The Studio loads the checked-in exact list at startup and displays the first
+approved URL in the input field. Optional `WEB_REA_ALLOWED_URLS` additions
+remain explicitly scoped; the combined allowlist is bounded to 12 entries.
+No extra shell environment variable is required for the first approved URL.
+
+PowerShell (in the cloned `web-rea-studio` checkout):
+
+```powershell
+# If the previous studio is running, stop it first with Ctrl+C.
+git pull --ff-only
+npm test
+npm run studio
+```
+
+Visit `http://127.0.0.1:4320/`, verify the target field displays the exact
+approved URL, and click **분석 실행** once. Expect STATIC HTML ONLY rather than
+a browser screenshot. If the site redirects, requires sign-in, or serves only
+a minimal client-side shell, the conservative static inspector may fail or
+return little structure. Capture the result/error code before modifying the
+browser-analysis security boundary. Live website availability was not
+verifiable from the authoring environment; **Windows HTTPS acceptance is pending**.

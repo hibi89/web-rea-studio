@@ -90,3 +90,13 @@ After `npm run studio`, one controlled fixture analysis stores `report.json`, op
 The Studio no longer writes its **new Windows runs** under the OneDrive-synced repository folder. Instead it stores run history under `%LOCALAPPDATA%\WebREAStudio\runs`. On startup it copies existing run records from the previous project-local `results/studio/runs` directory, leaving originals unchanged. It records subsequent job-state updates as uniquely named metadata revisions rather than replacing `metadata.json`, avoiding the confirmed `EPERM` replacement failure. `npm run diagnose` uses the same run store.
 
 To apply: stop `npm run studio` with `Ctrl+C`, run `git pull --ff-only`, `npm test`, and `npm run studio`, then submit **one** controlled fixture analysis. Check for `completed`, `PASS`, and a screenshot. Real Windows verification is pending.
+
+
+## P2 first real HTTPS target
+
+The user-selected exact HTTPS URL is listed in `config/approved-targets.json`.
+`npm run studio` now loads it and pre-fills it in the analysis console.
+This runs **one read-only static HTML GET**, not REA browser capture and not
+website cloning. No extra `WEB_REA_ALLOWED_URLS` environment variable is
+needed for the checked-in target. The existing REA-controlled fixture remains
+available by entering `http://127.0.0.1:4317/` manually.

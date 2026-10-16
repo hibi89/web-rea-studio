@@ -33,3 +33,10 @@ Next: owner runs `git pull --ff-only`, `npm test`, `npm run studio`, and perform
 - P1 runner now launches `npx-cli.js` through `process.execPath`, preserving the pinned `rea-agents@6.5.0` and removing shell parsing.
 - Added `npm run check:launcher` to verify actual local child process invocation without fetching REA or opening a browser.
 - **Windows P1 real REA capture still unverified.** Run preflight before a single manual Studio analysis.
+
+
+## 2026-10-16 P2 user-selected live HTTPS target
+- Windows REA P1 browser path: owner confirmed `COMPLETED`, `PASS`, 7/7 actions, 200 response, verified screenshot and steps/network inspector in the conversation. Controlled fixture only.
+- First exact P2 static target selected by owner: `https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/`.
+- Private repo now contains `config/approved-targets.json`; the local Studio loads it and pre-fills the input. No wildcard or unrestricted browser navigation.
+- Static HTTPS extraction tests: in-sandbox 57/57 Node tests PASS after adding four approval/config tests. Browser visit and live remote HTTPS response were not tested in this environment; P2 live acceptance pending.
