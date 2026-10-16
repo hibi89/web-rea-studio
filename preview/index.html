@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Web REA Studio · 모바일 미리보기</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<div class="public-banner" role="status"><strong>PUBLIC PREVIEW</strong> · 공개 화면 체험판입니다. 실제 사이트 수집·Chrome·REA 분석 및 기록 저장은 실행되지 않습니다.</div>
+<div class="shell">
+  <aside class="sidebar"><div class="brand"><span class="mark">R</span><div><strong>WEB REA</strong><small>STUDIO / PREVIEW</small></div></div>
+    <div class="rail-heading">WORKSPACE</div><nav><a class="selected" href="/" aria-current="page">◈ &nbsp; Analysis Console</a></nav>
+    <div class="rail-heading">RECENT RUNS</div><div id="history" class="history"><p class="muted">샘플 실행 목록</p></div>
+    <div class="sidebar-bottom"><span class="green-dot"></span> Preview only <div class="sidebar-note">UI DEMO · NO BACKEND</div></div>
+  </aside>
+  <main class="content">
+    <header class="topbar"><span>WORKSPACE / ANALYSIS</span><span class="pill">DEMO UI · API 연결 없음</span></header>
+    <section class="intro"><span class="eyebrow">CAPTURE · INSPECT · VERIFY</span><h1>Website Analysis Studio<span class="accent">.</span></h1><p>실제 Studio 화면의 모바일 미리보기입니다. 표시되는 수치와 증거는 체험용 샘플입니다.</p></section>
+    <section class="panel setup"><div class="section-title"><span class="step-tag">01</span><div><h2>분석 대상 설정</h2><p>실제 분석 기능은 PC의 로컬 Studio에서만 동작합니다. 이 공개 버전에서는 각 분석 모드의 샘플 UI만 볼 수 있습니다.</p></div></div>
+      <form id="run-form"><label for="target">TARGET URL</label><div class="input-line"><input type="url" id="target" value="https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/" readonly spellcheck="false" aria-label="데모 대상 주소 (읽기 전용)"><button id="run" type="submit">▶ &nbsp; 샘플 보기</button></div><label class="mode-label" for="analysis-mode">ANALYSIS MODE</label><select id="analysis-mode" aria-label="분석 방식"><option value="rea-browser">REA Fixture · 7단계 예시</option><option value="static-html">Static HTML · 1회 읽기 예시</option><option value="dynamic-passive">Passive Browser · 오류 진단 예시</option></select><div class="form-footer"><span id="target-mode"><span class="green-dot"></span> Controlled local browser</span><span>샘플 전환만 실행 · 네트워크 요청 없음</span></div><p class="approved-list" id="approved-list">공개 미리보기: 주소는 읽기 전용이며, 실제 사이트에 요청하지 않습니다.</p></form>
+    </section>
+    <section class="stats"><div class="stat"><div class="stat-label">CURRENT STATUS</div><div class="stat-value" id="status">READY</div><small id="time">브라우저 내 정적 샘플</small></div><div class="stat"><div class="stat-label">SCENARIO STEPS</div><div class="stat-value" id="steps">—</div><small>REA: 7단계 / 정적: 1회 / Passive: 1회 탐색</small></div><div class="stat"><div class="stat-label">API RESPONSES</div><div class="stat-value" id="responses">—</div><small>브라우저 통신 / 정적 HTML은 별도 검사</small></div><div class="stat"><div class="stat-label">EVIDENCE VALIDATION</div><div class="stat-value" id="verdict">—</div><small>실제 검증 아님 · DEMO</small></div></section>
+    <div id="run-error" role="alert" class="run-alert" hidden></div>
+    <section class="panel results"><div class="section-title"><span class="step-tag">02</span><div><h2>분석 결과</h2><p id="result-title">샘플을 선택하면 저장된 실행처럼 보이는 예시 결과가 표시됩니다.</p></div></div>
+      <div class="results-grid"><div><h3>검증 리포트</h3><pre id="report">대기 중</pre><p class="hint" id="error" role="status"></p></div><div><h3>화면 증거 (최종 단계)</h3><div class="preview" id="preview"><div class="placeholder">SCREENSHOT UNAVAILABLE</div></div></div></div>
+      <div class="inspector"><h3>증거 구조 분석 · Evidence Inspector</h3><p class="inspector-sub">모든 항목은 화면 미리보기용 예시입니다. 이 배포에는 실제 네트워크 수집, REA 실행, 사용자의 분석 이력이 포함되지 않습니다.</p>
+      <div class="inspector-grid"><div><h4>브라우저 행동</h4><div id="inspector-steps" class="inspect-list">분석 완료 후 표시됩니다.</div></div><div><h4>네트워크 이벤트</h4><div id="inspector-network" class="inspect-list">분석 완료 후 표시됩니다.</div></div></div><div class="inspector-foot" id="inspector-summary">증거 요약 대기 중</div><div class="static-summary" id="static-summary" hidden></div></div>
+      <div class="bottom-note">데모 전용입니다. 실제 실행 기록·스냅샷·토큰은 업로드되지 않았습니다. 분석 기능은 집 PC의 <code>127.0.0.1:4320</code>에서 별도로 실행합니다.</div>
+    </section>
+  </main>
+</div><script src="/app.js" defer></script>
+</body></html>
