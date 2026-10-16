@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
+import {runInNewContext} from 'node:vm';
 import {approveBrowserRequest,fetchGatewayResource,redactedResourcePath,LOCKDOWN_CSP,DYNAMIC_LIMITS} from '../studio/dynamic-gateway.mjs';
 import {CdpClient,assessPassiveRender,waitForPassiveIdle,sanitizedNetworkTarget,isIncidentalFavicon,sanitizeClientTrace,PASSIVE_TRACE_SCRIPT} from '../studio/dynamic-browser.mjs';
 
@@ -156,4 +157,25 @@ test('fetch/XHR attempted requests are tracked without exposing query or cross-o
  assert.equal(result.events[1].raw,undefined);
  assert.equal(JSON.stringify(result).includes('SECRET'),false);
  assert.equal(result.events[2].path,'/api/report');
+});
+
+test('injected passive tracer preserves rejected fetch and redacts both API query and cross-origin path',async()=>{
+ class XHR {open(method,url){this.method=method;this.url=url;}}
+ const win={fetch:async()=>{throw Error('offline')}};
+ const context={window:win,XMLHttpRequest:XHR,location:{href:target,origin:new URL(target).origin},URL,Reflect};
+ runInNewContext(PASSIVE_TRACE_SCRIPT,context,{timeout:1000});
+ await assert.rejects(win.fetch(target+'api/report?token=VERY_SECRET'),/offline/);
+ const xhr=new XHR();xhr.open('GET','https://api.external.example/private/id?token=VERY_SECRET');
+ assert.equal(xhr.method,'GET');
+ const captured=win.__webrea_passive_trace.snapshot();
+ assert.equal(captured.fetches,1);
+ assert.equal(captured.rejections,1);
+ assert.equal(captured.xhrs,1);
+ assert.equal(captured.events.length,3);
+ const clean=sanitizeClientTrace(captured,target);
+ assert.equal(clean.events[0].path,'/api/report');
+ assert.equal(clean.events[1].kind,'fetch-rejected');
+ assert.equal(clean.events[2].host,'api.external.example');
+ assert.ok(!JSON.stringify(clean).includes('VERY_SECRET'));
+ assert.ok(!JSON.stringify(clean).includes('/private/id'));
 });

@@ -32,6 +32,8 @@ async function loadDiagnosis(id){
   if(p){
    lines.push('브라우저 판정: '+(p.verdict||'UNKNOWN'));
    lines.push('요청 '+(p.requested??'—')+' · 성공 '+(p.fulfilled??'—')+' · 차단 '+(p.blocked??'—')+' · 미완료 '+(p.pending??'—')+' · 네트워크 오류 '+(p.browser_failures??'—'));
+   if(p.fetch_attempts!==null&&p.fetch_attempts!==undefined)lines.push('앱 JS fetch 시도 '+p.fetch_attempts+' · 거부 '+(p.fetch_rejections??'—')+' · XHR open '+(p.xhr_attempts??'—'));
+   if(p.synthetic_favicons!==null&&p.synthetic_favicons!==undefined)lines.push('파비콘 로컬 처리 '+p.synthetic_favicons+'건 (실제 사이트 요청 아님)');
    lines.push('오류 분류: '+(p.failures||[]).join(', '));
    lines.push('최근 요청 경로/호스트 (쿼리 제외):');
    for(const n of p.recent_network_events||[])lines.push('  '+n.kind+' · '+(n.path||n.external_host||'—')+' · '+(n.reason||n.status||'—'));
