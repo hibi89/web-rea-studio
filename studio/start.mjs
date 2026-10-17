@@ -21,7 +21,9 @@ if(!isolatedSmoke){
  try{migration=await importLegacyRuns({from:legacyDir,to:dataDir});}
  catch(e){console.warn('Existing history could not be copied. Originals remain intact. Check OneDrive permissions; new runs use local storage.');}
 }
-const approvedUrls=await loadApprovedTargets();
+// Acceptance smoke must not depend on or expose the owner's real approved
+// external targets. Only the built-in loopback fixture is allowed here.
+const approvedUrls=isolatedSmoke?[]:await loadApprovedTargets();
 const fixture=createFixtureServer(),studio=createStudioServer({fixturePort,studioPort,browserPath:path,storageDir:dataDir,approvedUrls});
 await studio.init();
 await new Promise((resolve,reject)=>fixture.once('error',reject).listen(fixturePort,'127.0.0.1',resolve));
