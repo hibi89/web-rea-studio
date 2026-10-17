@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 최신 CI 검증된 기능 코드 커밋은 `4a2031bd54a7b833efc9a26555b30df3c61eaa9c`다. GitHub Actions `38994112399`에서 Node 회귀 및 합성 Chrome P4/F2/F4 테스트 모두 성공했다. 이후 문서 전용 커밋은 기능 코드 SHA와 구분한다. 그 코드의 GitHub Node·Chrome CI는 `https://github.com/hibi89/web-rea-studio/actions/runs/38992975379`에서 success로 확인됐다. 이후 문서 전용 커밋은 별도 기능 CI를 실행하지 않을 수 있으므로 최신 `main` HEAD와 기능 코드 SHA를 구분한다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
+> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 기존 검증 기능 코드는 `4a2031bd54a7b833efc9a26555b30df3c61eaa9c`다. 이번 P2 패킷 구현의 최종 기능 코드 SHA는 `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`이며, CI 상태는 https://github.com/hibi89/web-rea-studio/actions/runs/38994454894 를 기준으로 확인한다. GitHub Actions `38994112399`에서 Node 회귀 및 합성 Chrome P4/F2/F4 테스트 모두 성공했다. 이후 문서 전용 커밋은 기능 코드 SHA와 구분한다. 그 코드의 GitHub Node·Chrome CI는 `https://github.com/hibi89/web-rea-studio/actions/runs/38992975379`에서 success로 확인됐다. 이후 문서 전용 커밋은 별도 기능 CI를 실행하지 않을 수 있으므로 최신 `main` HEAD와 기능 코드 SHA를 구분한다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -42,6 +42,7 @@
 | --- | --- |
 | `studio/server.mjs`, `studio/start.mjs`, `studio/public/*` | Windows 로컬 Studio 서버, 실행/조회 API, 사용자 UI |
 | `studio/dynamic-browser.mjs`, `studio/dynamic-gateway.mjs`, `studio/static-analysis.mjs` | 허가된 사이트 정적/수동 동적 관측과 중계·격리 |
+| `studio/support-packet.mjs` | 저장된 실패 기록에서 개인정보 최소화 공유용 원인 분석 패킷; 원격 요청 없음 |
 | `studio/passive-blueprint.mjs`, `studio/passive-dependencies.mjs` | 저장된 외부 사이트 F1/F2 읽기 전용 통합 명세와 API 그룹 분류 |
 | `studio/observed-controls.mjs`, `studio/behavior-exploration.mjs`, `studio/generic-fixture-browser.mjs` | F1/F2 컨트롤 관측, 합성 상태 그래프 및 경로 검증 |
 | `studio/evidence-manifest.mjs`, `studio/interaction-blueprint.mjs` | F3 증거 기반 산출물 |
@@ -92,6 +93,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | P2 개인정보 최소화 실패 진단 패킷 | 실패/중단된 기존 passive run에서 진단 코드, 요청·거부 수치, 호스트명, 경로 유형만 결합한 `support-packet` JSON 다운로드·UI·단위/HTTP 테스트 추가. 스크린샷·입력값·원본 URL·본문 제외, 외부 재요청 0건 | 코드 `9d4bcf3`, Actions `38994454894` 확인 필요; 사용자 Windows 기존 실패 기록의 패킷 실제 열람·공유 전 점검 필요 |
 | 2026-10-17 | F1/F2 읽기 전용 관찰 명세 | 코드 `4a2031bd54a7b833efc9a26555b30df3c61eaa9c`, CI `38994112399` 전체 PASS. 저장된 컨트롤·API 관찰 증거 통합 JSON API·Studio 링크·회귀 테스트, 외부 호출·클릭 및 검증된 인과관계 0건 | 사용자 Windows 실기록/실화면 검증 필요; 실제 `Failed to fetch` 미해결 |
 | 2026-10-17 | P2 저장된 API 의존성 화면 연동 | 실패 진단에서 허가된 경로·외부 호스트 증거를 최대 10개 표시하고 JSON 다운로드. 코드 `e1063bb0`, GitHub Node·Chrome CI 전체 success 확인 | 사용자 Windows의 과거 캡처 확인과 실제 API 연결은 미검증 |
 | 2026-10-17 | P2 읽기 전용 API 의존성 리포트 | 저장된 네트워크 이벤트를 내부 경로/외부 호스트별 그룹화한 JSON 엔드포인트와 테스트. 코드 `45899e9b`, GitHub Node·Chrome CI success 확인 | Windows 저장 기록에서 검증, 외부 API 권한 검토 대기 |
@@ -103,7 +105,7 @@
 
 ### 다음 세션 첫 작업 (마지막 작업 이후 갱신 필요)
 
-현재 기본 우선순위는 **로컬 GET `/api/runs/:id/passive-blueprint` 및 `/dependencies`로 저장된 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
+현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON`(GET `/api/runs/:id/support-packet`)을 확보하여 민감정보 제외 여부를 검토하고 `passive-blueprint` 및 `/dependencies`와 비교하여 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
 ## 7. 중요 링크
 
@@ -112,6 +114,7 @@
 - 이번 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/4a2031bd54a7b833efc9a26555b30df3c61eaa9c
 - 최신 확인된 기능 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38994112399
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
+- 새 안전 진단 패킷 및 Windows 확인 절차: `docs/P2_SUPPORT_PACKET.md`.
 - F1/F2 통합 관찰 명세: `docs/F1_F2_PASSIVE_BLUEPRINT.md`.
 - 신규 API 의존성 리포트: `docs/P2_DEPENDENCY_REVIEW.md`.
 - 개발 근거: `docs/F1_F2_STATE_GRAPH.md`, `docs/F1_F2_PERMISSION_PREFLIGHT.md`, `docs/F2_CONTROLLED_CHROME.md`, `docs/F4_GENERIC_STATE_ENGINE.md`, `docs/P2_DYNAMIC.md`, `docs/PUBLIC_PREVIEW.md`.
