@@ -38,3 +38,7 @@ Do not auto-approve an observed hostname (particularly DNS/IP-encoded wildcard s
 ## Next step
 
 Continue independent synthetic F1–F5 regression work. For real Q1 authorization, establish target and API ownership, precise read-only access scope and request budgets before any permission or external relay change. Final real-site product acceptance is not yet possible on this evidence alone.
+
+## Verified GitHub acceptance (2026-10-17)
+
+Functional SHA `a01017fe7e32e41210df95268ef6c431bc0bdbfa`, [GitHub Actions run 39012230285](https://github.com/hibi89/web-rea-studio/actions/runs/39012230285): the real Linux Node 22 and Windows Node 22/24 jobs **all concluded SUCCESS**. All three Node regression jobs reported **216/216 PASS, 0 failures**. Linux additionally ran its complete mandatory isolated Chrome P4/F5/F2/P2-CORS/F4 suite, and Windows ran the existing real Chrome P4 and saved-draft F5 owner-style smoke. The newly added Q1 pure assessment and HTTP route tests were observed passing in job logs. This is **GitHub CI evidence**, not a user's own Windows execution or a restored remote API.
