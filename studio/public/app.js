@@ -228,6 +228,21 @@ async function loadDiagnosis(id){
     }
    }catch{lines.push('F3/Q1 익명 UI 구조 미리보기: 증거 부족 또는 충돌로 생성 차단');}
   }
+  if(p){
+   try{
+    const receipt=await api('/api/runs/'+id+'/f3-q1-geometry-preview-receipt');
+    if(state.id!==id)return;
+    if(receipt.status==='OFFLINE_COARSE_GEOMETRY_PREVIEW'){
+     for(const [key,suffix] of [
+      ['open-f3-q1-geometry-preview','f3-q1-geometry-preview'],
+      ['download-f3-q1-geometry-preview','f3-q1-geometry-preview-download'],
+      ['download-f3-q1-geometry-receipt','f3-q1-geometry-preview-receipt']]){
+      const a=el(key);a.href='/api/runs/'+id+'/'+suffix;a.hidden=false;
+     }
+     lines.push('F3/Q1 기하 근거 익명 UI: 3×3 구역 단위 미리보기 가능 · 실제 모바일 원본 배치 미검증');
+    }
+   }catch{lines.push('F3/Q1 기하 근거 익명 UI: viewport/좌표 증거가 부족하거나 충돌해 생성 차단');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -471,6 +486,10 @@ function setCurrent(run){
  el('download-f3-q1-work-plan').removeAttribute('href');
  for(const key of ['open-f3-q1-wireframe','download-f3-q1-wireframe',
   'download-f3-q1-wireframe-receipt']){
+  el(key).hidden=true;el(key).removeAttribute('href');
+ }
+ for(const key of ['open-f3-q1-geometry-preview','download-f3-q1-geometry-preview',
+  'download-f3-q1-geometry-receipt']){
   el(key).hidden=true;el(key).removeAttribute('href');
  }
  el('diagnosis-copy-status').textContent='';
