@@ -382,6 +382,9 @@ function setCurrent(run){
  for(const linkId of ['download-manifest','download-reconstruction']){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
+ el('download-static-pipeline-audit').hidden=true;
+ el('download-static-pipeline-audit').removeAttribute('href');
+ el('p4-audit-status').textContent='저장된 정적 재구현 증거는 아직 검사하지 않았습니다.';
  el('open-reconstruction').hidden=true;
  el('open-reconstruction').removeAttribute('href');
  clearTimeout(state.repairTimer);
@@ -489,6 +492,23 @@ async function select(id){
     const exportLink=el('download-reconstruction');
     exportLink.href=`/api/runs/${id}/reconstruction-download`;
     exportLink.hidden=false;
+   }
+   if(run.status==='completed'){
+    try{
+     const audit=await api('/api/runs/'+id+'/static-pipeline-audit');
+     if(state.id!==id)return;
+     const link=el('download-static-pipeline-audit');
+     link.href='/api/runs/'+id+'/static-pipeline-audit';
+     link.hidden=false;
+     el('p4-audit-status').textContent=audit.status==='OFFLINE_ARTIFACTS_VERIFIED'
+      ?'저장된 HTML·스크린샷·비교 수치 무결성 확인 · 정적 화면 품질: '+
+         (audit.stages.static_visual_gate.status==='THRESHOLD_MET'?'기준 충족':'기준 미충족')+
+         ' · 실제 동작·API 동일성은 미검증'
+      :audit.status==='EVIDENCE_CONFLICT'
+       ?'저장된 증거의 무결성 불일치 · 생성본 및 측정 수치를 신뢰하지 마십시오.'
+       :'검증 증거 미완성 · 누락된 저장 결과가 있습니다. 실사이트 동작은 미검증입니다.';
+    }catch{if(state.id===id)el('p4-audit-status').textContent=
+     '저장된 정적 검증 보고서를 읽을 수 없습니다. 결과 검증 전입니다.';}
    }
    if(controlMapAvailable){
     el('control-map-actions').hidden=false;
