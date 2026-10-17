@@ -60,6 +60,8 @@ export async function reviewSavedP5ColorRepair({store,id,browserPath,
    status:result.status,attempts:result.attempts,accepted:result.accepted,
    renderings:result.renderings,history:result.history,
    screenshot_inference_enabled:true,
+   secondary_viewports_verified:0,
+   multi_viewport_no_regression_verified:false,
    baseline:result.baseline??null,final:result.final??null,
    downloadable_improved_html:improved,
    original_capture_reexecuted:false,original_run_files_overwritten:false,
@@ -68,7 +70,8 @@ export async function reviewSavedP5ColorRepair({store,id,browserPath,
    limitations:['Only static P4 background and painted region color fixes',
     'Starting geometry is currently generated from the same saved reference',
     'Pixel repair requires a large unobscured near-uniform region in both PNGs',
-    'A passing screenshot does not prove API or interaction parity']
+    'A passing screenshot does not prove API or interaction parity',
+    'Secondary viewport evidence is not saved for the original run; no multi-viewport guarantee']
   };
   if(improved){
    if(!result.candidate_html?.includes('script-src &#39;none&#39;')||
