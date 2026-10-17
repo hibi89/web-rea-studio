@@ -81,6 +81,13 @@
    <button id="store-independent-draft" type="button">선택한 독립 초안 로컬에 저장</button>
    <p id="independent-draft-status" role="status">아직 별도 초안을 등록하지 않았습니다. 저장만 진행하며 브라우저 자동 실행이나 보정은 시작하지 않습니다.</p>
    <a id="download-independent-draft" hidden download>등록한 정적 HTML 내려받기</a>
+   <div id="geometry-review-actions" hidden>
+    <h4>F5 · 저장한 독립 초안의 위치·크기 보정</h4>
+    <p>사용자 초안만 오프라인 Chrome으로 재캡처하고, 도형이 유일하게 대응되며 실제 화질이 개선될 때에만 별도 HTML을 저장합니다. 원본 사이트는 다시 열지 않습니다.</p>
+    <button id="run-geometry-review" type="button">오프라인 위치·크기 검증 및 보정</button>
+    <p id="geometry-review-status" role="status">실행 전입니다. 저장 자체는 검증 완료가 아닙니다.</p>
+    <a id="download-geometry-review" hidden download>검증된 정적 위치·크기 개선 HTML 내려받기</a>
+   </div>
   </div>
   <p class="p4-caveat">이는 정적 화면의 RGB 표본 비교입니다. 원본 JavaScript·데이터·버튼 동작·차트 정확성을 보증하지 않습니다.</p>
  </div><p class="p4-caveat">원본 HTML 복사본이 아닙니다. 측정한 도형·제목·색상만 재배치하며 실제 데이터나 인터랙션은 없습니다.</p></section>
