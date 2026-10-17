@@ -52,9 +52,12 @@ for(const appId of fixtures){
  assert.equal(verified.actual_api_calls,0);
  assert.equal(verified.simulated_api_calls,1);
  assert.equal(verified.branching,true);
+ assert.ok(verified.unobserved_transitions_rejected>=4,
+  'unobserved action events must not change state, counters or issue HTTP');
  console.log(JSON.stringify({f4_generic_chrome:'PASS',app_id:appId,
   observed_actions:evidence.steps.length,branching_paths:2,policy_approved:policy.authorized_controls,policy_denied:policy.denied_controls,
   reachable_states:graph.reachable_state_count,graph_edges_verified:certified.verification.observed_edges_verified,planned_routes:certified.verification.routes_verified,generated_html_bytes:Buffer.byteLength(html),
   replay_verified:verified.verified_steps,actual_api_calls:verified.actual_api_calls,
-  simulated_api_calls:verified.simulated_api_calls}));
+  simulated_api_calls:verified.simulated_api_calls,
+  unobserved_transitions_rejected:verified.unobserved_transitions_rejected}));
 }
