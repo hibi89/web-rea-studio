@@ -523,6 +523,11 @@ test('P5 comparison views are present in local Studio UI',async()=>{
  assert.match(app,/VISUAL_THRESHOLD_MET_STATIC_ONLY/);
  assert.match(app,/과거 비교 기록/);
  assert.match(app,/coverage_pct/);
+ assert.match(html,/id="p5-color-review"/);
+ assert.match(html,/id="run-color-review"/);
+ assert.match(html,/id="download-color-review"/);
+ assert.match(app,/offline-color-review/);
+ assert.match(app,/refreshColorReview/);
 });
 
 test('F1/F2 exploration appears in the Studio evidence inspector without clickable execution controls',async()=>{
