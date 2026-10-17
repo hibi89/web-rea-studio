@@ -272,14 +272,20 @@ async function refreshAnonymousAcceptance(id){
  const status=el('f3-q1-layout-acceptance-status');
  const button=el('run-f3-q1-layout-acceptance');
  const link=el('download-f3-q1-layout-acceptance');
+ const verified=el('download-f3-q1-verified-offline-export');
  link.hidden=true;link.removeAttribute('href');
+ verified.hidden=true;verified.removeAttribute('href');
  try{
   const receipt=await api('/api/runs/'+id+'/f3-q1-layout-acceptance');
   if(state.id!==id)return;
   if(receipt.status==='VERIFIED_SYNTHETIC_LAYOUT_ONLY'){
    status.textContent='익명 HTML Chrome 2화면 저장 검증 완료 · 원본 사이트 동등성 미검증';
    button.disabled=true;link.hidden=false;
-   link.href='/api/runs/'+id+'/f3-q1-layout-acceptance';return;
+   link.href='/api/runs/'+id+'/f3-q1-layout-acceptance';
+   // Visible only after the read-only acceptance GET has validated saved hashes.
+   // Download GET independently repeats all gates and may still refuse a stale link.
+   verified.href='/api/runs/'+id+'/f3-q1-verified-offline-export';
+   verified.hidden=false;return;
   }
   if(receipt.status==='running'){
    status.textContent='명시적으로 승인한 익명 HTML만 격리 Chrome에서 검증 중';
@@ -540,6 +546,8 @@ function setCurrent(run){
  el('run-f3-q1-layout-acceptance').disabled=false;
  el('download-f3-q1-layout-acceptance').hidden=true;
  el('download-f3-q1-layout-acceptance').removeAttribute('href');
+ el('download-f3-q1-verified-offline-export').hidden=true;
+ el('download-f3-q1-verified-offline-export').removeAttribute('href');
  el('f3-q1-layout-acceptance-status').hidden=true;
  for(const key of ['open-f3-q1-geometry-preview','download-f3-q1-geometry-preview',
   'download-f3-q1-geometry-receipt']){

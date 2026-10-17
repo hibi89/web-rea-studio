@@ -1,4 +1,5 @@
 import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -374,7 +375,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|f3-q1-verified-offline-export|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -714,6 +715,38 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        error:'offline_chrome_verification_failed',status:'NOT_VERIFIED'
       });
       return respond(res,404,{error:'anonymous_acceptance_not_started'});
+    }
+    if(what==='f3-q1-verified-offline-export'){
+      // This is a separate reviewed artifact, not the legacy anonymous preview.
+      // GET is read-only: no Chrome, no network calls and no saved-run mutations.
+      if(meta.mode!=='dynamic-passive')
+       return respond(res,404,{error:'offline_verified_export_unavailable'});
+      if(!['failed','interrupted'].includes(meta.status))
+       return respond(res,409,{error:'offline_verified_export_requires_failed_passive'});
+      const inspection=await store.getInspection(id);
+      if(!inspection)return respond(res,404,{error:'passive_inspection_not_ready'});
+      if(inspection.mode!=='dynamic-passive')
+       return respond(res,409,{error:'passive_evidence_mode_mismatch'});
+      const report=await store.getReport(id),diagnosis=await diagnoseRuns(storageDir,id);
+      const args={store,id,mode:meta.mode,inspection,report,diagnosis};
+      const saved=await readAcceptanceReceipt(args);
+      if(!saved)return respond(res,404,{error:'offline_two_view_acceptance_not_recorded'});
+      if(saved.status!=='VERIFIED_SYNTHETIC_LAYOUT_ONLY')
+       return respond(res,409,{error:'offline_acceptance_evidence_conflict'});
+      let preview;
+      try{preview=acceptanceInputs(args).preview;}
+      catch{return respond(res,409,{error:'offline_generated_html_no_longer_eligible'});}
+      const actualHash=createHash('sha256').update(preview.html,'utf8').digest('hex');
+      if(actualHash!==saved.html_sha256||actualHash!==preview.receipt.sha256||
+         Buffer.byteLength(preview.html,'utf8')!==preview.receipt.bytes)
+       return respond(res,409,{error:'offline_export_html_hash_mismatch'});
+      return respond(res,200,preview.html,'text/html; charset=utf-8',{
+       'Content-Disposition':'attachment; filename="rea-verified-synthetic-offline-only.html"',
+       'Content-Security-Policy':COARSE_GEOMETRY_CSP,
+       'X-Content-Type-Options':'nosniff',
+       'X-REA-Verification-Scope':'synthetic-offline-only',
+       'X-REA-HTML-SHA256':actualHash
+      });
     }
     if(what==='q1-assessment'){
       if(meta.mode!=='dynamic-passive')return respond(res,404,{error:'q1_assessment_not_available'});
