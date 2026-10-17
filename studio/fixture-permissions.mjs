@@ -1,9 +1,10 @@
-// F1/F2 capability gate for two fixed, in-memory synthetic browser fixtures.
+// F1/F2 capability gate for three fixed, in-memory synthetic browser fixtures.
 // No policy can grant action rights to user supplied URLs or other origins.
 const ORIGIN='https://webrea-generic-fixture.example.org';
 const MATRIX=Object.freeze({
  catalog:Object.freeze({'src-filter':'filter','src-layout':'layout','source-reset':'reset'}),
- analytics:Object.freeze({'src-range':'range','src-chart':'chart','source-reset':'reset'})
+ analytics:Object.freeze({'src-range':'range','src-chart':'chart','source-reset':'reset'}),
+ planner:Object.freeze({'src-day':'day','src-view':'view','source-reset':'reset'})
 });
 const deny=(id,reason)=>({id,decision:'denied',reason});
 export function fixtureActionPolicy({appId,origin=ORIGIN}={}){

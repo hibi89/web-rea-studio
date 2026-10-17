@@ -5,10 +5,15 @@ import {generateGenericBehaviorHtml,normalizeGenericBehaviorEvidence} from '../s
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from '../studio/behavior-exploration.mjs';
 import {compileObservedStateContract} from '../studio/reconstruction-contract.mjs';
 const fixtures=listGenericSyntheticFixtures();
-assert.deepEqual(fixtures,['catalog','analytics']);
+assert.deepEqual(fixtures,['catalog','analytics','planner']);
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/','GET'),'document');
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/items?category=summer','GET'),'items');
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/metrics?range=month','GET'),'metrics');
+assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/calendar?day=tuesday','GET'),'calendar');
+assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/calendar?day=monday','GET'),null);
+assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/calendar?day=tuesday&token=x','GET'),null);
+assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/calendar?day=tuesday','POST'),null);
+assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/calendar?day=tuesday','GET',{replay:true}),null);
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/items?category=summer&token=DO_NOT_ALLOW','GET'),null);
 assert.equal(classifyGenericFixtureRequest('https://elsewhere.example.org/','GET'),null);
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/api/items?category=summer','POST'),null);
@@ -24,7 +29,7 @@ for(const appId of fixtures){
  assert.equal(policy.external_navigation_performed,false);
  assert.equal(policy.form_submissions_performed,0);
  assert.deepEqual(policy.approved_action_ids.sort(),
-  (appId==='catalog'?['filter','layout','reset']:['range','chart','reset']).sort());
+  (appId==='catalog'?['filter','layout','reset']:appId==='analytics'?['range','chart','reset']:['day','view','reset']).sort());
  assert.doesNotMatch(JSON.stringify(evidence),/DONT_COLLECT_SECRET_VALUE|offsite-denied|PRIVATE|\/api\/delete/);
  const graph=normalizeGenericBehaviorEvidence(evidence);
  assert.equal(graph.scope,'verified-synthetic-only');
@@ -38,7 +43,7 @@ for(const appId of fixtures){
  assert.equal(planned.metrics.route_count,2);
  assert.equal(planned.metrics.planned_clicks,3);
  assert.deepEqual(planned.coverage_routes.map(r=>r.actions),appId==='catalog'?
-  [['filter','layout'],['layout']]:[['range','chart'],['chart']]);
+  [['filter','layout'],['layout']]:appId==='analytics'? [['range','chart'],['chart']]:[['day','view'],['view']]);
  const html=generateGenericBehaviorHtml(evidence);
  assert.doesNotMatch(html,/fetch\s*\(|XMLHttpRequest|<iframe\b|https?:\/\//);
  const verified=await verifyGenericControlledReplay({browserPath:process.env.CHROME_BIN,evidence,html});
@@ -49,6 +54,12 @@ for(const appId of fixtures){
  const certified=markObservedFeatureGraphVerified(planned,verified);
  const runnableContract=compileObservedStateContract({evidence,verifiedGraph:certified,replay:verified,html});
  assert.equal(runnableContract.app_id,appId);
+ assert.equal(runnableContract.states.length,4);
+ if(appId==='planner'){
+  assert.deepEqual(runnableContract.initial_state,{day:'monday',layout:'list',slots:4});
+  assert.deepEqual(runnableContract.actions.map(a=>a.id),['day','view']);
+  assert.equal(runnableContract.backend.recovered_original_api,false);
+ }
  assert.equal(runnableContract.replay.verified_edges,3);
  assert.ok(runnableContract.replay.rejected_unobserved_events>=4);
  assert.equal(runnableContract.backend.real_endpoint_calls,0);

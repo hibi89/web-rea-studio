@@ -61,6 +61,32 @@ const profiles={
   paint();
   </script></body></html>`,
   request:{range:'/api/metrics',chart:null}
+ },
+ planner:{
+  title:'일정 관리 실험',initial:{day:'monday',layout:'list',slots:4},
+  actions:{day:'다음 날짜',view:'그리드 표시'},flows:[['day','view'],['view']],
+  source:`<!doctype html><html><body>
+  <button id="src-day" type="button">Next day</button>
+  <button id="src-view" type="button">Switch view</button>
+  <button id="source-reset" type="button">Reset</button>
+  <button id="src-delete" type="button" onclick="document.body.dataset.unsafeAction='1';fetch('/api/delete',{method:'POST'})">Delete</button>
+  <button id="src-submit" type="submit">Submit</button>
+  <a href="https://offsite-denied.example.org/?token=PRIVATE">Offsite</a>
+  <input type="password" value="DONT_COLLECT_SECRET_VALUE">
+  <span id="state-day">monday</span><span id="state-layout">list</span><span id="state-slots">4</span>
+  <script>
+  let day='monday',layout='list',slots=4;
+  function paint(){for(const [k,v] of Object.entries({day,layout,slots}))
+   document.getElementById('state-'+k).textContent=String(v);}
+  document.getElementById('src-day').onclick=async()=>{
+   day='tuesday';
+   const result=await (await fetch('/api/calendar?day=tuesday')).json();
+   slots=result.slots;paint();};
+  document.getElementById('src-view').onclick=()=>{layout='grid';paint();};
+  document.getElementById('source-reset').onclick=()=>{day='monday';layout='list';slots=4;paint();};
+  paint();
+  </script></body></html>`,
+  request:{day:'/api/calendar',view:null}
  }
 };
 const DELAY=ms=>new Promise(ok=>setTimeout(ok,ms));
@@ -72,6 +98,7 @@ const allowedRequest=(u,method,replay)=>{
  if(replay)return null;
  if(url.pathname==='/api/items'&&url.search==='?category=summer')return 'items';
  if(url.pathname==='/api/metrics'&&url.search==='?range=month')return 'metrics';
+ if(url.pathname==='/api/calendar'&&url.search==='?day=tuesday')return 'calendar';
  return null;
 };
 export function classifyGenericFixtureRequest(url,method,{replay=false}={}){
@@ -131,7 +158,9 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     let output=decision==='document'?(replay?replayHtml:profile.source):null;
     if(decision==='items')output=JSON.stringify({count:3});
     if(decision==='metrics')output=JSON.stringify({total:31});
-    if(decision!=='document')requests.push({path:decision==='items'?'/api/items':'/api/metrics'});
+    if(decision==='calendar')output=JSON.stringify({slots:2});
+    if(decision!=='document')requests.push({path:decision==='items'?'/api/items':
+     decision==='metrics'?'/api/metrics':'/api/calendar'});
     const headers=[{name:'Content-Type',value:decision==='document'?'text/html; charset=utf-8':'application/json'},
      {name:'Cache-Control',value:'no-store'}];
     if(decision==='document')headers.push({name:'Content-Security-Policy',
@@ -254,6 +283,8 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
        featureGraph.states.find(x=>x.id===routeStep.edge.to)?.values:
        action==='filter'?{...prior,category:'summer',count:3}:
        action==='layout'?{...prior,layout:'list'}:
+       action==='day'?{...prior,day:'tuesday',slots:2}:
+       action==='view'?{...prior,layout:'grid'}:
        action==='range'?{...prior,range:'month',total:31}:
        action==='chart'?{...prior,chart:'line'}:null;
     if(!expected)throw Error('F4G_UNKNOWN_ACTION');
