@@ -119,9 +119,17 @@ test('accepted two Chrome views unlock exact SHA HTML bytes while repeated downl
 test('tampering the accepted receipt or stored source blocks verified export, but preserves general preview',async()=>{
  const f=await fixture(),root=f.app.store.pathFor(f.meta.id),url=f.base+'/api/runs/'+f.meta.id+'/f3-q1-verified-offline-export';
  try{
-  await reviewAnonymousLayout({store:f.app.store,id:f.meta.id,...evidence(),
-   browserPath:'fake',replayExecutor:f.chrome.run});
-  assert.equal((await fetch(url)).status,200);
+  const accepted=await fetch(f.base+'/api/runs/'+f.meta.id+'/f3-q1-layout-acceptance',{
+   method:'POST',headers:{Origin:f.base,'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'offline-anonymous-layout-review'})});
+  assert.equal(accepted.status,202);
+  let first;
+  for(let i=0;i<100;i++){
+   first=await fetch(url);
+   if(first.status===200)break;
+   await new Promise(ok=>setTimeout(ok,20));
+  }
+  assert.equal(first.status,200);
   const path=join(root,ACCEPTANCE_FILENAME);
   const original=JSON.parse(await readFile(path,'utf8'));
   await writeFile(path,JSON.stringify({...original,views:[
