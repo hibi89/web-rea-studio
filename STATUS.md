@@ -1,4 +1,8 @@
-# Status — P1 / P2-1 WINDOWS VERIFIED; P2-2a WINDOWS VERIFICATION PENDING — 2026-10-16
+# Status — historical timeline (see HANDOFF.md for the current state)
+
+**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). GitHub code head `f91d434...` passed Node and isolated Chrome CI. Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+
+## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)
 - User's Windows PC (Node 24.21, Chrome, REA 6.5.0): last live run reported `PASS`, `completed_steps: 7/7`, `api_responses_200: 1`, `completeness: complete`, `dropped_events: 0`.

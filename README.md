@@ -1,6 +1,6 @@
 # Web REA Studio
 
-Private local-first website analysis project. Current development status: **P1 controlled-browser workflow demonstrated on the owner's Windows PC; P2-1 authorized passive HTTPS HTML analysis implemented, external-site real-host verification pending.**
+Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
 ## What it does today
 
