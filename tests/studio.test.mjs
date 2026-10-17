@@ -535,6 +535,11 @@ test('P5 comparison views are present in local Studio UI',async()=>{
  assert.match(html,/id="download-independent-draft"/);
  assert.match(app,/refreshIndependentDraft/);
  assert.match(app,/store-scriptless-p4-draft/);
+ assert.match(html,/id="geometry-review-actions"/);
+ assert.match(html,/id="run-geometry-review"/);
+ assert.match(html,/id="download-geometry-review"/);
+ assert.match(app,/offline-geometry-review/);
+ assert.match(app,/refreshGeometryReview/);
 });
 
 test('F1/F2 exploration appears in the Studio evidence inspector without clickable execution controls',async()=>{
