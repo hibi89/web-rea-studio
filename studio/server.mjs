@@ -11,7 +11,7 @@ import {buildPassiveSiteBlueprint} from './passive-blueprint.mjs';
 import {buildPassiveSupportPacket} from './support-packet.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
-import {compareChromeScreenshots} from './p5-visual-diff.mjs';
+import {compareChromeScreenshots,evaluateStaticVisualGate} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from './evidence-manifest.mjs';
 import {verifyControlledF2Actions,verifyControlledF4Replay} from './controlled-f2-browser.mjs';
@@ -234,6 +234,8 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       report.control_map_count=0;
       report.visual_comparison_available=false;
       report.visual_comparison_status='unavailable';
+      report.visual_comparison_quality_gate='VISUAL_GATE_BLOCKED';
+      report.visual_comparison_product_ready=false;
       if(blueprint?.source==='p4-geometry'&&blueprint.boxes?.length){
        try{
         const document=generateP4Reconstruction(blueprint);
@@ -277,6 +279,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
           if(!original)throw Error('P5_REFERENCE_MISSING');
           const comparison=compareChromeScreenshots(original,replica);
           comparison.geometry=compareP4Geometry(blueprint,replay.inspection?.page?.reconstruction_blueprint);
+          comparison.quality_gate=evaluateStaticVisualGate(comparison);
           // Only write and claim availability after both artifacts exist.
           await writeFile(join(store.pathFor(meta.id),'reconstruction.png'),replica,{flag:'wx',mode:0o600});
           await store.saveComparison(meta.id,comparison);
@@ -284,6 +287,9 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
           report.visual_comparison_status='measured';
           report.visual_comparison_rgb_mae=comparison.rgb_mae;
           report.visual_comparison_match_pct=comparison.pixel_match_pct;
+          report.visual_comparison_coverage_pct=comparison.coverage_pct;
+          report.visual_comparison_quality_gate=comparison.quality_gate.status;
+          report.visual_comparison_product_ready=false;
          }catch{
           report.visual_comparison_available=false;
           report.visual_comparison_status='unavailable';
