@@ -1,8 +1,24 @@
 /* Read-only visual geometry probe: no clicks, requests or input values. */
-export const P4_GEOMETRY_PROBE="(()=>{\n const max=180,nodes=[...document.querySelectorAll('body,header,nav,main,aside,section,article,footer,div,h1,h2,h3')].slice(0,1400);\n const boxes=[],titles=[];\n const asNum=n=>Number.isFinite(n)?Math.round(n):0;\n const bg=s=>s&&s!=='transparent'&&!/^rgba?\\(0,\\s*0,\\s*0,\\s*0\\)$/.test(s);\n const depth=n=>{let d=0;while(n.parentElement&&d<32){n=n.parentElement;d++;}return d;};\n for(const n of nodes){\n  const t=n.tagName.toLowerCase(),rect=n.getBoundingClientRect();\n  const s=getComputedStyle(n);\n  if(rect.width<4||rect.height<4||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)continue;\n  const x=asNum(rect.left+scrollX),y=asNum(rect.top+scrollY),w=asNum(rect.width),h=asNum(rect.height);\n  if(x>6000||y>6000||x+w<0||y+h<0)continue;\n  const isTitle=/^h[123]$/.test(t);\n  if(isTitle&&titles.length<32){\n   titles.push({tag:t,x,y,w,h,text:String(n.textContent||'').trim().slice(0,100),\n    color:s.color,font_size:s.fontSize,font_weight:s.fontWeight,\n    white_space:s.whiteSpace,line_height:s.lineHeight,text_align:s.textAlign});\n  }\n  if(boxes.length>=max)continue;\n  const p=n.parentElement,ps=p?getComputedStyle(p):null;\n  const colored=bg(s.backgroundColor);\n  const different=colored&&(!ps||s.backgroundColor!==ps.backgroundColor);\n  const curved=parseFloat(s.borderTopLeftRadius)>3;\n  const semantic=['body','aside','main','nav','section','article','header','footer'].includes(t);\n  const bordered=parseFloat(s.borderTopWidth)>0;\n  if(!semantic&&!different&&!curved&&!bordered)continue;\n  if(w<80||h<36)continue;\n  boxes.push({tag:t,depth:depth(n),x,y,w,h,\n   background:s.backgroundColor,border_color:s.borderTopColor,\n   border_width:s.borderTopWidth,radius:s.borderTopLeftRadius});\n }\n const body=getComputedStyle(document.body),root=getComputedStyle(document.documentElement);\n return {source:'p4-geometry',viewport:{width:innerWidth,height:innerHeight},\n   document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},\n   body_color:body.backgroundColor,root_color:root.backgroundColor,\n   candidates:nodes.length,boxes,titles};\n})()";
+export const P4_GEOMETRY_PROBE="(()=>{\n const max=180,nodes=[...document.querySelectorAll('body,header,nav,main,aside,section,article,footer,div,h1,h2,h3')].slice(0,1400);\n const boxes=[],titles=[];\n const asNum=n=>Number.isFinite(n)?Math.round(n):0;\n const bg=s=>s&&s!=='transparent'&&!/^rgba?\\(0,\\s*0,\\s*0,\\s*0\\)$/.test(s);\n const depth=n=>{let d=0;while(n.parentElement&&d<32){n=n.parentElement;d++;}return d;};\n for(const n of nodes){\n  const t=n.tagName.toLowerCase(),rect=n.getBoundingClientRect();\n  const s=getComputedStyle(n);\n  if(rect.width<4||rect.height<4||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)continue;\n  const x=asNum(rect.left+scrollX),y=asNum(rect.top+scrollY),w=asNum(rect.width),h=asNum(rect.height);\n  if(x>6000||y>6000||x+w<0||y+h<0)continue;\n  const isTitle=/^h[123]$/.test(t);\n  if(isTitle&&titles.length<32){\n   titles.push({tag:t,x,y,w,h,text:String(n.textContent||'').trim().slice(0,100),\n    color:s.color,font_size:s.fontSize,font_weight:s.fontWeight,\n    white_space:s.whiteSpace,line_height:s.lineHeight,text_align:s.textAlign});\n  }\n  if(boxes.length>=max)continue;\n  const p=n.parentElement,ps=p?getComputedStyle(p):null;\n  const colored=bg(s.backgroundColor);\n  const different=colored&&(!ps||s.backgroundColor!==ps.backgroundColor);\n  const curved=parseFloat(s.borderTopLeftRadius)>3;\n  const semantic=['body','aside','main','nav','section','article','header','footer'].includes(t);\n  const bordered=parseFloat(s.borderTopWidth)>0;\n  const shadowed=typeof s.boxShadow==='string'&&s.boxShadow!=='none';\n  if(!semantic&&!different&&!curved&&!bordered&&!shadowed)continue;\n  if(w<80||h<36)continue;\n  boxes.push({tag:t,depth:depth(n),x,y,w,h,\n   background:s.backgroundColor,border_color:s.borderTopColor,\n   border_width:s.borderTopWidth,radius:s.borderTopLeftRadius,box_shadow:s.boxShadow});\n }\n const body=getComputedStyle(document.body),root=getComputedStyle(document.documentElement);\n return {source:'p4-geometry',viewport:{width:innerWidth,height:innerHeight},\n   document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},\n   body_color:body.backgroundColor,root_color:root.backgroundColor,\n   candidates:nodes.length,boxes,titles};\n})()";
 const clamp=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):0;
 const palette=v=>typeof v==='string'&&v.length<=65&&/^(?:rgba?\([0-9.,\s%]+\)|#[0-9a-f]{3,8}|transparent)$/i.test(v)?v:'transparent';
 const length=v=>typeof v==='string'&&/^(?:[0-9]{1,3}(?:\.[0-9]{1,2})?px|0px)$/.test(v)?v:'0px';
+
+/** Strictly bounded single-layer, non-inset shadow from getComputedStyle.
+ * CSS color and four pixel lengths only; no var(), URLs, filters, calc(),
+ * nested commas/layers or browser-specific syntax from untrusted pages.
+ * Computed Chrome colors are first in practice.
+ */
+const safeBoxShadow=v=>{
+ if(typeof v!=='string'||v.length>110||v==='none')return null;
+ const m=/^(rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0(?:\.\d{1,3})?|1(?:\.0{1,3})?))?\s*\)|#[0-9a-f]{3,8})\s+(-?\d{1,3}(?:\.\d{1,2})?px)\s+(-?\d{1,3}(?:\.\d{1,2})?px)\s+(\d{1,3}(?:\.\d{1,2})?px)\s+(-?\d{1,2}(?:\.\d{1,2})?px)$/i.exec(v.trim());
+ if(!m)return null;
+ const rgba=m[1].match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
+ if(rgba&&rgba.slice(1).some(c=>Number(c)>255))return null;
+ const [x,y,blur,spread]=m.slice(2).map(Number.parseFloat);
+ if(Math.abs(x)>64||Math.abs(y)>64||blur>80||Math.abs(spread)>32)return null;
+ return m.slice(1).join(' ');
+};
 // New optional heading properties preserve byte-for-byte legacy output when
 // missing. Chrome-computed CSS is treated as untrusted until allowlisted.
 const headingWhiteSpace=v=>['normal','nowrap','pre-line'].includes(v)?v:null;
@@ -25,7 +41,8 @@ export function sanitizeP4Geometry(raw){
     x:clamp(v.x,-100,4000),y:clamp(v.y,-100,4000),
     w:clamp(v.w,0,4000),h:clamp(v.h,0,4000),
     background:palette(v.background),border_color:palette(v.border_color),
-    border_width:length(v.border_width),radius:length(v.radius)}))
+    border_width:length(v.border_width),radius:length(v.radius),
+    ...(safeBoxShadow(v.box_shadow)?{box_shadow:safeBoxShadow(v.box_shadow)}:{})}))
   .filter(v=>v.w>=80&&v.h>=36&&v.x<bounds.width&&v.y<bounds.height);
  const titles=(Array.isArray(raw.titles)?raw.titles:[]).slice(0,32)
   .filter(v=>v&&['h1','h2','h3'].includes(v.tag))
@@ -54,8 +71,9 @@ export function generateP4Reconstruction(raw){
  const blocks=sorted.map((v,i)=>{
   const edge=parseFloat(v.border_width)>0?'border:1px solid '+v.border_color+';':'';
   const background=v.background==='transparent'?'':'background:'+v.background+';';
+  const shadow=v.box_shadow?'box-shadow:'+v.box_shadow+';':'';
   return '<div class="region" aria-hidden="true" style="left:'+v.x+'px;top:'+v.y+'px;width:'+v.w+'px;height:'+v.h+
-   'px;'+background+'border-radius:'+v.radius+';'+edge+'"></div>';
+   'px;'+background+'border-radius:'+v.radius+';'+edge+shadow+'"></div>';
  }).join('\n');
  const labels=data.titles.map(t=>{
   const measured=(t.white_space?'white-space:'+t.white_space+';':'')+
