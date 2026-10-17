@@ -55,7 +55,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
  const geometryRepairActive=new Set(),geometryRepairFailures=new Map();
  async function begin(input){
   const {url,mode}=classifyTarget(input);
-  if(active) return {conflict:true};
+  if(active||colorRepairActive.size||geometryRepairActive.size) return {conflict:true};
   // Reservation happens before the first await; overlapping submissions cannot both start.
   active='reserved';
   try {
