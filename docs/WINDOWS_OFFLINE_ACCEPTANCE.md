@@ -43,3 +43,15 @@ To run the independent offline Chrome P4/F5 tests manually, set `CHROME_BIN` to 
 
 - A preexisting `tests/storage.test.mjs` assertion expected literal Unix `/tmp/custom`, but `node:path.resolve` correctly produces drive-qualified paths on Windows. Fixed the cross-platform test to compare the platform-normalized `resolve('/tmp/custom')` without changing real storage policy.
 - An initial hostile-Host probe used `fetch`, which the runner normalized to the actual request URL's Host. Fixed the test to send a raw HTTP request so the server's 403 Host rejection is genuinely exercised.
+
+## Verified Windows runner result (2026-10-17)
+
+Functional SHA `ee839bf2f1378e874369713bdb03de98ca8f6cad`, GitHub Actions [39004521346](https://github.com/hibi89/web-rea-studio/actions/runs/39004521346), Windows job **SUCCESS**:
+
+- Windows Node 22 regression suite **205/205 PASS**.
+- `npm run check:launcher` **PASS** using direct `node -> npx-cli.js`, npm CLI version `10.9.9` (no REA capture or installation invoked).
+- Windows local Studio startup smoke **PASS**: real child process running `studio/start.mjs`, path with spaces, loopback fixture/UI/GET, empty run storage, actual hostile Host rejection, strict API query rejection; **0 external requests**.
+- Real Windows Chrome **P4 PASS** and **F5 saved-draft Chrome PASS**. F5 independently replays one canonical draft and two candidate edits, accepts **x** then **w**, RGB MAE **2.41 → 1.61** on Windows, 5 synthetic generated replays plus one synthetic source response, **0 original-site refetches / real external requests**, `product_ready:false`.
+- Linux has a separate full Chrome suite, also required for the entire workflow success. Check its final conclusion in the run before describing the **whole** workflow as green.
+- This proof is a real Windows GitHub runner but **not an owner-machine acceptance**. No user-provided private site/browser profile was accessed.
+
