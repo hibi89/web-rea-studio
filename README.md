@@ -10,7 +10,7 @@ P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/crop
 
 ## F5 opt-in saved-only review in local Studio
 
-A completed Static Visual run with existing P5 v2 evidence now offers **오프라인 색상 재검증 실행**. This is an explicit, one-time local Chrome replay of the **generated scriptless reconstruction** using a fixed synthetic interception URL. Loading run history or reading the result does not recapture the original site. No external host permissions, network relay or original run data change. A no-op result (**NO_SAFE_COLOR_PATCH**) is normal while the draft geometry is derived from the same saved reference; an independently improved HTML is downloadable only when a real measured edit was accepted. See [limitations and acceptance](docs/F5_STUDIO_OFFLINE_REVIEW.md).
+A completed Static Visual run with existing P5 v2 evidence now offers **오프라인 색상 재검증 실행**. This is an explicit, one-time local Chrome replay of the **generated scriptless reconstruction** using a fixed synthetic interception URL. Loading run history or reading the result does not recapture the original site. No external host permissions, network relay or original run data change. The saved screenshot path can now infer **one paint color at a time** when a large, unobscured region differs strongly and is near-uniform in both original and independently rendered images. Gradients, textures, text-heavy areas and uncertain evidence remain unsupported; **NO_SAFE_COLOR_PATCH** stays an expected safe outcome. An improved HTML is downloadable only after a fresh replay proves a measurable benefit. See [limitations and acceptance](docs/F5_STUDIO_OFFLINE_REVIEW.md).
 
 ## F5 measured bounded repair (synthetic proof only)
 
