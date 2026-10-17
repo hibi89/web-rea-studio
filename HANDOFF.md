@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **품질 우선 Q0 기능 코드 기준 SHA는 `6ef1af91aa4c78853e64f9b384e2d93da7e89353`** (F5 전체 화면 비교·엄격한 관문·Studio UI·테스트). 코드 **CI 전체 SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
+> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **최신 CI 검증 기능 코드 기준 SHA는 `22045a6b523eaf6b4a35ae047bcab914003de940`**, Q1 권한 사전 점검·기존 Q0/F1~F5 회귀 검증 전체 SUCCESS (Node 173/173, 격리 Chrome P4/F2/P2-CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38996188937. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -36,6 +36,7 @@
 - **GitHub CI:** P5 품질 관문 핵심 SHA `846568bf34cf999783bb70a1554943d7019deb82` 전체 SUCCESS (Node 168/168, 격리 Chrome P4/F2/P2 CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 이후 UI/테스트 포함 코드 SHA `6ef1af91aa4c78853e64f9b384e2d93da7e89353`, GitHub CI 전체 **SUCCESS** https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 이 성공은 Node 및 합성 Chrome P4/F2/P2-CORS/F4이고 실제 Windows/외부 사이트 결과는 아니다. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
 - **P2 두 출처 합성 브라우저 검증:** `studio/synthetic-cross-origin-browser.mjs` 및 `tests/p2-cross-origin-chrome-e2e.mjs`. 실제 Chrome에서 ① 기본 외부 API 차단→fetch 실패, ② CSP 허용·CORS 부재→fetch 실패, ③ CSP 허용·정확한 CORS 응답→합성 JSON 표시 성공을 확인했다. **인터넷 API 호출 0건**, 원래의 `dynamic-gateway.mjs`/`dynamic-browser.mjs`/실제 허용목록/CSP는 변경하지 않았으며 실대상 복구 증거는 아니다.
 - **Q0 품질 관문:** P5 v2 `studio/p5-visual-diff.mjs`는 이전의 고정 우하단 영역 제외를 폐기하고 전체 화면의 모든 샘플을 비교한다. 크롭·누락 픽셀은 최대 RGB 오차 255로 반영하고 비교 면적/해상도/기하 판정을 분리한다. 게이트 기본값은 동일 크기/100% 표본 커버리지/픽셀 일치율 90% 이상/RGB MAE 20 이하/기하 영역 70% 이상이며 PASS라도 `VISUAL_THRESHOLD_MET_STATIC_ONLY`, `product_ready=false`. 합성 Chrome 화면 1440×1550 기준 일치율 **99.37%**, 전체 커버리지 100%, 기하 영역 100%, RGB MAE **0.94**, 기능 동일성 미검증. 이전 저장 P5 v1 결과는 소급 변경하지 않는다.
+- **Q1 읽기 전용 권한 사전 점검:** `studio/permission-preflight.mjs`, 로컬 GET `/api/runs/:id/permission-preflight`, Studio 실패 진단 패널의 `Q1 권한 사전 점검 JSON` 내보내기를 추가했다. 동일 호스트의 저장된 fetch 시도·거부 증거로만 후보를 표시하고, RFC 특수 도메인/로컬/IP/`sslip.io` 같은 IP-인코딩 DNS에 추가 경고를 붙인다. **모든 결과 `NOT_APPROVED` / `BLOCK_NETWORK_EXPANSION`**이며 원격 요청·실행 가능한 정책·자동 승인 0건. CI Node 173/173 및 Chrome 전체 통과(기능 SHA `22045a6b`, run `38996188937`). 실제 Windows 캡처의 호스트 소유권·API 경로·CORS·접속 가능성은 여전히 검증되지 않았다.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
 
 ## 3. 중요 저장소 구조
@@ -45,6 +46,7 @@
 | `studio/server.mjs`, `studio/start.mjs`, `studio/public/*` | Windows 로컬 Studio 서버, 실행/조회 API, 사용자 UI |
 | `studio/dynamic-browser.mjs`, `studio/dynamic-gateway.mjs`, `studio/static-analysis.mjs` | 허가된 사이트 정적/수동 동적 관측과 중계·격리 |
 | `studio/synthetic-cross-origin-browser.mjs` | 두 통제된 HTTPS 출처를 Chrome CDP로 메모리 내 응답 처리하는 실험 전용 코드. 실제 서비스에는 연결되지 않음 |
+| `studio/permission-preflight.mjs` | 저장된 외부 fetch 증거만으로 권한 검토 누락 사항·위험한 DNS/IP 호스트를 식별하는 **비실행** 사전 점검 |
 | `studio/support-packet.mjs` | 저장된 실패 기록에서 개인정보 최소화 공유용 원인 분석 패킷; 원격 요청 없음 |
 | `studio/passive-blueprint.mjs`, `studio/passive-dependencies.mjs` | 저장된 외부 사이트 F1/F2 읽기 전용 통합 명세와 API 그룹 분류 |
 | `studio/observed-controls.mjs`, `studio/behavior-exploration.mjs`, `studio/generic-fixture-browser.mjs` | F1/F2 컨트롤 관측, 합성 상태 그래프 및 경로 검증 |
@@ -100,6 +102,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | Q1 외부 API 권한 사전 점검·차단 게이트 | 코드 `22045a6b` · Actions `38996188937` Node 173/173 + Chrome P4/F2/P2/F4 전체 SUCCESS. 로컬 실패 이력으로만 허용되지 않은 호스트 후보·권한 범위/요청 예산/인증/CORS/DNS 위험 검토 JSON 생성. UI 내보내기, GET 재분석 0, 네트워크 확대 0. `docs/Q1_PERMISSION_PREFLIGHT.md` | Windows 실제 실패 기록 검증과 호스트 소유권·정확한 경로/메서드 승인 전에는 실 API 연결 금지. 이번 작업은 Q1 전체 완료가 아닌 **Q1 사전 점검 기능 완료** |
 | 2026-10-17 | Q0 F5 과대평가 제거·품질 우선 계약 | 코드 `6ef1af91...`: 잘린 스크린샷 겹침만 100%였던 오판정 제거, 표본 누락 최대 오차·기하/커버리지 판정·구버전 표시, 부정 테스트 및 실제 Chrome 체크, `docs/QUALITY_FIRST_ROADMAP.md`. 핵심 SHA `846568bf` CI `38995511999` 전체 SUCCESS; 최종 UI 포함 코드 `6ef1af91` CI `38995644114` **전체 SUCCESS** | 실제 웹사이트 Q1 데이터 로딩/실제 독립 앱 미해결. 과거 P5 v1 보고서 소급 변경 금지 |
 | 2026-10-17 | P2 실제 Chrome 두 출처 CSP·CORS 검증 | 코드 `d96ea6df`, CI `38994833194` 전체 SUCCESS. 기본 차단/허용·CORS 누락/양쪽 충족 3경우 Chrome 성공적 판별. 모든 응답 메모리 합성·실제 외부 호출 0건 | 실대상 서버/CORS 검증과 API 호스트 권한 승인은 별도. Windows 과거 실패 데이터 `support-packet` 확인이 다음 단계 |
 | 2026-10-17 | P2 개인정보 최소화 실패 진단 패킷 | 실패/중단된 기존 passive run에서 진단 코드, 요청·거부 수치, 호스트명, 경로 유형만 결합한 `support-packet` JSON 다운로드·UI·단위/HTTP 테스트 추가. 스크린샷·입력값·원본 URL·본문 제외, 외부 재요청 0건 | 코드 `9d4bcf36` 및 GitHub Actions `38994454894` 전체 SUCCESS 확인; 사용자 Windows 기존 실패 기록의 패킷 실제 열람·공유 전 점검 필요 |
@@ -116,16 +119,17 @@
 
 다음 작업의 조건: 우선 **`docs/QUALITY_FIRST_ROADMAP.md`의 Q0 F5 정직한 품질 판정**을 유지한다. 전체 시각 게이트 PASS는 정적 증거일 뿐 작동하는 웹사이트 인증이 아니다. 사용자는 장기간이 걸려도 **실제로 작동하는 품질**을 우선하고, GitHub 테스트/인계서 업데이트는 매 단위 필수다. **Q1 실데이터 시도를 승인 없이 시작하지 않는다.** 두 출처 실험은 **브라우저 통신 메커니즘만 검증**했으므로, 실제 인터넷 API나 확장된 CSP/relay를 배포하지 않는다. 사용자 소유/허용 범위, 실제 host·method·path, 데이터 보유·요청 상한, DNS/TLS/인증/리다이렉트 위험을 검토하고 명시적으로 승인받기 전에는 네트워크 범위를 넓히지 않는다.
 
-현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON`(GET `/api/runs/:id/support-packet`)을 확보하여 민감정보 제외 여부를 검토하고 `passive-blueprint` 및 `/dependencies`와 비교하여 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
+현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON` 및 새 `Q1 권한 사전 점검 JSON`(GET `/api/runs/:id/permission-preflight`)을 저장하여 민감정보를 검토하고, 호스트 후보·미충족 승인 조건·DNS/IP 위험을 확인 → 정확한 소유권/허가 범위가 확인되면 안전한 최소 API 연결 설계 → 사용자가 승인한 범위 안에서 실제 외부 캡처·독립 재구현 품질 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
 ## 7. 중요 링크
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 이전 기능 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/e1063bb07c73b26356f319298ff1d1b621ce2349
-- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/6ef1af91aa4c78853e64f9b384e2d93da7e89353
+- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/22045a6b523eaf6b4a35ae047bcab914003de940
 - 핵심 F5 비교 코드 성공 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999
-- 최신 UI 포함 코드 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114
+- 최신 Q1 코드 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/38996188937
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
+- Q1 오프라인 호스트 권한 사전 점검 및 Windows 검증: `docs/Q1_PERMISSION_PREFLIGHT.md`.
 - 품질 최우선 최종 완성 기준: `docs/QUALITY_FIRST_ROADMAP.md`.
 - 새 P2 합성 CSP/CORS 실험과 실환경 제약: `docs/P2_SYNTHETIC_CORS_LAB.md`.
 - 새 안전 진단 패킷 및 Windows 확인 절차: `docs/P2_SUPPORT_PACKET.md`.
