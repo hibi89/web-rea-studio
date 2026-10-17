@@ -304,12 +304,18 @@ async function select(id){
     const metrics=await api(`/api/runs/${id}/comparison`);
     if(state.id===id){
      el('p5-comparison').hidden=false;
-     el('p5-status').textContent=metrics.dimensions_equal
-      ?'두 Chrome 화면의 같은 좌표를 비교했습니다.'
-      :'캡처 크기가 달라 겹치는 영역만 비교했습니다.';
+     const qualityGate=metrics.quality_gate;
+     el('p5-status').textContent=!qualityGate
+      ?'과거 비교 기록: 신규 전체 화면 품질 관문으로 검증되지 않았습니다.'
+      :qualityGate.status==='VISUAL_THRESHOLD_MET_STATIC_ONLY'
+       ?'정적 화면 품질 관문 충족 · 동작/API/데이터 동일성은 미검증'
+       :'정적 화면 품질 관문 미충족 · '+(qualityGate.reasons||[]).join(', ')+
+        ' · 잘린 영역은 불일치로 계산';
      el('p5-mae').textContent=String(metrics.rgb_mae)+' / 255 (낮을수록 유사)';
      el('p5-match').textContent=String(metrics.pixel_match_pct)+'% (높을수록 유사)';
-     el('p5-overlap').textContent=String(metrics.overlap_area_pct)+'%';
+     el('p5-overlap').textContent=metrics.coverage_pct===undefined
+      ?String(metrics.overlap_area_pct)+'% (구버전 겹침 측정, 미검증)'
+      :String(metrics.coverage_pct)+'% (전체 비교 범위 · 겹침 '+metrics.overlap_area_pct+'%)';
      const geometry=metrics.geometry;
      el('p5-geometry').textContent=geometry?.status==='measured-not-certified'
       ?'영역 '+geometry.matched_regions+'/'+geometry.original_regions+' 일치 ('+geometry.region_match_pct+
