@@ -8,6 +8,7 @@ import {validateHttpsUrl} from './static-analysis.mjs';
 import {LAYOUT_PROBE,sanitizeRenderedLayout} from './rendered-blueprint.mjs';
 import {P4_GEOMETRY_PROBE,sanitizeP4Geometry} from './p4-reconstruction.mjs';
 import {CONTROL_PROBE,sanitizeControlInventory,summarizePassiveDependencies} from './interaction-blueprint.mjs';
+import {ANONYMOUS_LAYOUT_PROBE,sanitizeAnonymousLayoutProbe} from './f3-q1-layout-proof.mjs';
 
 const error=(code,message)=>Object.assign(Error(message),{code});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -185,7 +186,11 @@ const browserJs=`(()=>{
  * All browser network requests route through a bounded Node HTTPS relay, while
  * browser DNS resolution and proxy use are disabled as defense in depth.
  */
-export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs,scriptsDisabled=false,offlineViewport=null}={}){
+export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs,scriptsDisabled=false,offlineViewport=null,observeAnonymousLayout=false}={}){
+ if(typeof observeAnonymousLayout!=='boolean'||
+    (observeAnonymousLayout&&(!scriptsDisabled||offlineViewport===null||
+      relay===fetchGatewayResource||typeof relay!=='function')))
+  throw error('ANONYMOUS_LAYOUT_PROBE_DENIED','Anonymous layout proof requires scriptless offline relay and viewport');
  if(typeof scriptsDisabled!=='boolean')throw error('INVALID_RENDER_OPTION','scriptsDisabled must be boolean');
  // Custom viewports are only available for script-disabled, memory-relayed
  // comparison experiments. Never alter the approved live-site capture contract.
@@ -354,6 +359,17 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
    inventory=sanitizeControlInventory(inventoryResult.result?.value);
   }catch{}
   page.interaction_inventory=inventory||{source:'passive-controls',verification:'probe-unavailable',actions_executed:0};
+  // Strictly opt-in for memory-only scriptless synthetic HTML. Never touch live passive captures.
+  if(observeAnonymousLayout){
+   let measured=null;
+   try{
+    const answer=await cdp.send('Runtime.evaluate',{
+     expression:ANONYMOUS_LAYOUT_PROBE,returnByValue:true,awaitPromise:false
+    },sessionId,2500);
+    measured=sanitizeAnonymousLayoutProbe(answer.result?.value);
+   }catch{}
+   page.offline_anonymous_layout=measured;
+  }
   const networkEvidence=[...events,...telemetry.events].slice(0,100);
   const dependencyMap=summarizePassiveDependencies(networkEvidence,inventory,{
    mode:scriptsDisabled?'static-visual':'dynamic-passive'});

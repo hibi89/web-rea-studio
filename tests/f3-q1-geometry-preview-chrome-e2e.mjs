@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {runDynamicAnalysis,screenshotPngDimensions} from '../studio/dynamic-browser.mjs';
 import {buildAnonymousGeometryPreview} from '../studio/f3-q1-geometry-preview.mjs';
+import {assessAnonymousLayout} from '../studio/f3-q1-layout-proof.mjs';
 const browser=process.env.CHROME_BIN;
 if(!browser)throw Error('F3_Q1_COARSE_GEOMETRY_REQUIRES_CHROME');
 const root=await mkdtemp(join(tmpdir(),'rea-geometry-two-views-'));
@@ -35,6 +36,7 @@ try{
   const target='https://isolated-wireframe-fixture.example.org/';
   const result=await runDynamicAnalysis({
    target,browserPath:browser,dir,scriptsDisabled:true,offlineViewport:vp,
+   observeAnonymousLayout:true,
    relay:async url=>{
     assert.equal(url,target,'Unapproved resource requested');
     memoryResponses++;
@@ -45,6 +47,14 @@ try{
   assert.equal(result.report.scripts_executed,false);
   assert.equal(result.inspection.page.interaction_inventory.controls.length,0);
   assert.equal(result.inspection.page.title,'REA Coarse Presence Zones — NOT A REPLICA');
+  const measured=result.inspection.page.offline_anonymous_layout;
+  assert.ok(measured,'Fixed Chrome layout probe must return sanitized metrics');
+  const decision=assessAnonymousLayout({measurement:measured,viewport:vp});
+  assert.equal(decision.status,'PASS_GENERATED_OFFLINE_LAYOUT',JSON.stringify(decision));
+  assert.equal(decision.computed_columns,vp.width<=640?1:3);
+  assert.equal(decision.horizontal_overflow,false);
+  assert.equal(decision.checked_zones,9);
+  assert.equal(decision.original_site_layout_verified,false);
   assert.equal(result.inspection.exploration.dependencies.causal_links_verified,0);
   const size=screenshotPngDimensions(await readFile(join(dir,'screenshot.png')));
   assert.equal(size.width,vp.width);
@@ -52,10 +62,36 @@ try{
   assert.equal(memoryResponses,vp.width===1440?1:2);
   console.log(JSON.stringify({f3_q1_geometry_chrome:'PASS',view:vp,
    screenshot_px:[size.width,size.height],native_controls:0,
-   external_requests:0,source_mobile_layout_verified:false}));
+   external_requests:0,computed_columns:decision.computed_columns,
+   zones_measured:decision.checked_zones,horizontal_overflow:decision.horizontal_overflow,
+   source_mobile_layout_verified:false}));
  }
  assert.equal(memoryResponses,2);
+ // A deliberately wrong four-column variant must be independently rejected in Chrome.
+ const badHtml=html.replace('.zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))',
+  '.zones{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))');
+ assert.notEqual(badHtml,html,'Adverse CSS fixture must genuinely differ');
+ const badDir=join(root,'adverse');await mkdir(badDir);
+ const url='https://isolated-wireframe-fixture.example.org/';
+ const bad=await runDynamicAnalysis({target:url,browserPath:browser,dir:badDir,
+  scriptsDisabled:true,offlineViewport:{width:1440,height:900},observeAnonymousLayout:true,
+  relay:async request=>{
+   assert.equal(request,url);
+   memoryResponses++;
+   return {status:200,contentType:'text/html; charset=utf-8',
+    body:Buffer.from(badHtml)};
+  }});
+ assert.equal(bad.report.verdict,'PASS');
+ const badResult=assessAnonymousLayout({
+  measurement:bad.inspection.page.offline_anonymous_layout,
+  viewport:{width:1440,height:900}});
+ assert.equal(badResult.status,'BLOCKED');
+ assert.equal(badResult.reason,'COMPUTED_GRID_COLUMNS_MISMATCH');
+ assert.equal(memoryResponses,3);
+ console.log(JSON.stringify({f3_q1_adverse_four_column_gate:'PASS',
+  layout_gate:'BLOCKED',source_requests:0}));
  console.log(JSON.stringify({f3_q1_geometry_two_viewports:'PASS',
-  rendered_views:2,source_site_requests:0,source_parity:false,
+  rendered_views:2,computed_layout_gates:2,adverse_grid_rejected:true,
+  source_site_requests:0,source_parity:false,
   receipt_sha256:receipt.sha256}));
 }finally{await rm(root,{recursive:true,force:true,maxRetries:3,retryDelay:100});}
