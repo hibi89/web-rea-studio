@@ -62,7 +62,7 @@ The owner ran `git pull --ff-only` and `npm run accept:local` in the project dir
 
 Fix: the child `node --test` invocation now requests `--test-reporter=tap` explicitly so Node's machine-readable footer is stable even when the owner uses a different supported Node release or terminal. The receipt reader also accepts Node's alternate `ℹ tests / ℹ pass / ℹ fail` spec summary or ANSI-colored TAP, but always requires **one internally consistent final count**, **at least 205 executed**, **all passed** and **zero failures**. Missing or conflicting totals remain blocked; no exit-code-only pass.
 
-Regression tests cover both output styles, ANSI and intentionally inconsistent/missing/forged totals. Windows CI now tests the same one-command acceptance on **both Node 22 and Node 24**. Until that run is green, this is a code fix, not a newly verified PC success.
+Regression tests cover both output styles, ANSI and intentionally inconsistent/missing/forged totals. Windows CI now tests the same one-command acceptance on **both Node 22 and Node 24**. Verified **GitHub Actions run 39007508598** at functional code SHA `546a791c0fd9dae1fe18df64d5b32d15803d4b98`: Windows Node 22, Windows Node 24 and Linux Node 22 **all SUCCESS**. Both Windows environments ran **210/210** regression tests and actually completed the same owner-style one-command **5/5** acceptance, including synthetic Chrome F5. The owner's original Windows PC remains unverified until they rerun after pulling this fix.
 
 Owner retry after the corresponding GitHub CI passes:
 
