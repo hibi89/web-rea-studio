@@ -51,6 +51,22 @@ export function buildEvidenceManifest(inspection,report){
  const fixture=inspection.exploration?.source==='controlled-fixture-scenario'?
   {executed_steps:n(inspection.exploration.actions_observed,40),
    successful_steps:n(inspection.exploration.successful_steps,40),
+   feature_graph:mode.startsWith('fixture-generic-')&&
+    inspection.exploration.feature_graph_summary?.source==='observed-function-graph'?
+    {verification_scope:'controlled-synthetic-only',
+     unique_states:n(inspection.exploration.feature_graph_summary.state_count,20),
+     observed_edges:n(inspection.exploration.feature_graph_summary.edge_count,20),
+     verified_routes:n(inspection.exploration.feature_graph_summary.coverage_routes,20),
+     replay_steps:n(inspection.exploration.feature_graph_summary.verified_replay_steps,40),
+     relationships:(Array.isArray(inspection.exploration.feature_graph_summary.relationships)?
+      inspection.exploration.feature_graph_summary.relationships:[]).slice(0,12).map(r=>({
+      action:typeof r.action==='string'&&/^[a-z][a-z0-9-]{1,31}$/.test(r.action)?r.action:null,
+      changed_fields:(Array.isArray(r.changed_fields)?r.changed_fields:[]).slice(0,10)
+       .filter(f=>typeof f==='string'&&/^[a-z][a-z0-9_]{1,25}$/.test(f)),
+      observed_transitions:n(r.observed_transitions,12),
+      api_paths:(Array.isArray(r.api_paths)?r.api_paths:[]).slice(0,8)
+       .filter(p=>typeof p==='string'&&/^\/api\/[a-z][a-z0-9/_-]{0,40}$/.test(p))
+     }))}:null,
    permission_policy:mode.startsWith('fixture-generic-')&&
     inspection.exploration.permission_policy?.source==='controlled-action-audit'?
     {scope:'in-memory-synthetic-only',
@@ -77,6 +93,10 @@ export function buildEvidenceManifest(inspection,report){
   {id:'html-structure',status:'observed',description:'Page or fixture structural evidence recorded'},
   {id:'visible-controls',status:controls.length?'observed':'unknown',
     description:controls.length?'Control affordances discovered; effects unverified':'No supported control evidence'},
+  {id:'observed-function-graph',
+   status:mode.startsWith('fixture-generic-')&&report?.feature_graph_available===true?
+    'verified-synthetic-only':'not-generated',
+   description:'Routes cover previously observed controlled fixture transitions only'},
   {id:'synthetic-action-permissions',
    status:mode.startsWith('fixture-generic-')&&report?.action_policy_checked===true?'verified-synthetic-only':'not-tested',
    description:'Explicit allowlist enforced before synthetic Chrome actions; external sites not eligible'},
@@ -108,6 +128,7 @@ export function buildEvidenceManifest(inspection,report){
    interactive_prototype:(report?.behavior_reconstruction_available===true&&mode==='fixture-causal')||
     (report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-')),
    generic_branching_prototype:report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-'),
+   verified_feature_graph:mode.startsWith('fixture-generic-')&&report?.feature_graph_available===true,
    interaction_verification_scope:(report?.behavior_reconstruction_available===true&&mode==='fixture-causal')||(report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-'))?
     'synthetic-only':'not-verified',
    screenshot:report?.screenshot_saved===true,

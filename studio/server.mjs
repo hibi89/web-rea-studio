@@ -15,6 +15,7 @@ import {verifyControlledF2Actions,verifyControlledF4Replay} from './controlled-f
 import {generateControlledInteractiveHtml} from './behavior-reconstruction.mjs';
 import {observeGenericControlledApp,verifyGenericControlledReplay} from './generic-fixture-browser.mjs';
 import {normalizeGenericBehaviorEvidence,generateGenericBehaviorHtml} from './generic-behavior.mjs';
+import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from './behavior-exploration.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -75,14 +76,21 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
         throw Error('F2_PERMISSION_PROOF_MISSING');
       // Reject all unverified shape/transition evidence before creating code.
       const graph=normalizeGenericBehaviorEvidence(evidence);
+      const planned=buildObservedFeatureGraph(evidence);
       const document=generateGenericBehaviorHtml(evidence);
       const replay=await genericVerifier({browserPath,evidence,html:document});
+      const plannedCalls=planned.coverage_routes.reduce((total,route)=>
+       total+route.path_edge_ids.reduce((calls,edgeId)=>
+        calls+planned.edges.find(edge=>edge.id===edgeId).observed_api_requests,0),0);
       if(replay?.source!=='controlled-generic-replay'||replay.scope!=='synthetic-only'||
-       replay.verified_steps!==graph.edges.length||replay.actual_api_calls!==0||
-       replay.simulated_api_calls!==graph.edges.reduce((n,e)=>n+e.simulated_api_delta,0)||
-       replay.branching!==true)throw Error('F4G_REPLAY_NOT_VERIFIED');
+       replay.verified_steps!==planned.metrics.planned_clicks||replay.actual_api_calls!==0||
+       replay.simulated_api_calls!==plannedCalls||replay.branching!==true)
+       throw Error('F4G_REPLAY_NOT_VERIFIED');
+      const verifiedGraph=markObservedFeatureGraphVerified(planned,replay);
       await writeFile(join(store.pathFor(meta.id),'generic-prototype.html'),
        document,{flag:'wx',mode:0o600});
+      await writeFile(join(store.pathFor(meta.id),'function-graph.json'),
+       JSON.stringify(verifiedGraph),{flag:'wx',mode:0o600});
       const transitions=graph.edges.map(e=>({
        step_id:e.id,action:'click',status:'completed',
        network_requests:e.simulated_api_delta,
@@ -96,6 +104,12 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
         generic_replay_verified_steps:replay.verified_steps,generic_replay_real_api_calls:0,
         generic_branch_paths:2,generic_reachable_states:graph.reachable_state_count,
         generic_schema_version:graph.schema_version,
+        feature_graph_available:true,
+        feature_graph_source:'observed-controlled-synthetic-only',
+        feature_graph_verified_edges:verifiedGraph.verification.observed_edges_verified,
+        feature_graph_routes:verifiedGraph.verification.routes_verified,
+        feature_graph_states:verifiedGraph.metrics.unique_states,
+        feature_graph_planned_clicks:verifiedGraph.metrics.planned_clicks,
         action_policy_checked:true,approved_dom_controls:permission.authorized_controls,
         denied_dom_controls:permission.denied_controls,unauthorized_actions_executed:0},
        inspection:{schema_version:5,mode,scope:'controlled-fixture-only',
@@ -104,6 +118,12 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
         exploration:{source:'controlled-fixture-scenario',execution:'controlled-only',
          actions_observed:graph.edges.length,successful_steps:replay.verified_steps,
          verified_action_api_links:graph.observed_action_api_links,
+         feature_graph_summary:{source:'observed-function-graph',scope:'controlled-synthetic-only',
+          state_count:verifiedGraph.metrics.unique_states,
+          edge_count:verifiedGraph.metrics.observed_transitions,
+          coverage_routes:verifiedGraph.metrics.route_count,
+          verified_replay_steps:replay.verified_steps,
+          relationships:verifiedGraph.relationships},
          permission_policy:{source:'controlled-action-audit',scope:'in-memory-synthetic-only',
           authorized_controls:permission.authorized_controls,
           denied_controls:permission.denied_controls,
@@ -318,7 +338,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -341,6 +361,21 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='feature-graph'){
+      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+       return respond(res,404,{error:'feature_graph_not_available'});
+      const report=await store.getReport(id);
+      if(report?.feature_graph_available!==true||
+         report.feature_graph_source!=='observed-controlled-synthetic-only')
+       return respond(res,404,{error:'feature_graph_not_available'});
+      let graph;
+      try{graph=JSON.parse(await readFile(join(store.pathFor(id),'function-graph.json'),'utf8'));}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'feature_graph_not_available'});throw e;}
+      if(graph?.verification?.status!=='verified-replayed-synthetic-only')
+       return respond(res,404,{error:'feature_graph_not_available'});
+      return respond(res,200,graph,jsonContent,
+       {'Content-Disposition':'attachment; filename="rea-observed-function-graph.json"'});
     }
     if(what==='generic-prototype'||what==='generic-prototype-download'){
       if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))

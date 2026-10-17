@@ -63,6 +63,11 @@ function showExploration(x){
   const requestLines=(x.mode==='fixture-causal'||x.mode?.startsWith('fixture-generic-'))?(transitions?.steps||[])
     .filter(step=>step.network_requests>0)
     .map(step=>step.step_id+' · API GET '+step.network_requests+'회 · 통제 실험 검증'):[];
+  const relationships=fixture.feature_graph_summary?.relationships||[];
+  fillList('feature-graph-relations',relationships.map(r=>
+   r.action+' → 상태 {'+(r.changed_fields||[]).join(', ')+'}'+
+   ((r.api_paths||[]).length?' · API '+r.api_paths.join(', '):' · API 없음')+
+   ' · 관찰 '+r.observed_transitions+'회'), '관찰된 기능 연결 없음');
   fillList('f2-dependencies',[
    ...stateLines,...requestLines,
    ...(fixture.observed_endpoint_paths||[]).map(s=>'관찰된 네트워크 경로 · '+s)
@@ -161,6 +166,9 @@ function setCurrent(run){
  for(const linkId of ['open-control-map','download-control-map','download-control-contract']){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
+ el('feature-graph-panel').hidden=true;
+ el('download-feature-graph').hidden=true;
+ el('download-feature-graph').removeAttribute('href');
  el('f3-panel').hidden=true;
  el('f4-panel').hidden=true;
  for(const linkId of ['open-behavior','download-behavior','open-generic','download-generic']){
@@ -196,14 +204,20 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':run.mode==='fixture-causal'?'합성 Chrome 행동/API 검증 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false,genericAvailable=false,controlMapAvailable=false,controlMapCount=0;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false,genericAvailable=false,controlMapAvailable=false,controlMapCount=0,featureGraphAvailable=false,featureGraphStates=0,featureGraphRoutes=0;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;featureGraphAvailable=report.feature_graph_available===true;featureGraphStates=report.feature_graph_states??0;featureGraphRoutes=report.feature_graph_routes??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
   if(manifestAvailable&&!active){
    el('f3-panel').hidden=false;
    const link=el('download-manifest');link.href=`/api/runs/${id}/manifest`;link.hidden=false;
+  }
+  if(run.mode?.startsWith('fixture-generic-')&&featureGraphAvailable&&!active){
+   el('feature-graph-panel').hidden=false;
+   el('feature-graph-status').textContent='관찰된 상태 '+featureGraphStates+'개 · Chrome 검증 탐색 경로 '+featureGraphRoutes+'개 · 실제 외부 API 호출 0건';
+   const link=el('download-feature-graph');
+   link.href=`/api/runs/${id}/feature-graph`;link.hidden=false;
   }
   if(run.mode==='fixture-causal'&&!active){
    el('f4-panel').hidden=false;

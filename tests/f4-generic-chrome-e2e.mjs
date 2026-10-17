@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {observeGenericControlledApp,verifyGenericControlledReplay,
   listGenericSyntheticFixtures,classifyGenericFixtureRequest} from '../studio/generic-fixture-browser.mjs';
 import {generateGenericBehaviorHtml,normalizeGenericBehaviorEvidence} from '../studio/generic-behavior.mjs';
+import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from '../studio/behavior-exploration.mjs';
 const fixtures=listGenericSyntheticFixtures();
 assert.deepEqual(fixtures,['catalog','analytics']);
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/','GET'),'document');
@@ -31,17 +32,29 @@ for(const appId of fixtures){
  assert.equal(graph.reachable_state_count,4);
  assert.equal(graph.actions.length,2);
  assert.equal(graph.edges.length,3);
+ const planned=buildObservedFeatureGraph(evidence);
+ assert.equal(planned.metrics.unique_states,4);
+ assert.equal(planned.metrics.route_count,2);
+ assert.equal(planned.metrics.planned_clicks,3);
+ assert.deepEqual(planned.coverage_routes.map(r=>r.actions),appId==='catalog'?
+  [['filter','layout'],['layout']]:[['range','chart'],['chart']]);
  const html=generateGenericBehaviorHtml(evidence);
  assert.doesNotMatch(html,/fetch\s*\(|XMLHttpRequest|<iframe\b|https?:\/\//);
  const verified=await verifyGenericControlledReplay({browserPath:process.env.CHROME_BIN,evidence,html});
  assert.equal(verified.source,'controlled-generic-replay');
  assert.equal(verified.verified_steps,3);
+ assert.equal(verified.observed_edge_coverage,3);
+ assert.deepEqual(verified.verified_route_ids,['route0','route1']);
+ const certified=markObservedFeatureGraphVerified(planned,verified);
+ assert.equal(certified.verification.status,'verified-replayed-synthetic-only');
+ assert.equal(certified.verification.routes_verified,2);
+ assert.equal(certified.verification.observed_edges_verified,3);
  assert.equal(verified.actual_api_calls,0);
  assert.equal(verified.simulated_api_calls,1);
  assert.equal(verified.branching,true);
  console.log(JSON.stringify({f4_generic_chrome:'PASS',app_id:appId,
   observed_actions:evidence.steps.length,branching_paths:2,policy_approved:policy.authorized_controls,policy_denied:policy.denied_controls,
-  reachable_states:graph.reachable_state_count,generated_html_bytes:Buffer.byteLength(html),
+  reachable_states:graph.reachable_state_count,graph_edges_verified:certified.verification.observed_edges_verified,planned_routes:certified.verification.routes_verified,generated_html_bytes:Buffer.byteLength(html),
   replay_verified:verified.verified_steps,actual_api_calls:verified.actual_api_calls,
   simulated_api_calls:verified.simulated_api_calls}));
 }

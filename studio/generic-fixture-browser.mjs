@@ -7,6 +7,7 @@ import {join} from 'node:path';
 import {CdpClient} from './dynamic-browser.mjs';
 import {generateGenericBehaviorHtml,normalizeGenericBehaviorEvidence} from './generic-behavior.mjs';
 import {fixtureActionPolicy,auditFixtureInventory,getFixtureActionSelector,SYNTHETIC_CONTROL_PROBE} from './fixture-permissions.mjs';
+import {buildObservedFeatureGraph} from './behavior-exploration.mjs';
 
 const ORIGIN='https://webrea-generic-fixture.example.org',TARGET=ORIGIN+'/';
 const profiles={
@@ -180,9 +181,18 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
   const authorized=replay?null:await readAuthorized();
   if(authorized&&(authorized.denied_controls<4||authorized.authorized_controls!==3))
    throw Error('F2_UNSAFE_CONTROLS_NOT_REJECTED');
-  const observed=[];
+  // The generated replay no longer uses prewritten per-app flow arrays.
+  // Replay paths are derived from observed source transitions by a bounded
+  // graph traversal planner. Only the *source observation* uses test scripts.
+  const featureGraph=replay?buildObservedFeatureGraph(evidence):null;
+  const flows=replay?featureGraph.coverage_routes.map(route=>route.path_edge_ids.map(edgeId=>{
+   const edge=featureGraph.edges.find(e=>e.id===edgeId);
+   if(!edge)throw Error('F2_ROUTE_EDGE_UNKNOWN');
+   return {action:edge.action,edge};
+  })):profile.flows.map(flow=>flow.map(action=>({action,edge:null})));
+  const observed=[],visitedEdgeIds=new Set();
   let branchIndex=0;
-  for(const flow of profile.flows){
+  for(const flow of flows){
    if(branchIndex++){
     const resetId=replay?'reset-flow':getFixtureActionSelector('reset',await readAuthorized());
     const resetExpression="(()=>{const b=document.getElementById('"+resetId+
@@ -194,8 +204,13 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     if(replay&&await counter()!==0)throw Error('F4G_RESET_COUNTER_BAD');
    }
    let prior=await read();
-   for(const action of flow){
+   for(const routeStep of flow){
+    const action=routeStep.action;
     const before=prior;
+    if(replay){
+     const sourceState=featureGraph.states.find(x=>x.id===routeStep.edge.from)?.values;
+     if(!sourceState||!same(before,sourceState))throw Error('F2_PLANNED_SOURCE_MISMATCH');
+    }
     const offset=requests.length,prevCounter=replay?await counter():0;
     const approvedId=replay?'action-'+action:getFixtureActionSelector(action,await readAuthorized());
     const select=JSON.stringify('#'+approvedId);
@@ -203,15 +218,17 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
      expression:'(()=>{const b=document.querySelector('+select+');if(!b||b.disabled)return false;b.click();return true})()',
      returnByValue:true},sid)).result?.value;
     if(clicked!==true)throw Error('F4G_ACTION_MISSING');
-    const expected=action==='filter'?{...prior,category:'summer',count:3}:
-      action==='layout'?{...prior,layout:'list'}:
-      action==='range'?{...prior,range:'month',total:31}:
-      action==='chart'?{...prior,chart:'line'}:null;
+    const expected=replay?
+       featureGraph.states.find(x=>x.id===routeStep.edge.to)?.values:
+       action==='filter'?{...prior,category:'summer',count:3}:
+       action==='layout'?{...prior,layout:'list'}:
+       action==='range'?{...prior,range:'month',total:31}:
+       action==='chart'?{...prior,chart:'line'}:null;
     if(!expected)throw Error('F4G_UNKNOWN_ACTION');
     const after=await until(s=>same(s,expected));
     await DELAY(90);
     const actualRequests=requests.slice(offset);
-    const expectedCalls=profile.request[action]?1:0;
+    const expectedCalls=replay?routeStep.edge.observed_api_requests:(profile.request[action]?1:0);
     if(replay){
      if(actualRequests.length||await counter()-prevCounter!==expectedCalls)
       throw Error('F4G_REPLAY_CALL_MISMATCH');
@@ -223,6 +240,7 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
      request_count:expectedCalls,endpoint_paths:profile.request[action]?[profile.request[action]]:[],
      attribution:'controlled-single-action-window'};
     observed.push(item);
+    if(replay)visitedEdgeIds.add(routeStep.edge.id);
     prior=after;
    }
   }
@@ -235,14 +253,15 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
   if(replay){
    if(requests.length)throw Error('F4G_REAL_API_REQUEST');
    const blueprint=normalizeGenericBehaviorEvidence(evidence);
-   if(observed.length!==blueprint.edges.length)throw Error('F4G_STEP_COUNT_MISMATCH');
-   for(let i=0;i<observed.length;i++){
-    if(!same(observed[i].after,blueprint.edges[i].after))throw Error('F4G_REPLAY_STATE_MISMATCH');
-   }
+   if(visitedEdgeIds.size!==blueprint.edges.length||
+      observed.length!==featureGraph.metrics.planned_clicks)
+    throw Error('F4G_EDGE_COVERAGE_MISMATCH');
    return {source:'controlled-generic-replay',scope:'synthetic-only',
     verified_steps:observed.length,actual_api_calls:0,
+    observed_edge_coverage:visitedEdgeIds.size,
+    verified_route_ids:featureGraph.coverage_routes.map(r=>r.id),
     simulated_api_calls:observed.reduce((n,v)=>n+v.request_count,0),
-    branching:profile.flows.length>1,denied_requests:denied};
+    branching:flows.length>1,denied_requests:denied};
   }
   const evidenceOutput={source:'controlled-generic-chrome',scope:'synthetic-only',
    verification:'real-isolated-chrome',app_id:appId,title:profile.title,

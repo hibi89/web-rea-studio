@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {createServer as netServer} from 'node:net';
 import {createStudioServer} from '../studio/server.mjs';
 import {normalizeGenericBehaviorEvidence} from '../studio/generic-behavior.mjs';
+import {buildObservedFeatureGraph} from '../studio/behavior-exploration.mjs';
 async function freePort(){const s=netServer();await new Promise(ok=>s.listen(0,'127.0.0.1',ok));const p=s.address().port;await new Promise(ok=>s.close(ok));return p;}
 async function until(check){
  const deadline=Date.now()+4000;
@@ -52,11 +53,14 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
   genericVerifier:async({browserPath,evidence,html})=>{
    assert.equal(browserPath,'/fake/chrome');
    const graph=normalizeGenericBehaviorEvidence(evidence);
+   const explored=buildObservedFeatureGraph(evidence);
    assert.match(html,/Controlled Generic Replay/);
    assert.doesNotMatch(html,/fetch\s*\(|https?:\/\//);
    replayedApps.push(evidence.app_id);
    return {source:'controlled-generic-replay',scope:'synthetic-only',
-    verified_steps:graph.edges.length,actual_api_calls:0,
+    verified_steps:explored.metrics.planned_clicks,actual_api_calls:0,
+    observed_edge_coverage:graph.edges.length,
+    verified_route_ids:explored.coverage_routes.map(r=>r.id),
     simulated_api_calls:1,branching:true};
   }});
  await studio.init();await new Promise(ok=>studio.server.listen(port,'127.0.0.1',ok));
@@ -73,6 +77,11 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    const report=await(await fetch(base+'/api/runs/'+id+'/report')).json();
    assert.equal(report.analysis_mode,mode);
    assert.equal(report.generic_prototype_available,true);
+   assert.equal(report.feature_graph_available,true);
+   assert.equal(report.feature_graph_verified_edges,3);
+   assert.equal(report.feature_graph_routes,2);
+   assert.equal(report.feature_graph_states,4);
+   assert.equal(report.feature_graph_planned_clicks,3);
    assert.equal(report.action_policy_checked,true);
    assert.equal(report.approved_dom_controls,3);
    assert.equal(report.denied_dom_controls,4);
@@ -93,6 +102,20 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal(manifest.findings.find(f=>f.id==='synthetic-action-permissions').status,'verified-synthetic-only');
    assert.equal(manifest.network.attribution_scope,'controlled-synthetic-only');
    assert.equal(manifest.generated_artifacts.generic_branching_prototype,true);
+   assert.equal(manifest.generated_artifacts.verified_feature_graph,true);
+   assert.equal(manifest.controlled_scenario.feature_graph.unique_states,4);
+   assert.equal(manifest.controlled_scenario.feature_graph.observed_edges,3);
+   assert.equal(manifest.controlled_scenario.feature_graph.verified_routes,2);
+   const graphResponse=await fetch(base+'/api/runs/'+id+'/feature-graph');
+   assert.equal(graphResponse.status,200);
+   assert.match(graphResponse.headers.get('content-disposition'),/attachment.*json/);
+   const saved=await graphResponse.json();
+   assert.equal(saved.verification.status,'verified-replayed-synthetic-only');
+   assert.equal(saved.edges.length,3);
+   assert.equal(saved.states.length,4);
+   assert.deepEqual(saved.coverage_routes.map(r=>r.actions),mode==='fixture-generic-catalog'?
+    [['filter','layout'],['layout']]:[['range','chart'],['chart']]);
+   assert.deepEqual(saved.coverage_routes.map(r=>r.verified_in_source),[true,true]);
    const preview=await fetch(base+'/api/runs/'+id+'/generic-prototype');
    assert.equal(preview.status,200);
    assert.match(preview.headers.get('content-security-policy'),/connect-src 'none'/);
@@ -111,11 +134,15 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
   assert.deepEqual(replayedApps,['catalog','analytics']);
   const bad='00000000-0000-4000-8000-000000000000';
   assert.equal((await fetch(base+'/api/runs/'+bad+'/generic-prototype')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+bad+'/feature-graph')).status,404);
   const html=await(await fetch(base+'/')).text();
   assert.match(html,/value="fixture-generic-catalog"/);
   assert.match(html,/value="fixture-generic-analytics"/);
+  assert.match(html,/id="feature-graph-panel"/);
+  assert.match(html,/id="download-feature-graph"/);
   const app=await(await fetch(base+'/app.js')).text();
   assert.match(app,/generic_prototype_available/);
+  assert.match(app,/feature_graph_available/);
   assert.match(app,/\/generic-prototype-download/);
  }finally{await new Promise(ok=>studio.server.close(ok));await rm(dir,{recursive:true,force:true});}
 });
