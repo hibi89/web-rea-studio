@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer as netServer} from 'node:net';
@@ -91,6 +91,7 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal(report.generic_branch_paths,2);
    assert.equal(report.generic_reachable_states,4);
    assert.equal(report.evidence_manifest_available,true);
+   assert.equal(report.reconstruction_contract_available,true);
    const inspection=await(await fetch(base+'/api/runs/'+id+'/inspection')).json();
    assert.equal(inspection.exploration.verified_action_api_links,1);
    assert.equal(inspection.exploration.state_transitions.steps.length,3);
@@ -128,6 +129,22 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal(download.status,200);
    assert.match(download.headers.get('content-disposition'),/attachment.*html/);
    assert.equal(await download.text(),html);
+   const contractResponse=await fetch(base+'/api/runs/'+id+'/reconstruction-contract');
+   assert.equal(contractResponse.status,200);
+   assert.match(contractResponse.headers.get('content-disposition'),/attachment.*json/);
+   const contract=await contractResponse.json();
+   assert.equal(contract.scope,'controlled-synthetic-only');
+   assert.equal(contract.app_id,mode.slice('fixture-generic-'.length));
+   assert.equal(contract.product_ready,false);
+   assert.equal(contract.f3.verification,'cross-stage-consistent-synthetic-only');
+   assert.equal(contract.replay.verified_edges,3);
+   assert.equal(contract.backend.real_endpoint_calls,0);
+   const graphFile=join(dir,id,'function-graph.json');
+   const originalGraph=await readFile(graphFile,'utf8');
+   await writeFile(graphFile,JSON.stringify({...JSON.parse(originalGraph),unsafe_extra:'tampered'}));
+   assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction-contract')).status,409);
+   await writeFile(graphFile,originalGraph);
+   assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction-contract')).status,200);
    assert.equal((await fetch(base+'/api/runs/'+id+'/behavior-prototype')).status,404);
   }
   assert.deepEqual(observedApps,['catalog','analytics']);

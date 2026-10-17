@@ -3,6 +3,7 @@ import {observeGenericControlledApp,verifyGenericControlledReplay,
   listGenericSyntheticFixtures,classifyGenericFixtureRequest} from '../studio/generic-fixture-browser.mjs';
 import {generateGenericBehaviorHtml,normalizeGenericBehaviorEvidence} from '../studio/generic-behavior.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from '../studio/behavior-exploration.mjs';
+import {compileObservedStateContract} from '../studio/reconstruction-contract.mjs';
 const fixtures=listGenericSyntheticFixtures();
 assert.deepEqual(fixtures,['catalog','analytics']);
 assert.equal(classifyGenericFixtureRequest('https://webrea-generic-fixture.example.org/','GET'),'document');
@@ -46,6 +47,12 @@ for(const appId of fixtures){
  assert.equal(verified.observed_edge_coverage,3);
  assert.deepEqual(verified.verified_route_ids,['route0','route1']);
  const certified=markObservedFeatureGraphVerified(planned,verified);
+ const runnableContract=compileObservedStateContract({evidence,verifiedGraph:certified,replay:verified,html});
+ assert.equal(runnableContract.app_id,appId);
+ assert.equal(runnableContract.replay.verified_edges,3);
+ assert.ok(runnableContract.replay.rejected_unobserved_events>=4);
+ assert.equal(runnableContract.backend.real_endpoint_calls,0);
+ assert.equal(runnableContract.product_ready,false);
  assert.equal(certified.verification.status,'verified-replayed-synthetic-only');
  assert.equal(certified.verification.routes_verified,2);
  assert.equal(certified.verification.observed_edges_verified,3);

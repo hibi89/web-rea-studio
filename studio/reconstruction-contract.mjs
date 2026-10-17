@@ -77,7 +77,27 @@ export function compileF3LinkedReconstructionContract({evidence,verifiedGraph,re
 
 /** Read-only stored artifact coherence, not a signed authenticity certificate. */
 export function matchesStoredReconstructionContract(contract,{verifiedGraph,manifest,html}={}){
- return contract?.kind==='rea-observed-state-contract'&&
+ const initial=verifiedGraph?.states?.find(s=>s.id==='s0')?.values;
+ const actions=verifiedGraph?.relationships?.map(a=>({
+  id:a.action,label:a.label,source:'observed-synthetic',
+  unobserved_effect:'unknown-not-generated'}));
+ const transitions=verifiedGraph?.edges?.map(e=>({id:e.id,action:e.action,from:e.from,to:e.to,
+  changed_fields:[...e.changed_fields],simulated_api_calls:e.observed_api_requests,
+  effect_provenance:'observed-controlled-synthetic-only'}));
+ return contract?.schema_version===1&&contract?.kind==='rea-observed-state-contract'&&
+  ['catalog','analytics'].includes(contract.app_id)&&
+  contract.app_id===verifiedGraph?.app_id&&contract.product_ready===false&&
+  contract.backend?.mode==='local-simulated-counters'&&
+  contract.backend?.real_endpoint_calls===0&&
+  contract.backend?.recovered_original_api===false&&
+  contract.backend?.recovered_original_data===false&&
+  contract.backend?.recovered_database===false&&
+  contract.f3?.external_source_parity==='not-tested'&&
+  match(contract.initial_state,initial)&&
+  match(contract.states,verifiedGraph.states)&&
+  match(contract.actions,actions)&&match(contract.transitions,transitions)&&
+  contract.replay?.verified_edges===verifiedGraph.edges.length&&
+  contract.replay?.verified_routes===verifiedGraph.coverage_routes?.length&&
   contract?.scope==='controlled-synthetic-only'&&
   contract?.f3?.verification==='cross-stage-consistent-synthetic-only'&&
   typeof html==='string'&&Buffer.byteLength(html,'utf8')<=50000&&
