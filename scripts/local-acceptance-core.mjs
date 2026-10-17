@@ -24,6 +24,23 @@ const pass=(out,marker)=>{
  }
  return null;
 };
+const SMOKE_PHASES=new Set([
+ 'prepare-isolated-temporary-directory','launch-private-studio',
+ 'wait-private-studio-ready','verify-local-ui','verify-empty-history',
+ 'verify-target-scope','verify-local-fixture','verify-host-rejection',
+ 'verify-query-rejection','verify-isolated-run-storage'
+]);
+const SMOKE_REASONS=new Set([
+ 'CHILD_EXITED_EARLY','STUDIO_NOT_READY','EADDRINUSE','EACCES','EPERM',
+ 'EBUSY','ENOENT','ASSERTION_FAILED','UNKNOWN_LOCAL_FAILURE'
+]);
+export function extractSafeAcceptanceFailure(id,stdout=''){
+ if(id!=='windows-studio-loopback')return null;
+ const proof=pass(stdout,'windows_studio_startup');
+ if(proof?.windows_studio_startup!=='FAIL'||!SMOKE_PHASES.has(proof.phase)||
+    !SMOKE_REASONS.has(proof.reason))return null;
+ return {phase:proof.phase,reason:proof.reason};
+}
 const nodeAllowed=(v)=>{
  const m=/^v?(22|24|[2-9][0-9])\.(\d+)\.\d+/.exec(v||'');
  if(!m)return false;
@@ -121,9 +138,18 @@ export async function runOwnerOfflineAcceptance({platform,nodeVersion,chromePath
    extractSafeAcceptanceProof(step.id,execution.stdout):null;
   if(!proof){
    result.status='FAIL';
-   result.checks.push({id:step.id,status:'FAIL',
+   const failure={
+    id:step.id,status:'FAIL',
     code:execution.timedOut?'CHECK_TIMEOUT':
-     execution.exitCode!==0?'CHECK_EXIT_NONZERO':'CHECK_PROOF_MISSING'});
+     execution.exitCode!==0?'CHECK_EXIT_NONZERO':'CHECK_PROOF_MISSING'
+   };
+   // A failing Windows fixture can expose only predefined, non-sensitive
+   // diagnostic categories, never raw stderr, paths, URLs or console output.
+   if(failure.code==='CHECK_EXIT_NONZERO'){
+    const safe=extractSafeAcceptanceFailure(step.id,execution.stdout);
+    if(safe)failure.diagnostic=safe;
+   }
+   result.checks.push(failure);
    return result;
   }
   result.checks.push({id:step.id,status:'PASS',proof});
