@@ -74,7 +74,7 @@ test('passive DOM probe detects compact colored divs without reading text or bro
  ]);
  const ctx={document:{body:root,documentElement:{scrollWidth:1440,scrollHeight:900},
   querySelectorAll:()=>[main,section,div]},getComputedStyle:n=>({
-   display:'block',visibility:'visible',opacity:'1',backgroundColor:styles.get(n).backgroundColor,
+   display:'block',visibility:'visible',opacity:'1',backgroundColor:styles.get(n)?.backgroundColor||'transparent',
    borderTopLeftRadius:'0px',borderTopWidth:'0px',borderTopColor:'transparent',boxShadow:'none'}),
   innerWidth:1440,innerHeight:900,scrollX:0,scrollY:0,parseFloat};
  const raw=runInNewContext(P4_GEOMETRY_PROBE,ctx,{timeout:1000});
