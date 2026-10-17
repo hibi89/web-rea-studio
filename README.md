@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## F5 opt-in saved-only review in local Studio
+
+A completed Static Visual run with existing P5 v2 evidence now offers **오프라인 색상 재검증 실행**. This is an explicit, one-time local Chrome replay of the **generated scriptless reconstruction** using a fixed synthetic interception URL. Loading run history or reading the result does not recapture the original site. No external host permissions, network relay or original run data change. A no-op result (**NO_SAFE_COLOR_PATCH**) is normal while the draft geometry is derived from the same saved reference; an independently improved HTML is downloadable only when a real measured edit was accepted. See [limitations and acceptance](docs/F5_STUDIO_OFFLINE_REVIEW.md).
+
 ## F5 measured bounded repair (synthetic proof only)
 
 The new [F5 bounded-repair experiment](docs/F5_BOUNDED_REPAIR.md) proposes at most **two** evidence-backed static color changes, re-renders every proposal in a new isolated Chrome capture, and keeps only measured improvements. Failed or non-improving proposals are rejected. This is a reusable **engine and CI experiment**, not yet a user-facing general repair button, an authorized real-site result, or proof of application/API/behavior equivalence.
