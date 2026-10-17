@@ -93,6 +93,10 @@ jobs:
           if (-not $found) { throw "Real Chrome missing on Windows runner; do not infer browser acceptance" }
           "CHROME_BIN=$found" >> $env:GITHUB_ENV
           & $found --version
+      - name: Run real Windows local Studio startup and loopback smoke
+        timeout-minutes: 3
+        shell: pwsh
+        run: node scripts/windows-studio-startup-smoke.mjs
       - name: Run real Windows Chrome P4 offline acceptance
         timeout-minutes: 4
         shell: pwsh
