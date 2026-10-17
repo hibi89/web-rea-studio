@@ -175,6 +175,19 @@ async function loadDiagnosis(id){
     lines.push('주의: 읽기 전용 사전 점검은 연결 승인이나 실제 서버 검증이 아닙니다.');
    }catch{lines.push('Q1 권한 사전 점검 자료가 없습니다. 외부 연결은 계속 금지됩니다.');}
   }
+  if(p){
+   try{
+    const assessment=await api('/api/runs/'+id+'/q1-assessment');
+    if(state.id!==id)return;
+    const link=el('download-q1-assessment');
+    link.href='/api/runs/'+id+'/q1-assessment';
+    link.hidden=false;
+    lines.push('Q1 오프라인 원인 검토: '+assessment.finding+' / 증거: '+assessment.evidence_status);
+    lines.push('로컬 정책: 외부 GET 차단 '+(assessment.local_policy.off_origin_get_denied?'확인':'미확인')+
+      ' · connect-src self '+(assessment.local_policy.connect_src_self_only?'확인':'미확인'));
+    lines.push('실제 서버·CORS·API 장애 원인: 미확인. 관찰된 실패가 정책과 일치해도 인과관계는 증명되지 않습니다.');
+   }catch{lines.push('Q1 오프라인 원인 판정을 불러올 수 없습니다. 기존 연결 차단 정책은 유지됩니다.');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -397,6 +410,8 @@ function setCurrent(run){
  el('download-support-packet').removeAttribute('href');
  el('download-permission-preflight').hidden=true;
  el('download-permission-preflight').removeAttribute('href');
+ el('download-q1-assessment').hidden=true;
+ el('download-q1-assessment').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
