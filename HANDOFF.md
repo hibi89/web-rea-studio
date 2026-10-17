@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **최신 CI 검증 기능 코드 기준 SHA는 `2ffc324e2835445f79e719476de799f370635931`**, F5 로컬 Studio 명시적 실행·저장 결과 조회/다운로드·기존 Q0/Q1/F1~F5 전체 회귀 **SUCCESS** (Node **182/182**, 격리 Chrome P4/F5-Repair/F2/P2-CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38997567550. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
+> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **최신 CI 검증 기능 코드 기준 SHA는 `378888dd85b0c618c64fb8d60dd28b60ad8d2d94`**, F5 스크린샷 기반 단색 영역 수정 후보·저장본 Chrome 재검증·기존 Q0/Q1/F1~F5 회귀 **SUCCESS** (Node **185/185**, 격리 Chrome P4/F5 색상·픽셀추론·저장본/F2/P2-CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38998538942. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -24,7 +24,7 @@
 | F2 관계 분석 | 액션→상태/API 관계 증명 | 합성 `catalog`/`analytics`에서 단일 행동별 상태 전이·합성 API 경로 관찰, 기능 그래프 및 재생 경로 검증 | 외부 사이트의 실제 버튼별 API 인과관계 미검증 |
 | F3 구조 해석 | 증거·미확인사항 명세 | 결정적(evidence-driven) `manifest.json`, 관찰 상태/컨트롤/의존성 요약 | 일반 LLM에 의한 원본 백엔드/DB 추론 엔진 아님 |
 | F4 독립 코드 | 실행 가능한 독립 UI 생성 | 정적 HTML, 합성 증거로 만든 독립 JS 상태 머신/분기형 HTML, 별도 Chrome 재생 검증 | 외부 사이트의 완전한 기능/백엔드 복제 미구현 |
-| F5 검증·수정 | 원본/생성본 비교·자동 수리 | P4/P5 시각·기하 비교 관련 모듈과 제한된 Chrome 비교 테스트 존재 | 일반 사이트에 대한 폐루프 자동 수정 미완성 |
+| F5 검증·수정 | 원본/생성본 비교·자동 수리 | P5 전체 픽셀/기하 비교, 합성 Chrome에서 기존 색상 토큰 복원 및 **스크린샷 단색 영역 추론→자동 수정→재검증**, 저장된 Static Visual 원본 불변 HTML 내보내기 실증 | 실제 임의 사이트의 레이아웃·동작·API 자율 수정과 Windows 검증 미완성 |
 
 ## 2. 실제 관측 상태 — 성공/실패를 혼동하지 말 것
 
@@ -39,6 +39,7 @@
 - **Q1 읽기 전용 권한 사전 점검:** `studio/permission-preflight.mjs`, 로컬 GET `/api/runs/:id/permission-preflight`, Studio 실패 진단 패널의 `Q1 권한 사전 점검 JSON` 내보내기를 추가했다. 동일 호스트의 저장된 fetch 시도·거부 증거로만 후보를 표시하고, RFC 특수 도메인/로컬/IP/`sslip.io` 같은 IP-인코딩 DNS에 추가 경고를 붙인다. **모든 결과 `NOT_APPROVED` / `BLOCK_NETWORK_EXPANSION`**이며 원격 요청·실행 가능한 정책·자동 승인 0건. CI Node 173/173 및 Chrome 전체 통과(기능 SHA `22045a6b`, run `38996188937`). 실제 Windows 캡처의 호스트 소유권·API 경로·CORS·접속 가능성은 여전히 검증되지 않았다.
 - **F5 첫 폐루프 자동 수정 실증 (합성에 한정):** `studio/p5-bounded-repair.mjs`, `tests/p5-bounded-repair.test.mjs`, `tests/p5-repair-chrome-e2e.mjs` 및 CI 필수 단계. P4 정적 HTML의 배경·영역 **색상만**, 최대 2회 안전 제안 → 독립 Chrome 재렌더링 → P5 v2 전체 영역 RGB/픽셀·기하 재측정 → 개선 아니면 즉시 중단·마지막 정상 HTML 유지. 합성 원본 Chrome 1회, 독립 재생 3회 결과 **RGB MAE 197.69 → 1.32**, 외부 요청 0건. 검증 코드 `a9394745`, CI `38996839185` Node 179/179·Chrome 전체 **SUCCESS**. `product_ready=false`; 실제 대상 웹페이지·자율 JS/API·일반 레이아웃 수정·사용자 Studio UI 적용은 미구현. 장애 기록: 임시 캡처 폴더 생성 누락 → 수정; body CSS 배경만 수정하고 별도의 body 페인트 영역을 건드리지 않아 픽셀 변화 0 → **한 의미상의 페이지 배경 패치에서 둘 다 수정**해 실 Chrome에서 개선 확인. 구체 설계/제약: `docs/F5_BOUNDED_REPAIR.md`.
 - **F5 사용자 로컬 Studio 실행 경로 추가:** `studio/p5-stored-review.mjs`에서 완료된 `static-visual` 저장 PNG/P4 도형/P5 v2만 사용해 **원본 URL을 다시 열지 않고**, 고정 합성 `https://p5-offline-replay.example.org/`에 독립 HTML을 메모리로 제공한다. 로컬 Studio `POST /api/runs/:id/color-repair`은 `{"confirm":"offline-color-review"}` 명시적 동의, same-origin, 동시 Chrome 1건, 저장 증거 확인 후 202로 실행. `GET .../color-repair`은 결과만 읽고, 실제 개선 확인 시에만 `GET .../color-repair-download`로 `script-src 'none'` HTML을 제공. 사용자가 클릭해야 실행되며 GET 재실행 없음. **중요: 시작 도형이 현재 원본 P4 증거와 동일해 일반 분석에서는 `NO_SAFE_COLOR_PATCH`가 정상 예상됨**. 임의의 수정 내용을 만들어내지 않고, 스크린샷 유사도/백엔드 기능 복원을 보장하지 않는다. 기존 원본 캡처·report/inspection은 덮어쓰지 않으며, 별도 `color-repair.json`에 기록한다. 테스트 기능 코드 `2ffc324e` CI `38997567550` Node 182/182 및 Chrome 전체 PASS. Windows 사용자 직접 실행은 아직 미검증. 자세한 한계/사용법은 `docs/F5_STUDIO_OFFLINE_REVIEW.md`.
+- **F5 스크린샷 기반 단색 보정 실증:** 새 `studio/p5-pixel-colors.mjs`에서 원본 PNG와 독립 재생 PNG를 **로컬 픽셀로만** 비교해 110×88px 이상, 내부 표본 20개 이상, 두 화면 각각 동질 색상 ≥88%, RGB 평균 차이 ≥24인 비차폐 대형 배경 영역에만 색상 후보를 만든다. 제목 좌표·겹치는 내부 도형을 제외하고, 8px 고정 격자로 체크무늬가 단색 오판정된 CI 실패를 **픽셀별 복수 위상 검사**로 수정했다. 엔진은 한 번에 한 CSS 색상 수정, 최대 2번 재검증, 픽셀/기하 품질 오히려 악화면 수정 거부·롤백. 저장된 Studio `reviewSavedP5ColorRepair`도 **이미지 증거 기반 후보**를 사용하도록 연결됐다. 별도 진짜 Chrome 합성 시험에서 스크린샷만으로 보정한 RGB MAE **26.59→1.32** (2회 재생, 원본 재접속 0), 저장된 합성 `Static Visual` 이력→독립 Chrome 재검증→개선 HTML 기록까지 검증. 코드 SHA `378888dd`, Actions `38998538942` **Node 185/185 + 모든 Chrome 회귀 SUCCESS**. 현재 실제 외부 사이트·Windows 이력·다중 뷰포트는 미검증, 그라데이션/텍스트/이미지/위치 보정도 제외. 원본 계정·백엔드 자동 승인 없음. 설계: `docs/F5_STUDIO_OFFLINE_REVIEW.md`.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
 
 ## 3. 중요 저장소 구조
@@ -54,6 +55,7 @@
 | `studio/observed-controls.mjs`, `studio/behavior-exploration.mjs`, `studio/generic-fixture-browser.mjs` | F1/F2 컨트롤 관측, 합성 상태 그래프 및 경로 검증 |
 | `studio/p5-visual-diff.mjs`, `studio/p5-geometry-diff.mjs` | F5 전 화면 시각/도형 비교, 품질 관문 측정 (기능 증명과 분리) |
 | `studio/p5-bounded-repair.mjs` | 정적 P4 배경/페인트 색상만 제한적으로 자동 수정·재측정·비개선 롤백; 호출자가 실제 별도 Chrome 증거 제공해야 함 |
+| `studio/p5-pixel-colors.mjs` | 원본/복제 PNG의 단색 안전 영역만 분석해 비실행 RGB 수정 후보 생성; 5개 위상 표본 검사·가림 제외·비단색 거부 |
 | `studio/p5-stored-review.mjs` | 저장된 P5 v2에서만 실제 Chrome 독립 재검증하는 비동기 Studio API 연결; 원본 호스트 재요청 0 |
 | `studio/evidence-manifest.mjs`, `studio/interaction-blueprint.mjs` | F3 증거 기반 산출물 |
 | `studio/behavior-reconstruction.mjs`, `studio/generic-behavior.mjs`, `studio/p4-reconstruction.mjs` | F4 코드/상태 머신 재구성 |
@@ -106,6 +108,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | F5 PNG 근거 단색 보정·저장본 Chrome 완주 | 코드 `378888dd`, CI `38998538942` Node 185/185 + Chrome P4/F5/F2/P2/F4 전체 SUCCESS. **스크린샷 원본과 독립 재렌더 PNG 차이에서 수정색 추론 → 1건 수리 → MAE 26.59→1.32 → 별도 저장된 합성 Static Visual 이력에서도 scriptless 개선 HTML 생성·증거 JSON 저장**, 원본 보존·외부 HTTP 0. 체크무늬 위상 샘플 오류를 실제 부정 테스트로 수정, 모호/텍스트/가림은 후보 배제 | 실제 임의 사이트·Windows 수동 실행·다중 viewport/레이아웃 위치/JS API는 미검증. Q1 실제 외부 API 접근 승인 별도 필요 |
 | 2026-10-17 | F5 로컬 Studio opt-in 저장본 재검증 연결 | 코드 `2ffc324e`/Actions `38997567550` Node 182/182 및 격리 Chrome P4/F5/F2/P2/F4 전체 PASS. 사용자가 저장 `Static Visual` 결과의 버튼을 누르면 기존 원본 PNG/도형만 읽고 scriptless HTML을 고정 합성 도메인으로 Chrome 재검증. 중복 실행 차단, no-script CSP, **개선이 확인된 HTML만 다운로드**, `NO_SAFE_COLOR_PATCH`는 정상·정직한 상태. 실사이트 재접속·기존 파일 변경 0 | **실제 Windows 버튼 수동 수락 미검증**, 기존 동일 P4 도형에서 능동 수정 후보는 없음. 다음은 스크린샷 증거에서 안전한 색상 수정 후보를 도출해 재검증하거나 다중 viewport 검사. 외부 API 권한 Q1 미해결 |
 | 2026-10-17 | F5 합성 Chrome 자동 수정 폐루프 첫 실증 | 코드 `a9394745`, CI `38996839185` Node 179/179 + Chrome P4/F5/F2/P2/F4 전체 PASS. 원본 1회+독립 재현 3회로 정적 배경/영역 색상 2건 자동 제안·수정 후 **RGB MAE 197.69 → 1.32**. 비개선·실패 후보는 롤백, 크롭 방지·기하 관문 유지, 외부 API 호출 0. 실패 시도(캡처 디렉터리, body 페인트 오버레이) 원인 분석 후 다른 접근으로 해결 | 합성에 국한. 실제 사이트 Q1/기능동등성 미검증, Studio 사용자가 직접 실행할 버튼·범용 자동 수정 아직 없음. 다음은 오프라인 Studio 사용 흐름 설계 또는 다중 화면/동작 회귀 확장 |
 | 2026-10-17 | Q1 외부 API 권한 사전 점검·차단 게이트 | 코드 `22045a6b` · Actions `38996188937` Node 173/173 + Chrome P4/F2/P2/F4 전체 SUCCESS. 로컬 실패 이력으로만 허용되지 않은 호스트 후보·권한 범위/요청 예산/인증/CORS/DNS 위험 검토 JSON 생성. UI 내보내기, GET 재분석 0, 네트워크 확대 0. `docs/Q1_PERMISSION_PREFLIGHT.md` | Windows 실제 실패 기록 검증과 호스트 소유권·정확한 경로/메서드 승인 전에는 실 API 연결 금지. 이번 작업은 Q1 전체 완료가 아닌 **Q1 사전 점검 기능 완료** |
@@ -125,7 +128,7 @@
 
 다음 작업의 조건: 우선 **`docs/QUALITY_FIRST_ROADMAP.md`의 Q0 F5 정직한 품질 판정**을 유지한다. 전체 시각 게이트 PASS는 정적 증거일 뿐 작동하는 웹사이트 인증이 아니다. 사용자는 장기간이 걸려도 **실제로 작동하는 품질**을 우선하고, GitHub 테스트/인계서 업데이트는 매 단위 필수다. **Q1 실데이터 시도를 승인 없이 시작하지 않는다.** 두 출처 실험은 **브라우저 통신 메커니즘만 검증**했으므로, 실제 인터넷 API나 확장된 CSP/relay를 배포하지 않는다. 사용자 소유/허용 범위, 실제 host·method·path, 데이터 보유·요청 상한, DNS/TLS/인증/리다이렉트 위험을 검토하고 명시적으로 승인받기 전에는 네트워크 범위를 넓히지 않는다.
 
-새 F5 합성 자동 수정 기능은 CI에서 실제 Chrome으로 실증되었고, 로컬 Studio에서 저장된 `static-visual` 결과를 **명시적 클릭으로 재검증하는 UI/API까지 구현**됐다. 단 저장된 P4 도형과 원본이 동일해 대부분 결과는 `NO_SAFE_COLOR_PATCH`이며 일반 사이트의 자동 시각 수리가 아니다. Windows 사용자 직접 실행과 실제 사이트 API 복구는 별도 미검증 관문이다. 다음 독립 작업 후보: **(A) 생성된 정적 P4 결과물을 사용자가 로컬에서 수동 승인하여만 시작되는 안전한 F5 자동 재측정·수정 기능** 또는 **(B) 전체 배경색뿐 아니라 제한적 좌표·크기 오류까지 안전하게 고치고 여러 viewport에서 회귀**. 양쪽 모두 새로운 원본 대상 HTTP 요청 없이 진행 가능하며, 과대평가 없이 먼저 테스트/보안 경계를 설계할 것. 사용자 Windows 실데이터 Q1 이슈는 계속 별도 게이트다.
+새 F5 합성 자동 수정 기능은 CI에서 실제 Chrome으로 실증되었고, 로컬 Studio에서 저장된 `static-visual` 결과를 **명시적 클릭으로 재검증하는 UI/API까지 구현**됐다. 단 저장된 P4 도형과 원본이 동일해 대부분 결과는 `NO_SAFE_COLOR_PATCH`이며 일반 사이트의 자동 시각 수리가 아니다. Windows 사용자 직접 실행과 실제 사이트 API 복구는 별도 미검증 관문이다. 현재는 버튼 실행 및 **스크린샷 기반 단색 후보까지 합성 Chrome에서 구현/검증 완료**. **다음 독립 작업 우선순위: (A) 다른 화면 크기와 겹치는 영역에서 색상 수정의 회귀를 엄격히 검증하고 정적 내용 위험성 표시 강화, (B) 안전한 범위의 크기·위치 수정 후보를 별도 F5 품질 관문으로 실증.** 양쪽 모두 새로운 원본 대상 HTTP 요청 없이 진행 가능하며, 과대평가 없이 먼저 테스트/보안 경계를 설계할 것. 사용자 Windows 실데이터 Q1 이슈는 계속 별도 게이트다.
 
 현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON` 및 새 `Q1 권한 사전 점검 JSON`(GET `/api/runs/:id/permission-preflight`)을 저장하여 민감정보를 검토하고, 호스트 후보·미충족 승인 조건·DNS/IP 위험을 확인 → 정확한 소유권/허가 범위가 확인되면 안전한 최소 API 연결 설계 → 사용자가 승인한 범위 안에서 실제 외부 캡처·독립 재구현 품질 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
@@ -133,9 +136,9 @@
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 이전 기능 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/e1063bb07c73b26356f319298ff1d1b621ce2349
-- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/2ffc324e2835445f79e719476de799f370635931
+- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/378888dd85b0c618c64fb8d60dd28b60ad8d2d94
 - 핵심 F5 비교 코드 성공 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999
-- 최신 F5 Studio 저장본 검증 기능 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/38997567550
+- 최신 F5 PNG 단색 보정·저장본 재검증 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/38998538942
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
 - F5 Studio 저장본 재검증·실행 경로·정상 무수정 처리: `docs/F5_STUDIO_OFFLINE_REVIEW.md`.
 - 새 F5 제한적 자동 수정 실증·롤백·Chrome 재검증: `docs/F5_BOUNDED_REPAIR.md`.
