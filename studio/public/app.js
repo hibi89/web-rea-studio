@@ -149,6 +149,9 @@ async function loadDiagnosis(id){
   if(p){
    try{
     const review=await api('/api/runs/'+id+'/dependencies');
+    const packetLink=el('download-support-packet');
+    packetLink.href='/api/runs/'+id+'/support-packet';
+    packetLink.hidden=false;
     if(state.id!==id)return;
     lines.push('저장된 API 의존성: 네트워크 이벤트 '+review.summary.events_saved+'개 · 대상 그룹 '+review.summary.dependencies+'개');
     for(const dep of review.dependencies.slice(0,10)){
@@ -208,6 +211,8 @@ function setCurrent(run){
  el('diagnosis-panel').hidden=true;
  el('download-dependencies').hidden=true;
  el('download-dependencies').removeAttribute('href');
+ el('download-support-packet').hidden=true;
+ el('download-support-packet').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
