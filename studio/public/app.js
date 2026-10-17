@@ -188,6 +188,19 @@ async function loadDiagnosis(id){
     lines.push('실제 서버·CORS·API 장애 원인: 미확인. 관찰된 실패가 정책과 일치해도 인과관계는 증명되지 않습니다.');
    }catch{lines.push('Q1 오프라인 원인 판정을 불러올 수 없습니다. 기존 연결 차단 정책은 유지됩니다.');}
   }
+  if(p){
+   try{
+    const readiness=await api('/api/runs/'+id+'/f3-q1-readiness');
+    if(state.id!==id)return;
+    const link=el('download-f3-q1-readiness');
+    link.href='/api/runs/'+id+'/f3-q1-readiness';link.hidden=false;
+    lines.push('F3/Q1 사이트 재구성 판단: '+readiness.decision+
+     ' · 외부 통신 '+readiness.network_decision);
+    lines.push('증거 일관성: '+readiness.evidence.integrity+
+     ' · 미확인 기능·데이터 '+readiness.unresolved_gap_ids.length+'분류');
+    lines.push('근거가 부족하거나 충돌하면 실제 사이트 기능 완성으로 판정하지 않습니다.');
+   }catch{lines.push('F3/Q1 교차 검증 결과가 없습니다. 외부 통신과 실제 사이트 재구성은 계속 차단됩니다.');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -425,6 +438,8 @@ function setCurrent(run){
  el('download-permission-preflight').removeAttribute('href');
  el('download-q1-assessment').hidden=true;
  el('download-q1-assessment').removeAttribute('href');
+ el('download-f3-q1-readiness').hidden=true;
+ el('download-f3-q1-readiness').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
