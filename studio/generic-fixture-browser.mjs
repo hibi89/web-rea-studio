@@ -163,6 +163,36 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     "Number(document.getElementById('api-simulated')?.textContent)",returnByValue:true},sid)).result?.value;
    return Number.isSafeInteger(r)?r:null;
   };
+  // Dispatch synthetic events on disabled buttons to prove unobserved
+  // state transitions cannot mutate the isolated independent F4 replay.
+  let rejectedTransitionsVerified=0;
+  const verifyUnobservedTransitions=async()=>{
+   if(!replay)return;
+   const probe=(await cdp.send('Runtime.evaluate',{expression:
+    "(()=>({disabled:[...document.querySelectorAll('button[data-action]')].filter(b=>b.disabled).map(b=>b.id),completed:Number(document.getElementById('completed-count')?.textContent)}))()",
+    returnByValue:true},sid)).result?.value;
+   if(!probe||!Array.isArray(probe.disabled)||!Number.isSafeInteger(probe.completed))
+    throw Error('F4G_NEGATIVE_PROBE_INVALID');
+   for(const id of probe.disabled){
+    if(!/^action-[a-z][a-z0-9-]{0,31}$/.test(id))throw Error('F4G_NEGATIVE_ACTION_INVALID');
+    const prior=await read(),calls=await counter(),sent=requests.length;
+    const dispatched=(await cdp.send('Runtime.evaluate',{expression:
+     '(()=>{const b=document.getElementById('+JSON.stringify(id)+');'+
+     'if(!b||!b.disabled)return false;'+
+     'b.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));return true})()',
+     returnByValue:true},sid)).result?.value;
+    if(dispatched!==true)throw Error('F4G_NEGATIVE_EVENT_MISSING');
+    await DELAY(35);
+    const next=await read();
+    const completed=(await cdp.send('Runtime.evaluate',{expression:
+     "Number(document.getElementById('completed-count')?.textContent)",
+     returnByValue:true},sid)).result?.value;
+    if(!prior||!next||!same(prior,next)||await counter()!==calls||
+       requests.length!==sent||completed!==probe.completed)
+     throw Error('F4G_UNOBSERVED_TRANSITION_CHANGED_STATE');
+    rejectedTransitionsVerified++;
+   }
+  };
   const until=async(predicate)=>{
    const start=Date.now();
    while(Date.now()-start<7500){
@@ -227,6 +257,7 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     if(!expected)throw Error('F4G_UNKNOWN_ACTION');
     const after=await until(s=>same(s,expected));
     await DELAY(90);
+    if(replay)await verifyUnobservedTransitions();
     const actualRequests=requests.slice(offset);
     const expectedCalls=replay?routeStep.edge.observed_api_requests:(profile.request[action]?1:0);
     if(replay){
@@ -252,6 +283,7 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
   }
   if(replay){
    if(requests.length)throw Error('F4G_REAL_API_REQUEST');
+   if(rejectedTransitionsVerified<1)throw Error('F4G_UNVERIFIED_NEGATIVE_PATHS');
    const blueprint=normalizeGenericBehaviorEvidence(evidence);
    if(visitedEdgeIds.size!==blueprint.edges.length||
       observed.length!==featureGraph.metrics.planned_clicks)
@@ -261,7 +293,8 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     observed_edge_coverage:visitedEdgeIds.size,
     verified_route_ids:featureGraph.coverage_routes.map(r=>r.id),
     simulated_api_calls:observed.reduce((n,v)=>n+v.request_count,0),
-    branching:flows.length>1,denied_requests:denied};
+    branching:flows.length>1,denied_requests:denied,
+    unobserved_transitions_rejected:rejectedTransitionsVerified};
   }
   const evidenceOutput={source:'controlled-generic-chrome',scope:'synthetic-only',
    verification:'real-isolated-chrome',app_id:appId,title:profile.title,
