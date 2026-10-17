@@ -53,5 +53,5 @@ Functional SHA `c77a5e8d6a29e67c4a1266bfb5375d21eee7c937`, [Windows GitHub Actio
 - **Owner-style `npm run accept:local` executed by the actual Windows runner: PASS.** Five proof-gated steps passed, and a locally ignored `results/acceptance/acceptance-*.json` receipt was actually generated. The CLI itself was exercised end-to-end; this is not only a mocked unit test.
 - Windows Node **209/209 PASS**, local npm launcher PASS, local Studio startup/Host rules PASS, actual Chrome P4 PASS, actual Chrome F5 saved-draft pass with **two accepted `x,w` changes and MAE 2.41→1.61**.
 - The receipt contains only allowlisted results; tests check that injected credential-like strings and actual browser/user paths are not included.
-- The Windows GitHub job concluded SUCCESS. The separate Linux job completes independently; check its final run conclusion before describing both OS jobs as completed.
+- **Both mandatory jobs (Windows and full Linux Chrome regressions) concluded SUCCESS** in this same Actions run. The owner-PC acceptance remains separate.
 - Owner's actual PC is still **UNTESTED**. Running this command on GitHub infrastructure cannot inspect, validate, or modify a user's own Windows installation.
