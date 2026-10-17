@@ -93,6 +93,8 @@ export function buildEvidenceManifest(inspection,report){
    attribution_scope:mode==='fixture-causal'||mode.startsWith('fixture-generic-')?'controlled-synthetic-only':'unverified'},
   controlled_scenario:fixture,
   generated_artifacts:{standalone_html:report?.reconstruction_available===true,
+   read_only_control_map:mode==='static-visual'&&report?.control_map_available===true,
+   observed_control_locations:mode==='static-visual'&&report?.control_map_available===true?n(report?.control_map_count,60):0,
    interactive_prototype:(report?.behavior_reconstruction_available===true&&mode==='fixture-causal')||
     (report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-')),
    generic_branching_prototype:report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-'),

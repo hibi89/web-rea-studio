@@ -286,7 +286,12 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   dynamicExecutor:async({scriptsDisabled})=>{
    launched++;assert.equal(scriptsDisabled,true);
    return {report:{verdict:'PASS',analysis_mode:'static-visual',screenshot_saved:false,failures:[]},
-    inspection:{mode:'static-visual',page:{reconstruction_blueprint:blueprint},network:[]}};
+    inspection:{mode:'static-visual',page:{reconstruction_blueprint:blueprint,
+     interaction_inventory:{source:'passive-controls',verification:'presence-only',actions_executed:0,
+      controls:[
+       {id:'control-001',kind:'button',label:'Update',rect:{x:210,y:120,width:130,height:40}},
+       {id:'control-002',kind:'input',type:'password',rect:{x:210,y:180,width:200,height:35}}
+      ]}},network:[]}};
   }});
  await app.init();await new Promise(ok=>app.server.listen(testPort,'127.0.0.1',ok));
  const base='http://127.0.0.1:'+testPort;
@@ -299,6 +304,8 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   await until(async()=>{const x=await (await fetch(base+'/api/runs/'+id)).json();return x.status==='completed';});
   const report=await (await fetch(base+'/api/runs/'+id+'/report')).json();
   assert.equal(report.reconstruction_available,true);
+  assert.equal(report.control_map_available,true);
+  assert.equal(report.control_map_count,2);
   assert.equal(report.evidence_manifest_available,true);
   const manifestResponse=await fetch(base+'/api/runs/'+id+'/manifest');
   assert.equal(manifestResponse.status,200);
@@ -306,6 +313,8 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   const manifest=await manifestResponse.json();
   assert.equal(manifest.analysis_mode,'static-visual');
   assert.equal(manifest.generated_artifacts.standalone_html,true);
+  assert.equal(manifest.generated_artifacts.read_only_control_map,true);
+  assert.equal(manifest.generated_artifacts.observed_control_locations,2);
   assert.equal(manifest.visual.regions,1);
   const response=await fetch(base+'/api/runs/'+id+'/reconstruction');
   assert.equal(response.status,200);
@@ -321,11 +330,32 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   assert.match(download.headers.get('content-disposition'),/attachment.*\.html/);
   assert.match(download.headers.get('content-security-policy'),/script-src 'none'/);
   assert.equal(await download.text(),html);
+  const controlResponse=await fetch(base+'/api/runs/'+id+'/control-map');
+  assert.equal(controlResponse.status,200);
+  assert.match(controlResponse.headers.get('content-security-policy'),/script-src 'none'/);
+  assert.match(controlResponse.headers.get('content-security-policy'),/connect-src 'none'/);
+  const mapped=await controlResponse.text();
+  assert.match(mapped,/data-id="control-001"/);
+  assert.match(mapped,/type="button" disabled/);
+  assert.doesNotMatch(mapped,/<script\\b|<input\\b|<form\\b|https?:\\/\\//);
+  const controlDownload=await fetch(base+'/api/runs/'+id+'/control-map-download');
+  assert.equal(controlDownload.status,200);
+  assert.match(controlDownload.headers.get('content-disposition'),/attachment.*html/);
+  assert.equal(await controlDownload.text(),mapped);
+  const contractResponse=await fetch(base+'/api/runs/'+id+'/control-contract');
+  assert.equal(contractResponse.status,200);
+  assert.match(contractResponse.headers.get('content-disposition'),/attachment.*json/);
+  const contract=await contractResponse.json();
+  assert.equal(contract.total,2);
+  assert.equal(contract.controls[1].label,'');
+  assert.equal(contract.behavior_verified,false);
   assert.equal(launched,1);
   await fetch(base+'/api/runs/'+id+'/reconstruction');
   assert.equal(launched,1);
   const fx=await app.store.create({target_url:expected(),mode:'rea-browser'});
   assert.equal((await fetch(base+'/api/runs/'+fx.id+'/reconstruction')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+fx.id+'/control-map')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+fx.id+'/control-contract')).status,404);
   assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/reconstruction')).status,404);
  }finally{await new Promise(ok=>app.server.close(ok));}
 });
@@ -334,10 +364,14 @@ test('P4 UI exposes isolated reconstruction link while retaining original screen
  const app=await(await fetch(url+'/app.js')).text();
  assert.match(html,/id="p4-panel"/);
  assert.match(html,/id="open-reconstruction"/);
+ assert.match(html,/id="open-control-map"/);
+ assert.match(html,/id="download-control-map"/);
+ assert.match(html,/id="download-control-contract"/);
  assert.match(html,/id="download-reconstruction"/);
  assert.match(html,/id="download-manifest"/);
  assert.match(html,/id="open-screenshot"/);
  assert.match(app,/reconstruction_available/);
+ assert.match(app,/control_map_available/);
  assert.match(app,/\/reconstruction/);
 });
 

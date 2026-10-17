@@ -7,6 +7,7 @@ import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 import {runDynamicAnalysis} from './dynamic-browser.mjs';
 import {diagnoseRuns} from './diagnose.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
+import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from './evidence-manifest.mjs';
@@ -188,6 +189,8 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       // the source page, remote scripts, original data or backend connections.
       const blueprint=execution.inspection?.page?.reconstruction_blueprint;
       report.reconstruction_available=false;
+      report.control_map_available=false;
+      report.control_map_count=0;
       report.visual_comparison_available=false;
       report.visual_comparison_status='unavailable';
       if(blueprint?.source==='p4-geometry'&&blueprint.boxes?.length){
@@ -196,6 +199,23 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
         if(Buffer.byteLength(document)>250000)throw Error('P4 preview too large');
         await writeFile(join(store.pathFor(meta.id),'reconstruction.html'),document,{flag:'wx',mode:0o600});
         report.reconstruction_available=true;
+        // Build a separate read-only control map; keep the original geometry
+        // preview unchanged so existing P5 visual measurements remain comparable.
+        try{
+         const contract=buildObservedControlContract(blueprint,execution.inspection?.page?.interaction_inventory);
+         if(contract?.total){
+          const mapped=generateObservedControlMapHtml(blueprint,contract);
+          if(Buffer.byteLength(mapped)>250000)throw Error('CONTROL_MAP_TOO_LARGE');
+          await writeFile(join(store.pathFor(meta.id),'control-map.html'),mapped,{flag:'wx',mode:0o600});
+          await writeFile(join(store.pathFor(meta.id),'control-contract.json'),
+           JSON.stringify(contract),{flag:'wx',mode:0o600});
+          report.control_map_available=true;
+          report.control_map_count=contract.total;
+         }
+        }catch{
+         report.control_map_available=false;
+         report.control_map_count=0;
+        }
         // Optional P5 second isolated Chrome pass: load ONLY our own generated
         // HTML, from memory. All unrelated resource requests are rejected.
         if(report.screenshot_saved===true){
@@ -280,7 +300,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -332,6 +352,21 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'",
        ...(what==='behavior-prototype-download'?
         {'Content-Disposition':'attachment; filename="rea-controlled-interactive-prototype.html"'}:{})
+      });
+    }
+    if(what==='control-map'||what==='control-map-download'||what==='control-contract'){
+      if(meta.mode!=='static-visual')return respond(res,404,{error:'control_map_unavailable'});
+      const report=await store.getReport(id);
+      if(report?.control_map_available!==true)return respond(res,404,{error:'control_map_unavailable'});
+      let body;
+      try{body=await readFile(join(store.pathFor(id),
+       what==='control-contract'?'control-contract.json':'control-map.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'control_map_unavailable'});throw e;}
+      if(what==='control-contract')return respond(res,200,JSON.parse(body),jsonContent,
+       {'Content-Disposition':'attachment; filename="rea-observed-controls.json"'});
+      return respond(res,200,body,'text/html; charset=utf-8',{
+       'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'",
+       ...(what==='control-map-download'?{'Content-Disposition':'attachment; filename="rea-control-map.html"'}:{})
       });
     }
     if(what==='manifest'){

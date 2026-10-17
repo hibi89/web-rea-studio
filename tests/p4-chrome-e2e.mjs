@@ -8,6 +8,7 @@ import {generateP4Reconstruction} from '../studio/p4-reconstruction.mjs';
 import {compareChromeScreenshots} from '../studio/p5-visual-diff.mjs';
 import {compareP4Geometry} from '../studio/p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from '../studio/evidence-manifest.mjs';
+import {buildObservedControlContract,generateObservedControlMapHtml} from '../studio/observed-controls.mjs';
 const browserPath=process.env.CHROME_BIN;
 if(!browserPath)throw Error('CHROME_BIN required: real-browser check cannot be skipped');
 const target='https://p4-fixture.example.org/';
@@ -69,6 +70,36 @@ try{
  assert.ok(geom,'Real browser P4 geometry must be captured');
  assert.ok(geom.boxes.length>=5,JSON.stringify(geom.boxes));
  assert.ok(geom.titles.some(t=>t.text==='대시보드'));
+ const contract=buildObservedControlContract(geom,controls);
+ assert.equal(contract.source,'read-only-control-map');
+ assert.ok(contract.total>=6);
+ assert.equal(contract.behavior_verified,false);
+ assert.equal(contract.actions_executed,0);
+ assert.ok(contract.controls.some(c=>c.kind==='input'&&c.label===''));
+ const mapped=generateObservedControlMapHtml(geom,contract);
+ assert.match(mapped,/class="mapped"/);
+ assert.match(mapped,/script-src &#39;none&#39;/);
+ assert.doesNotMatch(mapped,/<script\b|<input\b|<form\b|<a\s+href|https?:\/\/|SUPER_PRIVATE_PASSWORD|HIDDEN_TYPED_DATA|SENSITIVE/);
+ const mapDir=await mkdtemp(join(tmpdir(),'webrea-control-map-ci-'));
+ try{
+  let mapCalls=0;
+  const replayMap=await runDynamicAnalysis({
+   target:'https://p4-map.example.org/',browserPath,dir:mapDir,scriptsDisabled:true,
+   relay:async url=>{
+    mapCalls++;assert.equal(url,'https://p4-map.example.org/');
+    return {status:200,contentType:'text/html; charset=utf-8',body:Buffer.from(mapped,'utf8')};
+   }
+  });
+  assert.equal(replayMap.report.verdict,'PASS');
+  assert.equal(replayMap.report.scripts_executed,false);
+  assert.equal(mapCalls,1);
+  const disabled=replayMap.inspection.page.interaction_inventory?.controls||[];
+  assert.equal(disabled.filter(c=>c.kind==='button'&&c.disabled).length,contract.total);
+  assert.equal(disabled.filter(c=>c.kind==='link').length,0);
+  assert.equal(replayMap.inspection.exploration.dependencies.causal_links_verified,0);
+  console.log(JSON.stringify({control_map_chrome:'PASS',mapped_controls:contract.total,
+   disabled_buttons:disabled.filter(c=>c.disabled).length,remote_requests:0}));
+ }finally{await rm(mapDir,{recursive:true,force:true});}
  const reconstructed=generateP4Reconstruction(geom);
  assert.match(reconstructed,/대시보드/);
  assert.match(reconstructed,/script-src &#39;none&#39;/);

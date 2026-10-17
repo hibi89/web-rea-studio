@@ -152,6 +152,10 @@ function setCurrent(run){
  el('open-screenshot').hidden=true;
  el('open-screenshot').removeAttribute('href');
  el('p4-panel').hidden=true;
+ el('control-map-actions').hidden=true;
+ for(const linkId of ['open-control-map','download-control-map','download-control-contract']){
+  el(linkId).hidden=true;el(linkId).removeAttribute('href');
+ }
  el('f3-panel').hidden=true;
  el('f4-panel').hidden=true;
  for(const linkId of ['open-behavior','download-behavior','open-generic','download-generic']){
@@ -187,9 +191,9 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':run.mode==='fixture-causal'?'합성 Chrome 행동/API 검증 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false,genericAvailable=false;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false,genericAvailable=false,controlMapAvailable=false,controlMapCount=0;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
   if(manifestAvailable&&!active){
@@ -231,6 +235,13 @@ async function select(id){
     const exportLink=el('download-reconstruction');
     exportLink.href=`/api/runs/${id}/reconstruction-download`;
     exportLink.hidden=false;
+   }
+   if(controlMapAvailable){
+    el('control-map-actions').hidden=false;
+    el('control-map-summary').textContent='화면 위치 '+controlMapCount+'개 확인. 버튼과 링크의 실행 기능은 모두 비활성입니다.';
+    for(const [id,suffix] of [['open-control-map','control-map'],['download-control-map','control-map-download'],['download-control-contract','control-contract']]){
+     const link=el(id);link.href=`/api/runs/${id}/${suffix}`;link.hidden=false;
+    }
    }
   }
   if(comparisonAvailable&&run.mode==='static-visual'){
