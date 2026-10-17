@@ -59,7 +59,7 @@ test('third unseen synthetic schema compiles to the exact same generic F4 engine
  assert.equal(c.executable_html_sha256,createHash('sha256').update(input.html).digest('hex'));
  assert.match(input.html,/id="state-slots"/);
  assert.match(input.html,/id="action-next"/);
- assert.doesNotMatch(input.html,/fetch\\s*\\(|XMLHttpRequest|<iframe/);
+ assert.doesNotMatch(input.html,/fetch\s*\(|XMLHttpRequest|<iframe/);
  assert.throws(()=>compileF3LinkedReconstructionContract(input),/F4_CONTRACT_EVIDENCE_MISMATCH/);
 });
 for(const id of ['catalog','analytics']){
