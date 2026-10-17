@@ -2,6 +2,12 @@
 
 **Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `22045a6b...` passed Node (173/173) and all isolated Chrome suites (P4/F2/P2-CORS/F4) on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38996188937). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
 
+## 2026-10-17 F5 first bounded self-repair proof (offline, synthetic)
+- `studio/p5-bounded-repair.mjs` proposes **only** observed P4 body/background and region color edits (shape/order/bounds must already match). It requires a fresh re-render callback for baseline and each proposal, accepts measured improvement only, and rolls back a failed or non-improving candidate. No more than two patch attempts per run.
+- Unit regressions cover two accepted steps, rejected/no-op candidate, invalid geometry, bounded attempt count and failing renderer. `tests/p5-repair-chrome-e2e.mjs` validates one source capture and fresh standalone Chrome replays on entirely synthetic memory-backed pages. CI workflow makes this a required Chrome step.
+- Current new functional SHA `fb7cb465916958a8c1f2849797302bcb63082810`; check CI run `38996701523` before declaring it successful. First CI failed due solely to missing test output directory; fixed in this SHA. Browser acceptance is the gate, not an optimistic report.
+- No actual external API or user-site interaction, arbitrary JavaScript/CSS repair, multiple-viewport optimization or Windows acceptance. Repaired HTML is scriptless and `product_ready` is always false. Details in `docs/F5_BOUNDED_REPAIR.md`.
+
 ## 2026-10-17 Q1 saved-evidence permission preflight (not a live API connection)
 - Added pure `studio/permission-preflight.mjs` from previously redacted passive support evidence, `GET /api/runs/:id/permission-preflight`, and Studio failure-panel JSON download and missing-authority summary.
 - Candidate external hostname requires matched saved fetch attempt+rejection. Local/special-use/IP-coded DNS providers (`sslip.io`, `nip.io`, `xip.io`) are flagged for heightened review. No CORS diagnosis, DNS lookup or hostname ownership proof is invented.
