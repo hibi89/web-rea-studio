@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {NODE_REGRESSION_ARGS,STEPS,validateOwnerAcceptanceEnvironment,
- extractSafeAcceptanceProof,runOwnerOfflineAcceptance} from '../scripts/local-acceptance-core.mjs';
+ extractSafeAcceptanceProof,extractSafeAcceptanceFailure,runOwnerOfflineAcceptance} from '../scripts/local-acceptance-core.mjs';
 
 const nodeLog='# tests 205\n# pass 205\n# fail 0\n';
 const launcher='{\n  "launcher": "node -> npx-cli.js",\n  "status": "PASS",\n  "network_used": false,\n  "rea_capture_tested": false\n}\n';
@@ -101,6 +101,31 @@ test('malformed or weak fixture results cannot claim Windows or Chrome acceptanc
   JSON.stringify({...JSON.parse(f5),mae_after:2.5})),null);
  assert.equal(extractSafeAcceptanceProof('windows-chrome-saved-f5',
   JSON.stringify({...JSON.parse(f5),source_site_refetched:true})),null);
+});
+test('real owner Windows loopback failures return only bounded diagnostic phase/code',async()=>{
+ const safe=JSON.stringify({windows_studio_startup:'FAIL',
+  phase:'verify-isolated-run-storage',reason:'ASSERTION_FAILED',
+  external_requests:0,product_ready:false});
+ assert.deepEqual(extractSafeAcceptanceFailure('windows-studio-loopback',safe),
+  {phase:'verify-isolated-run-storage',reason:'ASSERTION_FAILED'});
+ for(const malicious of [
+  JSON.stringify({windows_studio_startup:'FAIL',phase:'C:\\Users\\personal',
+   reason:'ASSERTION_FAILED'}),
+  JSON.stringify({windows_studio_startup:'FAIL',phase:'verify-local-ui',
+   reason:'SECRET_PASSWORD=private'}),
+  JSON.stringify({windows_studio_startup:'PASS',
+   phase:'verify-local-ui',reason:'EACCES'})
+ ])assert.equal(extractSafeAcceptanceFailure('windows-studio-loopback',malicious),null);
+ const out=await runOwnerOfflineAcceptance({...opts,executor:async step=>{
+  if(step.id==='windows-studio-loopback')
+   return {exitCode:1,stdout:safe+'\\npassword=HIDDEN_TOKEN'};
+  return {exitCode:0,stdout:outputs[step.id]};
+ }});
+ assert.equal(out.status,'FAIL');
+ assert.equal(out.checks.at(-1).code,'CHECK_EXIT_NONZERO');
+ assert.deepEqual(out.checks.at(-1).diagnostic,
+  {phase:'verify-isolated-run-storage',reason:'ASSERTION_FAILED'});
+ assert.doesNotMatch(JSON.stringify(out),/HIDDEN_TOKEN|password=|Users\\\\personal/);
 });
 test('child crash, timeout and bad evidence halt at first failed check with generic error only',async()=>{
  let count=0;
