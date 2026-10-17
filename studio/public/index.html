@@ -66,6 +66,13 @@
    <div><span>원본 Static Visual</span><img id="p5-original" loading="lazy" alt="스크립트 비활성화 원본 화면"/></div>
    <div><span>독립 재구성 Chrome 캡처</span><img id="p5-replica" loading="lazy" alt="독립형 HTML의 실제 Chrome 재캡처"/></div>
   </div>
+  <div id="p5-color-review" hidden>
+   <h4>F5 · 저장된 정적 화면 색상 검토</h4>
+   <p>기존 캡처만 사용합니다. 원본 사이트 재접속 없이 독립 HTML만 Chrome에서 확인하며 색상 수정 후보가 없을 수도 있습니다.</p>
+   <button id="run-color-review" type="button">오프라인 색상 재검증 실행</button>
+   <p id="color-review-status" role="status">아직 검토하지 않았습니다.</p>
+   <a id="download-color-review" hidden>검증된 색상 개선 HTML 저장 ↓</a>
+  </div>
   <p class="p4-caveat">이는 정적 화면의 RGB 표본 비교입니다. 원본 JavaScript·데이터·버튼 동작·차트 정확성을 보증하지 않습니다.</p>
  </div><p class="p4-caveat">원본 HTML 복사본이 아닙니다. 측정한 도형·제목·색상만 재배치하며 실제 데이터나 인터랙션은 없습니다.</p></section>
       <section id="diagnosis-panel" class="diagnosis-panel" hidden aria-live="polite"><div class="diagnosis-head"><div><h3>실패 원인 진단 · Local Diagnostics</h3><p>저장된 실패 이력만 읽습니다. 분석을 다시 실행하지 않습니다.</p></div><button id="copy-diagnosis" type="button">진단 복사</button><a id="download-dependencies" hidden download>API 의존성 JSON</a><a id="download-support-packet" hidden download>안전 진단 패킷 JSON</a><a id="download-permission-preflight" hidden download>Q1 권한 사전 점검 JSON</a></div><pre id="diagnosis-details">진단 대기</pre><p id="diagnosis-copy-status" role="status"></p></section><div class="bottom-note">RAW EVIDENCE는 로컬 데이터 폴더에만 저장됩니다. Windows: <code>%LOCALAPPDATA%\WebREAStudio\runs</code>. 브라우저 화면에서는 민감한 원본 JSON을 노출하지 않습니다.</div>
