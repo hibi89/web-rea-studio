@@ -6,6 +6,7 @@ import {mkdtemp,readdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:net';
+import {request} from 'node:http';
 
 if(process.platform!=='win32')throw Error('WINDOWS_SMOKE_REQUIRES_WINDOWS');
 async function port(){
@@ -51,9 +52,18 @@ try{
  assert.equal(targets.fixture,'http://127.0.0.1:'+fixturePort+'/');
  const fixture=await fetch('http://127.0.0.1:'+fixturePort+'/');
  assert.equal(fixture.status,200,'Controlled fixture must start on loopback');
- const blocked=await fetch(base+'/api/runs',{headers:{Host:'unapproved.invalid'}});
+ // Node fetch can normalize/replace Host, so send a genuine raw Host
+ // header over the same loopback TCP socket to exercise server validation.
+ const blocked=await new Promise((resolve,reject)=>{
+  const req=request(base+'/api/runs',{headers:{Host:'unapproved.invalid'}},res=>{
+   let raw='';
+   res.on('data',chunk=>{raw+=chunk.toString('utf8')});
+   res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(raw)}));
+  });
+  req.once('error',reject);req.end();
+ });
  assert.equal(blocked.status,403);
- assert.equal((await blocked.json()).error,'host_not_allowed');
+ assert.equal(blocked.body.error,'host_not_allowed');
  const query=await fetch(base+'/api/runs?anything=1');
  assert.equal(query.status,400);
  assert.equal((await query.json()).error,'unexpected_query');
