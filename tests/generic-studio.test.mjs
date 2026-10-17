@@ -108,3 +108,36 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
   assert.match(app,/\/generic-prototype-download/);
  }finally{await new Promise(ok=>studio.server.close(ok));await rm(dir,{recursive:true,force:true});}
 });
+
+test('generic Studio rejects missing permission proof before saving or replaying a prototype',async()=>{
+ const port=await freePort(),fixturePort=await freePort();
+ const dir=await mkdtemp(join(tmpdir(),'webrea-permission-denial-'));
+ const target='http://127.0.0.1:'+fixturePort+'/';
+ let replayCalls=0;
+ const studio=createStudioServer({studioPort:port,fixturePort,storageDir:dir,
+  browserPath:'/fake/chrome',approvedUrls:[],
+  genericObserver:async()=>({...observed('catalog'),execution_policy:{
+   source:'controlled-action-audit',scope:'in-memory-synthetic-only',
+   authorized_controls:3,denied_controls:4,
+   unauthorized_actions_executed:1,external_navigation_performed:false,
+   form_submissions_performed:0,approved_action_ids:['filter','layout','reset']
+  }}),
+  genericVerifier:async()=>{replayCalls++;throw Error('should not execute');}
+ });
+ await studio.init();await new Promise(ok=>studio.server.listen(port,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port;
+ try{
+  const response=await fetch(base+'/api/runs',{method:'POST',
+   headers:{Origin:base,'Content-Type':'application/json'},
+   body:JSON.stringify({target_url:target,analysis_mode:'fixture-generic-catalog'})});
+  assert.equal(response.status,202);
+  const id=(await response.json()).id;
+  await until(async()=>{const x=await(await fetch(base+'/api/runs/'+id)).json();return x.status==='failed';});
+  assert.equal(replayCalls,0);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/generic-prototype')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+id+'/generic-prototype-download')).status,404);
+ }finally{
+  await new Promise(ok=>studio.server.close(ok));
+  await rm(dir,{recursive:true,force:true});
+ }
+});

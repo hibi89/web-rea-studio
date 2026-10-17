@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {CdpClient} from './dynamic-browser.mjs';
 import {generateGenericBehaviorHtml,normalizeGenericBehaviorEvidence} from './generic-behavior.mjs';
+import {fixtureActionPolicy,auditFixtureInventory,getFixtureActionSelector,SYNTHETIC_CONTROL_PROBE} from './fixture-permissions.mjs';
 
 const ORIGIN='https://webrea-generic-fixture.example.org',TARGET=ORIGIN+'/';
 const profiles={
@@ -15,6 +16,10 @@ const profiles={
   source:`<!doctype html><html><body>
   <button id="src-filter">Summer filter</button><button id="src-layout">View layout</button>
   <button id="source-reset">Reset</button>
+  <button id="src-delete" type="button" onclick="document.body.dataset.unsafeAction='1';fetch('/api/delete',{method:'POST'})">Delete</button>
+  <button id="src-submit" type="submit">Submit</button>
+  <a href="https://offsite-denied.example.org/?token=PRIVATE">Offsite</a>
+  <input type="password" value="DONT_COLLECT_SECRET_VALUE">
   <span id="state-category">all</span><span id="state-count">8</span><span id="state-layout">grid</span>
   <script>
   let category='all',count=8,layout='grid';
@@ -162,12 +167,22 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
    throw Error('F4G_STATE_TIMEOUT');
   };
   await until(s=>same(s,profile.initial));
+  const policy=replay?null:fixtureActionPolicy({appId,origin:ORIGIN});
+  const readAuthorized=async()=>{
+   const raw=(await cdp.send('Runtime.evaluate',{
+    expression:SYNTHETIC_CONTROL_PROBE,returnByValue:true},sid)).result?.value;
+   return auditFixtureInventory(raw,policy);
+  };
+  const authorized=replay?null:await readAuthorized();
+  if(authorized&&(authorized.denied_controls<4||authorized.authorized_controls!==3))
+   throw Error('F2_UNSAFE_CONTROLS_NOT_REJECTED');
   const observed=[];
   let branchIndex=0;
   for(const flow of profile.flows){
    if(branchIndex++){
-    const resetExpression="(()=>{const b=document.getElementById('"+
-     (replay?'reset-flow':'source-reset')+"');if(!b)return false;b.click();return true})()";
+    const resetId=replay?'reset-flow':getFixtureActionSelector('reset',await readAuthorized());
+    const resetExpression="(()=>{const b=document.getElementById('"+resetId+
+     "');if(!b||b.disabled)return false;b.click();return true})()";
     const clicked=(await cdp.send('Runtime.evaluate',{
      expression:resetExpression,returnByValue:true},sid)).result?.value;
     if(clicked!==true)throw Error('F4G_RESET_MISSING');
@@ -178,7 +193,8 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
    for(const action of flow){
     const before=prior;
     const offset=requests.length,prevCounter=replay?await counter():0;
-    const select=JSON.stringify('#'+(replay?'action-':'src-')+action);
+    const approvedId=replay?'action-'+action:getFixtureActionSelector(action,await readAuthorized());
+    const select=JSON.stringify('#'+approvedId);
     const clicked=(await cdp.send('Runtime.evaluate',{
      expression:'(()=>{const b=document.querySelector('+select+');if(!b||b.disabled)return false;b.click();return true})()',
      returnByValue:true},sid)).result?.value;
@@ -207,6 +223,11 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
    }
   }
   if(networkFailures)throw Error('F4G_INTERCEPT_FAILURE');
+  if(!replay){
+   const unsafe=(await cdp.send('Runtime.evaluate',{
+    expression:"document.body.dataset.unsafeAction || null",returnByValue:true},sid)).result?.value;
+   if(unsafe!==null&&unsafe!==undefined)throw Error('F2_BLOCKED_ACTION_EXECUTED');
+  }
   if(replay){
    if(requests.length)throw Error('F4G_REAL_API_REQUEST');
    const blueprint=normalizeGenericBehaviorEvidence(evidence);
@@ -222,7 +243,13 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
   const evidenceOutput={source:'controlled-generic-chrome',scope:'synthetic-only',
    verification:'real-isolated-chrome',app_id:appId,title:profile.title,
    initial:profile.initial,steps:observed,
-   observed_action_api_links:observed.filter(s=>s.request_count).length};
+   observed_action_api_links:observed.filter(s=>s.request_count).length,
+   execution_policy:{source:authorized.source,scope:authorized.scope,
+    authorized_controls:authorized.authorized_controls,
+    denied_controls:authorized.denied_controls,
+    unauthorized_actions_executed:0,external_navigation_performed:false,
+    form_submissions_performed:0,
+    approved_action_ids:authorized.actions.map(a=>a.action)}};
   normalizeGenericBehaviorEvidence(evidenceOutput);
   return evidenceOutput;
  }finally{

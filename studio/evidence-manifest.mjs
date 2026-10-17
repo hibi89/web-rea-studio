@@ -51,6 +51,13 @@ export function buildEvidenceManifest(inspection,report){
  const fixture=inspection.exploration?.source==='controlled-fixture-scenario'?
   {executed_steps:n(inspection.exploration.actions_observed,40),
    successful_steps:n(inspection.exploration.successful_steps,40),
+   permission_policy:mode.startsWith('fixture-generic-')&&
+    inspection.exploration.permission_policy?.source==='controlled-action-audit'?
+    {scope:'in-memory-synthetic-only',
+     authorized_controls:n(inspection.exploration.permission_policy.authorized_controls,20),
+     denied_controls:n(inspection.exploration.permission_policy.denied_controls,40),
+     unauthorized_actions_executed:n(inspection.exploration.permission_policy.unauthorized_actions_executed,40),
+     external_navigation_performed:false}:null,
    verified_action_api_links:mode==='fixture-causal'||mode.startsWith('fixture-generic-')?
     n(inspection.exploration.verified_action_api_links,10):0,
    observed_state_changes:n(inspection.exploration.state_transitions?.observed_state_changes,100),
@@ -70,6 +77,9 @@ export function buildEvidenceManifest(inspection,report){
   {id:'html-structure',status:'observed',description:'Page or fixture structural evidence recorded'},
   {id:'visible-controls',status:controls.length?'observed':'unknown',
     description:controls.length?'Control affordances discovered; effects unverified':'No supported control evidence'},
+  {id:'synthetic-action-permissions',
+   status:mode.startsWith('fixture-generic-')&&report?.action_policy_checked===true?'verified-synthetic-only':'not-tested',
+   description:'Explicit allowlist enforced before synthetic Chrome actions; external sites not eligible'},
   {id:'network-requests',status:dependencies.length?'observed':'unknown',
     description:dependencies.length?'Passive request events grouped; attribution unknown':'No external/passive request relation confirmed'},
   {id:'script-execution',status:mode==='static-visual'?'disabled':mode==='static-html'?'not-run':'observed',

@@ -61,6 +61,18 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        app_id:appId,network:'in-memory-only',external_actions:false});
       const evidence=await genericObserver({browserPath,appId});
       if(evidence?.app_id!==appId)throw Error('F4G_PROFILE_MISMATCH');
+      const permission=evidence.execution_policy;
+      if(permission?.source!=='controlled-action-audit'||
+         permission.scope!=='in-memory-synthetic-only'||
+         permission.authorized_controls!==3||permission.denied_controls<4||
+         permission.unauthorized_actions_executed!==0||
+         permission.external_navigation_performed!==false||
+         permission.form_submissions_performed!==0||
+         !Array.isArray(permission.approved_action_ids)||
+         permission.approved_action_ids.length!==3||
+         !['reset',...(appId==='catalog'?['filter','layout']:['range','chart'])]
+           .every(action=>permission.approved_action_ids.includes(action)))
+        throw Error('F2_PERMISSION_PROOF_MISSING');
       // Reject all unverified shape/transition evidence before creating code.
       const graph=normalizeGenericBehaviorEvidence(evidence);
       const document=generateGenericBehaviorHtml(evidence);
@@ -83,13 +95,19 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
         synthetic_fixture_only:true,generic_prototype_available:true,
         generic_replay_verified_steps:replay.verified_steps,generic_replay_real_api_calls:0,
         generic_branch_paths:2,generic_reachable_states:graph.reachable_state_count,
-        generic_schema_version:graph.schema_version},
+        generic_schema_version:graph.schema_version,
+        action_policy_checked:true,approved_dom_controls:permission.authorized_controls,
+        denied_dom_controls:permission.denied_controls,unauthorized_actions_executed:0},
        inspection:{schema_version:5,mode,scope:'controlled-fixture-only',
         completeness:'generated-branching-behavior-verified',
         page:{title:graph.title},
         exploration:{source:'controlled-fixture-scenario',execution:'controlled-only',
          actions_observed:graph.edges.length,successful_steps:replay.verified_steps,
          verified_action_api_links:graph.observed_action_api_links,
+         permission_policy:{source:'controlled-action-audit',scope:'in-memory-synthetic-only',
+          authorized_controls:permission.authorized_controls,
+          denied_controls:permission.denied_controls,
+          unauthorized_actions_executed:0,external_navigation_performed:false},
          observed_endpoint_paths:paths,
          steps:graph.edges.map(e=>({step_id:e.id,action:'click',status:'completed'})),
          state_transitions:{source:'controlled-fixture-state-diff',verification:'real-isolated-Chrome',

@@ -42,8 +42,13 @@ function showExploration(x){
  const inventory=x.exploration?.inventory||x.page?.interaction_inventory;
  const fixture=x.exploration?.source==='controlled-fixture-scenario'?x.exploration:null;
  if(fixture){
+  const permissions=fixture.permission_policy;
   f1.textContent=(x.mode==='fixture-causal'||x.mode?.startsWith('fixture-generic-')?'실제 Chrome 합성 테스트':'통제된 REA 로컬 테스트')+' · 실행 단계 '+fixture.actions_observed+
-   '개 · 완료 '+fixture.successful_steps+'개 (외부 사이트 자동 탐색 아님)';
+   '개 · 완료 '+fixture.successful_steps+'개'+
+   (permissions?.source==='controlled-action-audit'?
+    ' · 허가 버튼 '+permissions.authorized_controls+'개 · 거부 요소 '+permissions.denied_controls+
+    '개 · 무허가 실행 '+permissions.unauthorized_actions_executed+'회':'')+
+   ' (외부 사이트 자동 탐색 아님)';
   fillList('f1-controls',(fixture.steps||[]).slice(0,28).map(s=>s.step_id+
    ' · '+s.action+' · '+s.status),'테스트 행동 없음');
   const transitions=fixture.state_transitions;
