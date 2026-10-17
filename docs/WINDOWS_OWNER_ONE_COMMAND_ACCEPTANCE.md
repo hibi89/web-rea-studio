@@ -93,3 +93,9 @@ npm run accept:local
 ```
 
 If it stops again at `windows-studio-loopback`, report the new sanitized `status`, `checks` and optional `diagnostic` only. The old failed receipts remain unchanged.
+
+## Verified local smoke-isolation fix (GitHub CI)
+
+GitHub code SHA `a5585bbcc8a53590ec5186e1287c9e13b3c0f11b`, [run 39009659884](https://github.com/hibi89/web-rea-studio/actions/runs/39009659884): **Windows Node 22 and Node 24 211/211 PASS each, owner-style `npm run accept:local` five checks each PASS**, Linux full existing Chrome acceptance PASS. Every required job **SUCCESS**. The Windows workflow deliberately seeds a fake old `results/studio/runs/<synthetic-id>` folder before the startup smoke; the smoke passes because its temporary capture no longer reads or imports that legacy data. The original user site's permissions are not broadened.
+
+This is runner evidence only. **The owner's second personal laptop result remains `CHECK_EXIT_NONZERO` from the prior version**, and no third run of the fixed version on their laptop has been supplied. If a local issue remains, new receipt fields `diagnostic.phase` and `diagnostic.reason` classify only the failure phase without private paths or raw child output.
