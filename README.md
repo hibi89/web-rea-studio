@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 anonymous 3×3 geometry preview (offline)
+
+When the same saved failed/interrupted passive capture has consistent F3/Q1 counts, **fully valid observed control rectangles**, a measured computed-DOM viewport, and matching screenshot/report dimensions, Studio can additionally offer a [coarsely geometry-binned anonymous HTML preview](docs/F3_Q1_ANONYMOUS_COARSE_GEOMETRY.md) via `/api/runs/:id/f3-q1-geometry-preview` and separate download/receipt endpoints. Only coarse 3×3 positions and width bands are reflected; exact source pixels, labels, URLs, actions or data are never exported. Conflicted/incomplete evidence returns 409 without HTML. Actual isolated Chrome exercised both desktop (1440px) and mobile (390px) *generated output* with **zero real controls or external requests**. This does **not** prove original website appearance, mobile behavior or functional/backend parity.
+
 ## F3/Q1 anonymous noninteractive HTML wireframe (offline)
 
 A saved failed/interrupted **Passive Browser** record with consistent F3/Q1 evidence can now produce an actual **anonymous HTML/CSS structural preview**, built solely from *observed control categories/counts*, not source layouts, text or behavior. Studio offers a preview, HTML attachment and [SHA-256 receipt](docs/F3_Q1_ANONYMOUS_WIREFRAME.md) via `GET /api/runs/:id/f3-q1-wireframe`, `...-download`, and `...-receipt`. Generated DOM contains **no native buttons/links/forms/inputs/scripts** and enforces script/network/form/navigation denial via CSP/sandbox. Missing or conflicting evidence returns 409 without generating a page. A real isolated Chrome synthetic render test confirmed no actionable controls or external requests. **Original site's look, data, actions, network/API, backend/DB, and functional parity remain unknown and blocked.**
