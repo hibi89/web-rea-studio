@@ -12,7 +12,7 @@ Date: 2026-10-17. This is a **controlled synthetic-only verification** step. It 
 ## Verified contract and implementation
 
 - Only on the already generated, independently rendered **synthetic F4** app, after each observed successful edge, inspect which `button[data-action]` nodes are disabled in the current reconstructed state.
-- For each disabled action, use Chrome CDP to dispatch a synthetic `MouseEvent('click')` to test the handler-level deny path, rather than relying only on disabled-button visual styling. No page is reloaded and the source target is not operated.
+- For each disabled action, use Chrome CDP to **temporarily clear the DOM `disabled` attribute**, dispatch a synthetic `MouseEvent('click')`, and restore `disabled` in a `finally` block. This directly tests the JavaScript transition guard rather than relying on the browser's native disabled-button event suppression. No page is reloaded and the source target is not operated.
 - Compare the page's observed state fields, completed action counter, simulated API counter and intercepted in-memory endpoint request count before/after. All four must be exactly unchanged. Otherwise stop the regression with `F4G_UNOBSERVED_TRANSITION_CHANGED_STATE`.
 - Fail closed on missing/invalid CDP proof and require at least one rejected action. The result records only `unobserved_transitions_rejected`, not DOM HTML, credentials, input values, URLs or private page data.
 - Existing positive-path verification, origin restrictions, source-scenario fixture allowlist, `connect-src 'none'`, two-app test coverage and saved user artifacts remain unchanged.
