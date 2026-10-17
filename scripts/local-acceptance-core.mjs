@@ -36,10 +36,17 @@ const SMOKE_REASONS=new Set([
 ]);
 export function extractSafeAcceptanceFailure(id,stdout=''){
  if(id!=='windows-studio-loopback')return null;
- const proof=pass(stdout,'windows_studio_startup');
- if(proof?.windows_studio_startup!=='FAIL'||!SMOKE_PHASES.has(proof.phase)||
-    !SMOKE_REASONS.has(proof.reason))return null;
- return {phase:proof.phase,reason:proof.reason};
+ for(const line of String(stdout).split(/\r?\n/).reverse()){
+  const trimmed=line.trim();
+  if(!trimmed.startsWith('{')||!trimmed.endsWith('}'))continue;
+  let value;
+  try{value=JSON.parse(trimmed);}catch{continue;}
+  if(value?.windows_studio_startup!=='FAIL'||
+     !SMOKE_PHASES.has(value.phase)||!SMOKE_REASONS.has(value.reason))
+   continue;
+  return {phase:value.phase,reason:value.reason};
+ }
+ return null;
 }
 const nodeAllowed=(v)=>{
  const m=/^v?(22|24|[2-9][0-9])\.(\d+)\.\d+/.exec(v||'');
