@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **최신 CI 검증 기능 코드 기준 SHA는 `af3877d843d6c1d95e66df594c0206c120eaece2`**, F5 **원본 `aside` ↔ 독립 재구현본 `div` 실제 Chrome 도형 증거 매칭 → 기존 x/너비 보정** 및 이전 F1~F5 회귀 전체 **SUCCESS** (Node **199/199**, Chrome P4/F5/F2/P2-CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/39001079575. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
+> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **최신 CI 검증 기능 코드 기준 SHA는 `e6491bffef1d9c314bbbcd9c80e9363fef3bacc2`**, F5 **사용자 독립 P4 정적 초안 등록·스크립트 없는 HTML 저장/다운로드** 및 기존 F1~F5 회귀 전체 **SUCCESS** (Node **202/202**, Chrome P4/F5 독립 초안/F2/P2-CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/39002786783. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -24,7 +24,7 @@
 | F2 관계 분석 | 액션→상태/API 관계 증명 | 합성 `catalog`/`analytics`에서 단일 행동별 상태 전이·합성 API 경로 관찰, 기능 그래프 및 재생 경로 검증 | 외부 사이트의 실제 버튼별 API 인과관계 미검증 |
 | F3 구조 해석 | 증거·미확인사항 명세 | 결정적(evidence-driven) `manifest.json`, 관찰 상태/컨트롤/의존성 요약 | 일반 LLM에 의한 원본 백엔드/DB 추론 엔진 아님 |
 | F4 독립 코드 | 실행 가능한 독립 UI 생성 | 정적 HTML, 합성 증거로 만든 독립 JS 상태 머신/분기형 HTML, 별도 Chrome 재생 검증 | 외부 사이트의 완전한 기능/백엔드 복제 미구현 |
-| F5 검증·수정 | 원본/생성본 비교·자동 수리 | P5 전체 픽셀/기하 비교, **PNG 단색 추론→자동 수정**, 합성 1440/900px 회귀 차단, **서로 다른 DOM 원본 aside ↔ 독립 div를 실제 Chrome 증거로 유일 매칭 → x/너비 교정**, 기존 저장된 Static Visual 색상 수정 HTML 내보내기 | 실제 외부 사이트 다중 화면 증거·범용 DOM 도형 매칭·중첩 반응형 레이아웃/JS/API·Windows 검증 미완성. 기하 보정 Studio UI 미연결 |
+| F5 검증·수정 | 원본/생성본 비교·자동 수리 | 기존 PNG 색상 추론·다중 화면 회귀/유일 도형 매칭→기하 수정 **합성 Chrome 실증**, **로컬 Studio 사용자가 별도 P4 도형 JSON을 등록→독립 scriptless HTML 파일과 영수증 영속 저장** | 별도 저장 HTML을 실제 소스에 맞춰 정규 매칭·기하 수리하는 사용자 UI는 아직 없음. 범용 HTML·원본 JS/API·Windows/실사이트 검증 미완성 |
 
 ## 2. 실제 관측 상태 — 성공/실패를 혼동하지 말 것
 
@@ -43,6 +43,7 @@
 - **F5 별도 viewport 회귀 차단 검증:** `runBoundedP4ColorRepair(... regressionViews)`은 독립적으로 확보한 다른 화면 크기의 원본 PNG/P4 좌표와 별도의 Chrome 재생 콜백 최대 **2곳**을 받아, 기본 화면을 개선한 패치가 어느 보조 화면이든 오히려 나빠지거나 재캡처되지 않으면 **그 패치를 거부**하고 마지막 정상 HTML로 롤백한다. 실 Chrome 합성 반응형 CSS 원본 1440px에서는 MAE **22.75→1.31**(개선), 900px에서는 **2.06→36.21**(악화)로 확인하여 실제 최종 상태 **`STOPPED_VIEWPORT_REGRESSION`, accepted=0**. 진짜 외부 HTTP 0, 합성 메모리 HTML 6회. `runDynamicAnalysis`의 `offlineViewport`는 360~1440px/높이 400~900px, **scriptsDisabled+명시적 오프라인 relay 전용**. 실제 사용자의 `static-visual` 기본 화면 크기/접근 권한은 유지한다. **중요: Studio에는 원본 화면이 현재 1개뿐이라 `color-repair.json`에 `multi_viewport_no_regression_verified:false`/보조 0건이라고 저장하며, 실제 사이트 다중 화면 검증으로 과장하면 안 된다.** 코드 `3cc29ca7`, CI `38999212889` Node 190/190 및 모든 Chrome **SUCCESS**. 문서: `docs/F5_MULTIVIEWPORT_GUARD.md`.
 - **F5 제한적 위치·크기 수정 실증:** 새 `studio/p5-geometry-repair.mjs` 및 `tests/p5-geometry-repair.test.mjs`, 필수 실제 Chrome `tests/p5-geometry-repair-chrome-e2e.mjs`. 동일한 P4 도형 목록·계층·배경색·테두리·제목 근거가 있고 **단 하나의 독립 페인트 도형**만 최대 64px 잘못된 경우, 한 번에 `x/y/w/h` 한 항목만 수정 제안하고 독립 Chrome 전체 RGB/도형·보조 viewport 재측정에서 성능 향상된 수정만 채택. 제목/다른 유색 도형과 겹치거나 근거 부족·과도한 이동·재현 실패 시 거부 및 마지막 정상 HTML 유지. `runBoundedP4ColorRepair`의 좌표불일치 차단은 **변경하지 않음**. 합성 원본 `aside.x+28px`, `aside.w+54px`을 다시 고쳐 원본/생성본 RGB MAE **2.08→1.28**, 크롬에서 수정 `x,w` **2건 채택**, 원본 외부 API 0. 코드 `f9d6754d`, GitHub run `39000084339` **Node 195/195+전체 Chrome SUCCESS**. 장애 기록: 새로 매칭된 영역 포함 시 기존 평균 도형 오차 지표가 커질 수 있음 → 매칭률 증가/동일 상태별 판정 분리; 실 Chrome 초기 너비 오차는 MAE 개선 **0.17**로 엄격 최소 기준 **0.3** 미달 → 기준 완화 없이 테스트 오차 54px로 확대 후 PASS. 구현/제약 `docs/F5_GEOMETRY_REPAIR.md`. **이번 기능은 독립 실험 엔진만 검증**했으며 실제 저장 Studio 기하 자동 수정 버튼, 외부 사이트 일반 레이아웃 추론은 미구현.
 - **F5 실제 독립 생성 HTML 도형 매칭 연결부:** `studio/p5-observed-alignment.mjs`는 실제 Chrome에서 원본과 생성 HTML을 **각각 캡처한 P4 도형**으로 큰 페인트 영역의 색상·경계·좌표 조건이 유일한 경우에만 대응하고, 원본 `aside`와 생성 `div`의 태그·배열 순서가 달라도 단 하나의 실제 관찰된 도형 결함(`x/y/w/h` 최대 2개)을 찾는다. 애매한 동일색 카드, 중복/누락, 다중 오류, 색상/뷰포트 불일치, 무오류는 수정 금지. 보정 전에 **기존 독립 재구현본 PNG와 생성한 정규 P4 HTML의 실제 Chrome PNG가 동등한지**(전체 비교 RGB MAE ≤2, 픽셀 일치 ≥95%)를 추가 확인하고 실패 시 편집 중단. 그 뒤에만 기존 기하 수정/Chrome 재검증/롤백 수행. `tests/p5-observed-alignment.test.mjs` + 실제 브라우저 `tests/p5-observed-alignment-chrome-e2e.mjs`, GitHub CI 필수 작업. 기능 SHA `af3877d8`의 CI `39001079575` **Node 199/199, Chrome P4/F5/F2/P2-CORS/F4 모두 SUCCESS**. 독립 합성 원본 `aside` ↔ 생성 `div` 페인트 영역 **2개**, 복구 `x/w` 두 건 채택, RGB MAE **2.08→1.28**, 사전 확인 포함 생성 HTML Chrome 재캡처 4회, 합성 메모리 HTML 6회, 실제 외부 API 0. **이것은 합성 실증이며 실제 외부 사이트의 DOM/백엔드 완성으로 오인 금지.** 일반 Studio 기하 수정 버튼, 사용자가 저장한 외부 독립 초안과의 연결은 아직 없음. `docs/F5_OBSERVED_ALIGNMENT.md`.
+- **F5 실제 로컬 사용자가 독립 정적 초안 등록:** 새 `studio/independent-draft.mjs`, Studio JSON/HTML 다운로드·등록 API 및 UI. 완료된 `static-visual` P4 기록에서 **정제된 도형 JSON 초안 내려받기 → 사용자가 별도로 수치 수정한 JSON 선택 → 명시적 버튼 누르면 원본 파일은 그대로 두고 스크립트 없는 독립 P4 HTML·정제 geometry·SHA256 영수증을 로컬에 한 번만 저장**. API는 같은 origin, 지정 confirm, 한정 JSON만 허용(요청 320KB 이하, HTML 250KB 이하, 80 도형/24 제목 제한, 화면 크기 불일치 거부). 고급 요청이 HTML을 포함해도 기존 안전 생성기가 만든 템플릿과 **바이트 단위로 정확히 일치**해야 수락; 임의 JS/iframe/URL CSS/이벤트 핸들러 거부. GET만으로 재실행 없음, 내려받기 HTML은 sandbox/no-script/no-connect CSP 첨부파일. **저장 상태 반드시 `STORED_UNVERIFIED`** — 등록 시 Chrome·시각 비교·자동 수리 없음, user-provided 도형은 독립 Chrome 관찰 증거와 다름. CI 기능 SHA `e6491bff`, run `39002786783` **Node 202/202 + 전체 실제 Chrome 합성 회귀 SUCCESS**, 등록된 정적 초안을 memory-only HTTPS 합성 문서로 Chrome 렌더해 `div` 위치 x=68, width=314 실측(합성 HTML 응답 1, 원본/외부 HTTP 0). 테스트 중 구문 오류·문자열 검사 오류를 수정했고, UTF-8 요청은 바이트 버퍼로 합쳐 파싱. 문서 `docs/F5_LOCAL_DRAFT_INTAKE.md`. 아직 후속 기하 자동 수리 버튼·실사이트 복제 검증 없음.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
 
 ## 3. 중요 저장소 구조
@@ -62,6 +63,7 @@
 | `studio/dynamic-browser.mjs`, `studio/p5-bounded-repair.mjs` | 고정 합성 오프라인 전용 화면폭 옵션 및 서로 다른 Chrome viewport에서 독립 측정·유해 변경 거부/롤백 |
 | `studio/p5-geometry-repair.mjs` | 독립 근거 P4 사각형 위치·크기 한 필드씩 제한 보정, Chrome 측정 후 승인·불개선 롤백, 옵션 보조 화면 회귀 차단 |
 | `studio/p5-observed-alignment.mjs` | 실제 독립 source/draft P4 페인트 도형의 유일 대응 추론, 실제 draft PNG 정규 재현 선검증 후 기존 F5 기하 보정 호출; 중복/애매한 매칭 거부 |
+| `studio/independent-draft.mjs` | 별도 사용자 도형 초안을 제한 형식으로 안전 검증, 정적 HTML 로컬 일회 저장·SHA 영수증·원본 보존; 아직 독립 Chrome 대응/수리 인증 아님 |
 | `studio/p5-stored-review.mjs` | 저장된 P5 v2에서만 실제 Chrome 독립 재검증하는 비동기 Studio API 연결; 원본 호스트 재요청 0 |
 | `studio/evidence-manifest.mjs`, `studio/interaction-blueprint.mjs` | F3 증거 기반 산출물 |
 | `studio/behavior-reconstruction.mjs`, `studio/generic-behavior.mjs`, `studio/p4-reconstruction.mjs` | F4 코드/상태 머신 재구성 |
@@ -114,6 +116,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | F5 안전한 사용자 독립 정적 초안 등록·Chrome 저장본 렌더 | 기능 `e6491bff`, CI `39002786783` Node **202/202**·Chrome P4/F5 독립 초안/기하·색상/다중 화면/F2/P2-CORS/F4 전체 PASS. 사용자가 완료된 정적 분석의 도형 JSON을 다운로드·편집·별도 등록하면 원본 보존 상태로 제한 HTML·정제 JSON·짧은 영수증을 쓰기 전용 저장. 크롬 합성 메모리 렌더에서 생성 `div` x=68·width=314 확인, 외부 요청 0. 임의 HTML/스크립트·JS URL·다른 화면폭·중복 등록 거부, GET 재분석 0 | 사용자 Windows 실사용 미검증. 등록 초안은 `STORED_UNVERIFIED`이며 독립 관찰·자동 수리·원본 동등성 검증 안 함. 다음은 저장된 사용자 초안을 별도 원본 재접속 없이 Chrome 수집→안전 매칭→opt-in 수리로 연결. `docs/F5_LOCAL_DRAFT_INTAKE.md` |
 | 2026-10-17 | F5 독립 source/draft 도형 유일 매칭·Chrome 수리 | 기능 SHA `af3877d8`, Actions `39001079575` Node **199/199** + Chrome P4/F5/F2/P2/F4 전체 PASS. 실제 합성 source `aside` / 독립 생성된 scriptless draft `div`의 서로 다른 태그·배열에서 유일 도형 2개 매칭, 정규 재구현 draft와 관찰 draft PNG 선비교를 통과한 뒤 `x,w` 2건 교정. MAE **2.08→1.28**, 브라우저 생성 HTML 재캡처 4회, 합성 요청 6, 외부 API 0. 중복/무오류/다중 오류/서로 다른 캔버스는 차단 | **합성 HTML 전용**. 실제 외부 사이트의 별도 초안 저장·기하 보정 UI/윈도우 인수 검증 및 실제 Q1 데이터 로딩 미완. `docs/F5_OBSERVED_ALIGNMENT.md` |
 | 2026-10-17 | F5 x/width Chrome 재측정·자동 보정 실증 | 코드 `f9d6754d`, CI `39000084339` Node 195/195·Chrome P4/F5 기하/색상/다중 화면/F2/P2-CORS/F4 모두 PASS. 근거 P4 카드 위치 28px·너비 54px 불일치 → 독립 Chrome HTML 재생 3회 → `x` 및 `w` 수정 승인, RGB MAE **2.08→1.28**, 외부 인터넷/API 요청 0. 평균 도형오차 함정과 엄격 최소 개선량 0.3 시험 문제를 원인 분리 후 해결 | **합성 단일 레이아웃만 검증**, 기하 엔진 Studio UI 미연결, 위치 추정·JS/API·진짜 외부 사이트/Windows 미검증. 문서 `docs/F5_GEOMETRY_REPAIR.md` |
 | 2026-10-17 | F5 1440/900 두 화면 Chrome 회귀 차단 | 기능 SHA `3cc29ca7`, CI `38999212889` Node 190/190 + 모든 Chrome PASS. 실 합성 media-query 원본 데스크톱 RGB MAE 22.75→1.31(좋음) vs 좁은 화면 2.06→36.21(나쁨) → 수정안 **자동 거부(accepted=0)/롤백**. 보조 원본·Chrome 별도 입력 없으면 검증 불가로 차단. 오프라인 전용 viewport 이외 일반 사이트 실행 설정 변경 금지. 문서 `docs/F5_MULTIVIEWPORT_GUARD.md` | 실제 사용자 Studio는 원본 1개 화면만 저장 → 다중 화면 수락 주장 금지. 실제 사이트 2번째 viewport 증거와 대응 UI/저장소, 위치/크기 수정은 별도 단계. Q1 Windows API 오류 미해결 |
@@ -137,7 +140,7 @@
 
 다음 작업의 조건: 우선 **`docs/QUALITY_FIRST_ROADMAP.md`의 Q0 F5 정직한 품질 판정**을 유지한다. 전체 시각 게이트 PASS는 정적 증거일 뿐 작동하는 웹사이트 인증이 아니다. 사용자는 장기간이 걸려도 **실제로 작동하는 품질**을 우선하고, GitHub 테스트/인계서 업데이트는 매 단위 필수다. **Q1 실데이터 시도를 승인 없이 시작하지 않는다.** 두 출처 실험은 **브라우저 통신 메커니즘만 검증**했으므로, 실제 인터넷 API나 확장된 CSP/relay를 배포하지 않는다. 사용자 소유/허용 범위, 실제 host·method·path, 데이터 보유·요청 상한, DNS/TLS/인증/리다이렉트 위험을 검토하고 명시적으로 승인받기 전에는 네트워크 범위를 넓히지 않는다.
 
-새 F5 합성 자동 수정 기능은 CI에서 실제 Chrome으로 실증되었고, 로컬 Studio에서 저장된 `static-visual` 결과를 **명시적 클릭으로 재검증하는 UI/API까지 구현**됐다. 단 저장된 P4 도형과 원본이 동일해 대부분 결과는 `NO_SAFE_COLOR_PATCH`이며 일반 사이트의 자동 시각 수리가 아니다. Windows 사용자 직접 실행과 실제 사이트 API 복구는 별도 미검증 관문이다. 현재는 버튼 실행 및 **스크린샷 기반 단색 후보까지 합성 Chrome에서 구현/검증 완료**. **합성 환경의 (A) 다중 화면 색상 회귀 검증까지 PASS**. F5 `x/w` 기하 수정은 **별도 합성 Chrome 엔진에서만** 성공했다. 실제 독립 생성 HTML 캡처의 `aside` ↔ `div` 유일 매칭과 정규 초안 시각 재현 선검증은 **합성 Chrome에서 검증**했다. 다음 우선순위: **허가된 사용자 독립 HTML 초안을 안전하게 저장·식별하는 새 입력 경로**(크기 제한·출처/권한·금지 스크립트/외부 리소스 보장 및 보안 테스트)와 F5 연동 적합성 조사 → 근거가 충분할 때만 명시적 opt-in 기하 보정 UI. 사용자가 제공하지 않은 다른 초안이나 임의 오류를 생성하지 않는다. 지금은 원본 P4과 동일한 좌표에서 임의 오류를 만들지 않는다. 실제 사용자 Studio에 두 번째 원본 viewport가 저장되지 않으므로 그 수집/영속성은 별도 개인정보·네트워크 승인 후 판단한다. 양쪽 모두 새로운 원본 대상 HTTP 요청 없이 진행 가능하며, 과대평가 없이 먼저 테스트/보안 경계를 설계할 것. 사용자 Windows 실데이터 Q1 이슈는 계속 별도 게이트다.
+새 F5 합성 자동 수정 기능은 CI에서 실제 Chrome으로 실증되었고, 로컬 Studio에서 저장된 `static-visual` 결과를 **명시적 클릭으로 재검증하는 UI/API까지 구현**됐다. 단 저장된 P4 도형과 원본이 동일해 대부분 결과는 `NO_SAFE_COLOR_PATCH`이며 일반 사이트의 자동 시각 수리가 아니다. Windows 사용자 직접 실행과 실제 사이트 API 복구는 별도 미검증 관문이다. 현재는 버튼 실행 및 **스크린샷 기반 단색 후보까지 합성 Chrome에서 구현/검증 완료**. **합성 환경의 (A) 다중 화면 색상 회귀 검증까지 PASS**. F5 `x/w` 기하 수정은 **별도 합성 Chrome 엔진에서만** 성공했다. 실제 독립 생성 HTML 캡처의 `aside` ↔ `div` 유일 매칭과 정규 초안 시각 재현 선검증은 **합성 Chrome에서 검증**했다. **사용자가 작성한 별도 P4 정적 도형 JSON→scriptless HTML을 로컬에 안전 저장하는 입력 경로는 구현·CI 통과했다.** 다음 우선순위: 원본 재접속 없이 이 저장된 HTML만 **고정 합성 주소의 Chrome으로 독립 재캡처**하고 P4 도형+PNG를 확보 → 기존 `alignObservedP4Regions` 및 정규 draft 선검증에 연결 → 실제 오류가 하나이고 매칭 유일·모든 안전 조건 충족할 때만 **명시적 opt-in** 위치/크기 수리 실행/저장. 파일이 미검증이면 수정 성공으로 표기 금지. 사용자가 제공하지 않은 다른 초안이나 임의 오류를 생성하지 않는다. 지금은 원본 P4과 동일한 좌표에서 임의 오류를 만들지 않는다. 실제 사용자 Studio에 두 번째 원본 viewport가 저장되지 않으므로 그 수집/영속성은 별도 개인정보·네트워크 승인 후 판단한다. 양쪽 모두 새로운 원본 대상 HTTP 요청 없이 진행 가능하며, 과대평가 없이 먼저 테스트/보안 경계를 설계할 것. 사용자 Windows 실데이터 Q1 이슈는 계속 별도 게이트다.
 
 현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON` 및 새 `Q1 권한 사전 점검 JSON`(GET `/api/runs/:id/permission-preflight`)을 저장하여 민감정보를 검토하고, 호스트 후보·미충족 승인 조건·DNS/IP 위험을 확인 → 정확한 소유권/허가 범위가 확인되면 안전한 최소 API 연결 설계 → 사용자가 승인한 범위 안에서 실제 외부 캡처·독립 재구현 품질 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
@@ -145,10 +148,11 @@
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 이전 기능 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/e1063bb07c73b26356f319298ff1d1b621ce2349
-- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/af3877d843d6c1d95e66df594c0206c120eaece2
+- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/e6491bffef1d9c314bbbcd9c80e9363fef3bacc2
 - 핵심 F5 비교 코드 성공 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999
-- 최신 F5 source/draft Chrome 매칭+기하 보정 포함 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/39001079575
+- 최신 F5 독립 정적 초안 등록 포함 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/39002786783
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
+- F5 사용자 독립 정적 초안 로컬 등록·HTML 차단·CI: `docs/F5_LOCAL_DRAFT_INTAKE.md`.
 - F5 독립 source/draft 도형 대응·정규 초안 시각 검증·실제 Chrome 증거: `docs/F5_OBSERVED_ALIGNMENT.md`.
 - F5 근거 기반 제한적 x/y/너비/높이 수정·실제 Chrome 근거·한계: `docs/F5_GEOMETRY_REPAIR.md`.
 - F5 독립 viewport 회귀 거부·실제 적용 제한: `docs/F5_MULTIVIEWPORT_GUARD.md`.
