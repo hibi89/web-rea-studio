@@ -20,6 +20,7 @@ import {generateControlledInteractiveHtml} from './behavior-reconstruction.mjs';
 import {observeGenericControlledApp,verifyGenericControlledReplay} from './generic-fixture-browser.mjs';
 import {normalizeGenericBehaviorEvidence,generateGenericBehaviorHtml} from './generic-behavior.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from './behavior-exploration.mjs';
+import {reviewSavedP5ColorRepair} from './p5-stored-review.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -32,7 +33,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable()}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable(),colorRepairExecutor=reviewSavedP5ColorRepair}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
@@ -48,6 +49,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
  }
  const store=makeStore(storageDir);
  let active=null;
+ const colorRepairActive=new Set(),colorRepairFailures=new Map();
  async function begin(input){
   const {url,mode}=classifyTarget(input);
   if(active) return {conflict:true};
@@ -348,12 +350,33 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
     const meta=await store.get(id);
     if(!meta)return respond(res,404,{error:'not_found'});
+    if(what==='color-repair'||what==='color-repair-download'){
+     if(meta.mode!=='static-visual')return respond(res,404,{error:'color_repair_unavailable'});
+     let receipt;
+     try{receipt=JSON.parse(await readFile(join(store.pathFor(id),'color-repair.json'),'utf8'));}
+     catch(e){if(e.code!=='ENOENT')throw e;}
+     if(what==='color-repair-download'){
+      if(receipt?.downloadable_improved_html!==true)return respond(res,404,{error:'improved_html_unavailable'});
+      let document;
+      try{document=await readFile(join(store.pathFor(id),'color-repair.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'improved_html_unavailable'});throw e;}
+      return respond(res,200,document,'text/html; charset=utf-8',{
+       'Content-Disposition':'attachment; filename="rea-p5-bounded-color-repair.html"',
+       'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
+      });
+     }
+     if(receipt)return respond(res,200,receipt);
+     if(colorRepairActive.has(id))return respond(res,202,{status:'running',kind:'offline-static-color-review'});
+     if(colorRepairFailures.has(id))return respond(res,200,{status:'STOPPED_REPLAY_ERROR',
+      kind:'offline-static-color-review',product_ready:false});
+     return respond(res,404,{error:'color_repair_not_started'});
+    }
     if(what==='report'){
       const report=await store.getReport(id);
       return report?respond(res,200,report):respond(res,404,{error:'report_not_ready'});
