@@ -117,3 +117,81 @@ test('no safe color patch yields zero candidate executions',async()=>{
  assert.equal(calls,1);
  assert.equal(p.product_ready,false);
 });
+
+test('F5 rejects desktop improvement that damages a second independently observed viewport',async()=>{
+ const secondary={...reference(),viewport:{width:1024,height:900},
+  document:{width:1024,height:900}};
+ let secondaryCalls=0;
+ const result=await runBoundedP4ColorRepair({
+  referenceGeometry:reference(),startingGeometry:broken(),referencePng:samplePng(),
+  renderCandidate:synthetic,maxAttempts:2,
+  regressionViews:[{name:'narrow',referencePng:samplePng(),
+   referenceGeometry:secondary,renderCandidate:async (html)=>{
+    secondaryCalls++;
+    return {screenshot:samplePng(
+     html.includes('body{background:rgb(240, 240, 240)')?0:255),
+     geometry:secondary};
+   }}]
+ });
+ assert.equal(result.status,'STOPPED_VIEWPORT_REGRESSION');
+ assert.equal(result.accepted,0);
+ assert.equal(result.attempts,1);
+ assert.equal(result.secondary_renderings,2);
+ assert.equal(secondaryCalls,2);
+ assert.equal(result.history[0].reason,'secondary_viewport_regression');
+ assert.equal(result.history[0].secondary_views[0].status,'regressed');
+ assert.equal(result.history[0].secondary_views[0].before.rgb_mae,0);
+ assert.ok(result.history[0].secondary_views[0].after.rgb_mae>0);
+ assert.equal(result.candidate_html.includes('body{background:rgb(0, 0, 0)'),true);
+ assert.equal(result.product_ready,false);
+});
+test('F5 accepts bounded desktop correction when independent narrower view does not regress',async()=>{
+ const secondary={...reference(),viewport:{width:1024,height:900},
+  document:{width:1024,height:900}};
+ const result=await runBoundedP4ColorRepair({
+  referenceGeometry:reference(),startingGeometry:broken(),referencePng:samplePng(),
+  renderCandidate:synthetic,maxAttempts:2,
+  regressionViews:[{name:'narrow',referencePng:samplePng(),
+   referenceGeometry:secondary,renderCandidate:async ()=>({
+    screenshot:samplePng(),geometry:secondary
+   })}]
+ });
+ assert.equal(result.status,'BOUNDED_STATIC_COLOR_IMPROVEMENT');
+ assert.equal(result.accepted,2);
+ assert.equal(result.secondary_renderings,3);
+ assert.equal(result.history.length,2);
+ assert.ok(result.history.every(h=>h.secondary_views[0].status==='no-regression'));
+ assert.equal(result.product_ready,false);
+});
+test('F5 rejects missing small-view measurements rather than silently accepting desktop',async()=>{
+ const secondary={...reference(),viewport:{width:1024,height:900},
+  document:{width:1024,height:900}};
+ const noBaseline=await runBoundedP4ColorRepair({
+  referenceGeometry:reference(),startingGeometry:broken(),referencePng:samplePng(),
+  renderCandidate:synthetic,
+  regressionViews:[{name:'narrow',referencePng:samplePng(),
+   referenceGeometry:secondary,renderCandidate:async()=>{throw Error('missing');}}]
+ });
+ assert.equal(noBaseline.status,'STOPPED_SECONDARY_BASELINE_UNVERIFIED');
+ assert.equal(noBaseline.accepted,0);
+ let calls=0;
+ const missingCandidate=await runBoundedP4ColorRepair({
+  referenceGeometry:reference(),startingGeometry:broken(),referencePng:samplePng(),
+  renderCandidate:synthetic,
+  regressionViews:[{name:'narrow',referencePng:samplePng(),
+   referenceGeometry:secondary,renderCandidate:async()=>{
+    calls++;
+    if(calls>1)throw Error('missing candidate');
+    return {screenshot:samplePng(),geometry:secondary};
+   }}]
+ });
+ assert.equal(missingCandidate.status,'STOPPED_VIEWPORT_REGRESSION');
+ assert.equal(missingCandidate.accepted,0);
+ assert.equal(missingCandidate.history[0].secondary_views[0].status,'unverified');
+ assert.equal(missingCandidate.product_ready,false);
+ await assert.rejects(()=>runBoundedP4ColorRepair({
+  referenceGeometry:reference(),startingGeometry:broken(),referencePng:samplePng(),
+  renderCandidate:synthetic,regressionViews:[{name:'invalid',referencePng:samplePng(),
+    referenceGeometry:reference(),renderCandidate:synthetic}]
+ }),/P5_REPAIR_INVALID_OPTIONS/);
+});
