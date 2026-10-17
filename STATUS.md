@@ -1,6 +1,6 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
-**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `4a2031bd...` passed Node and isolated Chrome CI on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38994112399). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `9d4bcf36...` passed Node and isolated Chrome CI on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38994454894). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
 
 ## 2026-10-17 P2 passive capture verdict hardening
 - Added capture FAIL verdict when a client fetch is rejected or core Document/Script/XHR/Fetch resource is blocked, even if literal error text is absent. Report includes `critical_resources_blocked`; cosmetic image/favicon errors alone do not fail application verdict.
@@ -30,7 +30,7 @@
 - Added deterministic, privacy-minimized JSON support packet for failed/interrupted saved `dynamic-passive` analyses via `GET /api/runs/:id/support-packet`; UI offers `안전 진단 패킷 JSON` in failed-run diagnostics.
 - Packet contains only counts, allowlisted status/reason codes, hostnames and coarse approved-origin path categories; excludes raw input values, page labels, full URLs/queries, screenshot, external paths, response bodies and raw stderr. Warns owner to review hostnames before sharing.
 - No new external fetch, browser click, host approval, analyzer relaunch, Windows data overwrite or Vercel change. Unit/HTTP/UI tests added; actual Windows saved-run acceptance and real external backend behavior remain unverified.
-- Feature code baseline `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`; CI https://github.com/hibi89/web-rea-studio/actions/runs/38994454894. See `docs/P2_SUPPORT_PACKET.md`.
+- Feature code baseline `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`; GitHub CI run 38994454894 **SUCCESS** (Node regression, isolated Chrome P4/F2/F4). Windows and live target remain separate unverified gates. See `docs/P2_SUPPORT_PACKET.md`.
 
 ## Historical records (2026-10-16)
 
