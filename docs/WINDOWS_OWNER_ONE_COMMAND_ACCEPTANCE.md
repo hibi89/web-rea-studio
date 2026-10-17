@@ -74,3 +74,22 @@ npm run accept:local
 The new JSON filename will differ from the previous failed receipt. Share only its sanitized `status` and `checks` if further troubleshooting is needed.
 
 **Privacy note:** `results/acceptance/` is Git-ignored but is inside the clone. If the clone is under a OneDrive-synced Desktop or other synced directory, the receipt can also synchronize through that user's configured service. It is designed to omit credentials, URLs and personal paths, but a Git ignore rule is not a cloud-sync exclusion.
+
+## Second owner laptop attempt: synthetic Studio loopback check failed
+
+The owner ran `git pull --ff-only` and `npm run accept:local` after the TAP-proof fix. The new receipt reported **210/210 Node PASS** and **local-npx-launcher PASS**, then the disposable `windows-studio-loopback` step exited nonzero (`CHECK_EXIT_NONZERO`) before either Chrome P4/F5 step ran. The original smoke's stderr was intentionally not included in the public receipt, so the actual laptop-specific error **cannot be conclusively diagnosed from the receipt**.
+
+The previous smoke also read `results/studio/runs` via Studio's automatic legacy migration, despite writing to an isolated temp directory. On an owner machine with older project data, this could copy/lock private legacy artifacts, unexpectedly populate the disposable run directory and cause a false smoke failure. This is a concrete risk found in the actual implementation, **not a proven cause of the owner's failure**.
+
+The acceptance smoke now sets `WEB_REA_ACCEPTANCE_SMOKE=1` together with a private `WEB_REA_DATA_DIR` override. Only in that exact opt-in combination, `studio/start.mjs` **skips legacy data migration and uses zero approved external target URLs**. Normal interactive Studio startup is unchanged. The test still launches the actual Studio/fixture processes at loopback ports, exercises Host/query safety, and asserts the ephemeral run folder remains empty. Required Windows CI also creates a **fake old legacy run** before invoking the smoke, so importing it would fail the acceptance.
+
+If a genuine machine-specific failure remains, the Windows smoke emits a **single allowlisted JSON category** on stdout with the phase of failure and a generic reason. The parent acceptance tool stores only `checks[].diagnostic.phase` and `checks[].diagnostic.reason` for a failed loopback check, not raw stdout/stderr, paths, credentials or HTML. This does not falsely convert failure to PASS or alter the first-failure stop policy.
+
+After the relevant CI succeeds, the owner can retry the unchanged commands:
+
+```powershell
+git pull --ff-only
+npm run accept:local
+```
+
+If it stops again at `windows-studio-loopback`, report the new sanitized `status`, `checks` and optional `diagnostic` only. The old failed receipts remain unchanged.
