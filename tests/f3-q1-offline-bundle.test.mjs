@@ -131,7 +131,7 @@ test('accepted offline ZIP delivers exactly HTML and canonical receipt, with mat
  try{
   const first=await accept(f);
   assert.equal(first.headers.get('content-type'),'application/zip');
-  assert.match(first.headers.get('content-disposition'),/attachment.*\\.zip/);
+  assert.match(first.headers.get('content-disposition'),/attachment.*\.zip/);
   assert.equal(first.headers.get('x-rea-verification-scope'),'synthetic-offline-only');
   assert.equal(first.headers.get('cache-control'),'no-store');
   const zipped=Buffer.from(await first.arrayBuffer());
