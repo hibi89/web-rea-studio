@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## P4 observed two-color CSS linear gradients (offline)
+
+P4 now recognizes a visible gradient-only large panel in the existing passive Chrome geometry sweep and optionally preserves a **single bounded two-stop RGB `linear-gradient()`** in scriptless standalone HTML. Unsafe or unsupported CSS, images, layered gradients, URLs, private page text and JavaScript are not copied. Historical captures without the optional key remain byte-compatible.
+
+The required Linux real Chrome test independently renders a synthetic original gradient, legacy reconstruction and gradient-aware reconstruction and checks full-canvas RGB error decreases; it does **not** imply real website/backend functionality. See [P4 gradient fidelity](docs/P4_LINEAR_GRADIENT_FIDELITY.md).
+
 ## P4 compact CSS chart-bar geometry (offline)
 
 The existing script-disabled P4 observer now optionally captures up to 48 **small solid-color `div` rectangles** (e.g. basic CSS chart bars) as inert geometry: coordinates, dimensions, background color and radius only. The independent static HTML paints the observed rectangles without copying scripts, chart values, labels, SVG/canvas data, private text or any external resource. Input geometry is bounded and validated, and old captures with no `primitives` continue to generate exactly the same legacy HTML.
