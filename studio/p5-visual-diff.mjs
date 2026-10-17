@@ -58,32 +58,83 @@ export function sampleChromePng(png,{stride=8,maxPixels=6000000}={}){
 export function compareChromeScreenshots(reference,replica,{stride=8}={}){
  const original=sampleChromePng(reference,{stride}),generated=sampleChromePng(replica,{stride});
  const width=Math.min(original.width,generated.width),height=Math.min(original.height,generated.height);
- let sum=0,matches=0,count=0;
- // The P4 independent output has a fixed explanatory notice in the bottom
- // right that is not part of the original website. Exclude that one area.
+ let sum=0,matches=0,overlapSamples=0;
+ // All captured pixels are part of fidelity. Never silently exclude a hard-coded
+ // area (including our own notice). If either image is cropped, the missing
+ // portion counts as maximally different, not as 100% matched overlap.
  for(let y=0;y<height;y+=stride){
   for(let x=0;x<width;x+=stride){
-   if(generated.width>800&&generated.height>160&&x>=generated.width-400&&y>=generated.height-80)continue;
    const ia=((y/stride)*original.sampleWidth+x/stride)*3,
     ib=((y/stride)*generated.sampleWidth+x/stride)*3;
    const delta=(Math.abs(original.data[ia]-generated.data[ib])+
     Math.abs(original.data[ia+1]-generated.data[ib+1])+
     Math.abs(original.data[ia+2]-generated.data[ib+2]))/3;
-   sum+=delta;matches+=delta<=18?1:0;count++;
+   sum+=delta;matches+=delta<=18?1:0;overlapSamples++;
   }
  }
- if(count===0)throw Error('P5_NO_SAMPLES');
+ const totalSamples=Math.max(original.sampleWidth,generated.sampleWidth)*
+  Math.max(original.sampleHeight,generated.sampleHeight);
+ if(overlapSamples===0||totalSamples<=0)throw Error('P5_NO_SAMPLES');
+ const missingSamples=totalSamples-overlapSamples;
+ sum+=missingSamples*255;
  return {
-  schema_version:1,method:'downsampled-rgb-mae',status:'measured-not-certified',
+  schema_version:2,method:'downsampled-rgb-mae-union-penalized',
+  status:'measured-not-certified',
   source:'original-static-visual-vs-scriptless-reconstruction',
   original:{width:original.width,height:original.height},
   reconstructed:{width:generated.width,height:generated.height},
   dimensions_equal:original.width===generated.width&&original.height===generated.height,
-  overlap_area_pct:Number((width*height/Math.max(original.width*original.height,generated.width*generated.height)*100).toFixed(2)),
-  rgb_mae:Number((sum/count).toFixed(2)),
-  pixel_match_pct:Number((matches/count*100).toFixed(2)),
-  sample_count:count,match_rgb_threshold:18,downsample_stride:stride,
-  ignored_notice_area:true,
-  interpretation:'Pixel similarity of static evidence only; no chart data, JS interactions, API functionality or full reconstruction verified'
+  overlap_area_pct:Number((width*height/
+   Math.max(original.width*original.height,generated.width*generated.height)*100).toFixed(2)),
+  coverage_pct:Number((overlapSamples/totalSamples*100).toFixed(2)),
+  rgb_mae:Number((sum/totalSamples).toFixed(2)),
+  pixel_match_pct:Number((matches/totalSamples*100).toFixed(2)),
+  sample_count:totalSamples,overlap_sample_count:overlapSamples,
+  missing_sample_count:missingSamples,
+  missing_area_rgb_penalty:255,
+  match_rgb_threshold:18,downsample_stride:stride,
+  ignored_notice_area:false,
+  interpretation:'Full canvas static pixel comparison. Missing/cropped areas incur maximum mismatch. No chart data, JS interactions, API functionality or full reconstruction verified'
+ };
+}
+
+/**
+ * Quality gate for visual evidence, NOT a product completion certificate.
+ * A good screenshot cannot establish data, behavior, server or UI equivalence.
+ */
+export function evaluateStaticVisualGate(comparison,{minMatchPct=90,maxRgbMae=20,
+ minCoveragePct=100,minRegionMatchPct=70}={}){
+ const config=[minMatchPct,maxRgbMae,minCoveragePct,minRegionMatchPct];
+ if(config.some(n=>typeof n!=='number'||!Number.isFinite(n)||n<0||n>100))
+  throw Error('P5_INVALID_QUALITY_THRESHOLD');
+ const reasons=[];
+ if(comparison?.status!=='measured-not-certified')
+  reasons.push('visual_measurement_unavailable');
+ else {
+  if(comparison.dimensions_equal!==true)reasons.push('canvas_dimensions_differ');
+  if(!Number.isFinite(comparison.coverage_pct)||comparison.coverage_pct<minCoveragePct)
+   reasons.push('canvas_coverage_incomplete');
+  if(!Number.isFinite(comparison.pixel_match_pct)||comparison.pixel_match_pct<minMatchPct)
+   reasons.push('pixel_similarity_below_threshold');
+  if(!Number.isFinite(comparison.rgb_mae)||comparison.rgb_mae>maxRgbMae)
+   reasons.push('color_error_above_threshold');
+  if(comparison.ignored_notice_area!==false)
+   reasons.push('unverified_region_exclusion');
+  const geometry=comparison.geometry;
+  if(geometry?.status!=='measured-not-certified'||
+     !Number.isFinite(geometry.region_match_pct)||geometry.region_match_pct<minRegionMatchPct)
+   reasons.push('geometry_evidence_or_match_insufficient');
+ }
+ return {
+  schema_version:1,
+  status:reasons.length?'VISUAL_GATE_BLOCKED':'VISUAL_THRESHOLD_MET_STATIC_ONLY',
+  reasons,thresholds:{min_pixel_match_pct:minMatchPct,max_rgb_mae:maxRgbMae,
+   min_canvas_coverage_pct:minCoveragePct,min_region_match_pct:minRegionMatchPct},
+  independent_chrome_measurement_required:true,
+  functional_equivalence_verified:false,
+  backend_equivalence_verified:false,
+  autonomous_repair_verified:false,
+  product_ready:false,
+  note:'Passing static screenshot and geometry thresholds is not evidence of behavior, API, data or autonomous repair parity'
  };
 }
