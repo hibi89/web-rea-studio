@@ -32,6 +32,12 @@ Selected B.
 
 This is only a **heading-layout fidelity** improvement within static visual reconstruction. No claim is made for arbitrary document text, privacy-safe text extraction beyond the existing heading policy, remote fonts, multi-viewport responsive fidelity, interactive functionality, original API or backend parity. The Chrome demonstration is synthetic; final authorized real-site tests require separate permission and evidence.
 
-## Verification status
+## Verified GitHub CI (2026-10-17)
 
-Awaiting completed GitHub Actions result for final functional SHA. Do not cite earlier CI on different SHA as proof for this feature.
+Final functional SHA `f86d6a25b810427c1ddee8f79e3629f366de0d20`, [GitHub Actions run 39014676976](https://github.com/hibi89/web-rea-studio/actions/runs/39014676976): **all three required jobs SUCCESS** (Linux Node22 + Windows Node22 + Windows Node24); each Node regression suite **220/220 passed, 0 failed**. Linux additionally ran all established P4/F5/F2/P2-CORS/F4 real Chrome checks; both Windows jobs passed existing launcher, isolated Studio, Chrome P4/F5 and owner-style one-command acceptance.
+
+The mandatory real Chrome synthetic typography fixture rendered one static original + the old heading layout + the independently generated measured heading layout, with **three in-memory synthetic HTML responses, zero external network requests, scripts disabled**. Heading rectangle height was **148 px** (wrapped text). Full-canvas RGB MAE for the old reconstruction **2.73**, measured reconstruction **1.61**, improvement **1.12 (approximately 41.0%)**. Both independent replay captures ran through the same Chrome screenshot comparator (no masking, stride 4). These metrics belong **only to this one synthetic typography fixture**, not a real source site's overall visual quality.
+
+Early commits failed CI: one literal newline was accidentally inserted inside an escaped JavaScript probe string, fixed in `538ee318`; a test asserted globally that HTML did not include `position:fixed` even though the legitimate informational notice uses it, corrected by scoping the injection assertion to the generated title element in `f86d6a25`. The final **separate code SHA** passed. No code path or input-data exposure expansion was required.
+
+Legacy drafts remain byte-compatible when the optional fields are absent; this particular compatibility is covered by deterministic Node unit tests, not retroactive user-PC checks. The new feature has not yet been independently exercised on the owner's current Windows checkout.
