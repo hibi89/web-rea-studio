@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## F5 safe independent draft intake (local, explicit)
+
+Local Studio now provides a **Static Visual → F5 independent draft** workflow: download the sanitized P4 geometry JSON, modify the separate static layout draft, select the edited JSON and explicitly register it. Studio deterministically generates a scriptless standalone HTML and saves it **once per run**, without changing original analysis files, contacting the original website, executing uploaded HTML or expanding network permissions. Strict canonical HTML+geometry bundles are also accepted via the API; arbitrary HTML uploads are **rejected**. Receipt status remains **STORED_UNVERIFIED**; real Chrome visual identity, geometry repairs, behavior and backend equivalence must be proven separately. See [safe local draft intake](docs/F5_LOCAL_DRAFT_INTAKE.md).
+
 ## F5 observed independent source/draft correspondence
 
 The [observed-region alignment gate](docs/F5_OBSERVED_ALIGNMENT.md) now accepts **independent source and scriptless-draft Chrome captures** even when the original uses `aside` or `main` and generated DOM uses reordered `div` elements. Only uniquely matched large painted rectangles may be projected into the existing bounded geometry repair engine, after a separate screenshot preflight proves the projected HTML matches the real observed draft. Ambiguous, mixed, changed, or multiple defects fail closed. This is still an isolated **synthetic** acceptance path, not yet a new local Studio UI action or evidence of external-site reconstruction.
