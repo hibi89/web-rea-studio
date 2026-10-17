@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## Product quality standard
+
+Our goal is independent, runnable website reconstruction on multiple **authorized real sites**, not a screen-only clone or synthetic-only demonstration. See [quality-first completion contract](docs/QUALITY_FIRST_ROADMAP.md) for F1–F5 evidence gates, security boundaries, closed-loop correction and acceptance milestones.
+
+P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
+
 ## What it does today
 
 | Mode | Site | Engine | Output |
