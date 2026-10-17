@@ -372,6 +372,11 @@ function setCurrent(run){
  el('download-controlled-chain-audit').hidden=true;
  el('download-controlled-chain-audit').removeAttribute('href');
  el('f4-chain-status').textContent='합성 상태 전이부터 독립 앱까지 저장 결과 검증 전입니다.';
+ el('delivery-panel').hidden=true;
+ el('delivery-status').textContent='저장된 증거를 확인한 후 내보내기 가능 여부를 표시합니다.';
+ for(const linkName of ['download-delivery-receipt','download-reviewed-export']){
+  el(linkName).hidden=true;el(linkName).removeAttribute('href');
+ }
  el('feature-graph-panel').hidden=true;
  el('download-passive-blueprint').hidden=true;
  el('download-passive-blueprint').removeAttribute('href');
@@ -445,6 +450,25 @@ async function select(id){
    try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;featureGraphAvailable=report.feature_graph_available===true;featureGraphStates=report.feature_graph_states??0;featureGraphRoutes=report.feature_graph_routes??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
+  if(run.status==='completed'&&['static-visual','fixture-generic-catalog','fixture-generic-analytics'].includes(run.mode)){
+   el('delivery-panel').hidden=false;
+   try{
+    const receipt=await api('/api/runs/'+id+'/delivery-receipt');
+    if(state.id!==id)return;
+    const link=el('download-delivery-receipt');
+    link.href='/api/runs/'+id+'/delivery-receipt';link.hidden=false;
+    if(receipt.export_eligible){
+     const download=el('download-reviewed-export');
+     download.href='/api/runs/'+id+'/reviewed-export';download.hidden=false;
+     el('delivery-status').textContent='저장 증거 검증본 내보내기 가능 · SHA-256 영수증 확인 필요 · 원본 사이트·API 동일성 미검증';
+    }else{
+     el('delivery-status').textContent='검증본 내보내기 차단: '+receipt.reason+
+      ' · 기존 저장 자료는 그대로 유지됩니다.';
+    }
+   }catch{if(state.id===id)el('delivery-status').textContent=
+    '내보내기 가능 여부 검증 실패 · 검증본 다운로드를 표시하지 않습니다.';}
+  }
+
   if(run.mode==='dynamic-passive'&&!active){
    const link=el('download-passive-blueprint');
    link.href=`/api/runs/${id}/passive-blueprint`;
