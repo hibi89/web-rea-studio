@@ -10,7 +10,7 @@ P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/crop
 
 ## F4 bounded negative action coverage
 
-The two in-memory synthetic F4 Chrome fixtures now verify both **observed action transitions** and that artificially dispatched events on disabled, unobserved actions leave the independent app state and simulated API counters unchanged. This extends the existing generated-state-machine quality gate without calling an external site, opening permissions or changing original data. It is **not** proof of functionality for arbitrary external websites. See [F4 negative transition guard](docs/F4_NEGATIVE_TRANSITION_GUARD.md).
+The two in-memory synthetic F4 Chrome fixtures now verify both **observed action transitions** and that synthetically dispatched events on normally disabled, unobserved actions (with the DOM disabled flag temporarily bypassed) leave the independent app state and simulated API counters unchanged. This extends the existing generated-state-machine quality gate without calling an external site, opening permissions or changing original data. It is **not** proof of functionality for arbitrary external websites. See [F4 negative transition guard](docs/F4_NEGATIVE_TRANSITION_GUARD.md).
 
 ## F5 owner-triggered saved draft geometry review
 
