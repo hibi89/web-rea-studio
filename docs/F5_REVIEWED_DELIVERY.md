@@ -29,4 +29,12 @@ The receipt does **not** contain source URL, hostname, screenshot pixels, recove
 
 Tests cover deterministic hash, static gate pass/fail, controlled two-app scope, missing/malformed/oversized artifacts, tampered HTML, unchanged stored run status, supported/unsupported mode and incomplete run responses, content disposition and CSP, and exact downloaded bytes/receipt digest. Existing Linux real Chrome synthetic and Windows owner-style tests remain mandatory.
 
-**Actual authorized third-party source-site feature parity is still unresolved**; no off-origin network approval is implied. Final verified functional SHA, test count and CI result are recorded only after the newest code run finishes, separate from any documentation-only commits.
+**Actual authorized third-party source-site feature parity is still unresolved**; no off-origin network approval is implied.
+
+## Verified cross-platform CI — 2026-10-17
+
+Functional SHA `78247cd14982912beafe0799d73a5069049d21fb`, [GitHub Actions #39021899314](https://github.com/hibi89/web-rea-studio/actions/runs/39021899314): **Linux Node22 and Windows Node22/24 each 249/249 Node tests PASS (0 failures), all three mandatory jobs SUCCESS**. Windows runners completed offline Studio startup, real Chrome P4/F5 and owner-style one-command acceptance; Linux completed existing real Chrome F1/F2/F4/F5/P4 synthetic regressions. Synthetic F4 `catalog` and `analytics` each verified 3 actions, 2 branch routes, no actual API calls.
+
+The reviewed-export tests verified: exact SHA-256 receipt ↔ downloaded HTML match; `Content-Disposition: attachment` and mode-appropriate no-external-network CSP; static saved HTML modified after capture returns **409** and no reviewed HTML; synthetic app modified after capture returns **409** and no reviewed HTML; unsupported mode 404, incomplete run 409, deterministic checksum, and no raw private URL or HTML in receipt. Static quality gate failure is covered by the unit contract.
+
+No evidence of original-source authenticity, personal Windows checkout acceptance for this functional SHA, remote database behavior, or live website parity is claimed. The receipt provides integrity only for the saved local pair and is unsigned.
