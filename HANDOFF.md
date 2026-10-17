@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **가장 최근 CI 검증된 기능 코드 SHA는 `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`**, GitHub Node 회귀·합성 Chrome P4/F2/F4 CI 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38994454894. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
+> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **가장 최근 CI 검증된 기능 코드 SHA는 `d96ea6df594bcf9a4c86b49428ebf711a4817b4f`**, GitHub Node 회귀·Chrome P4/F2/F4 및 새 P2 두 출처 CSP·CORS 합성 실험 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38994833194. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -33,7 +33,8 @@
 - **동적 실제 사이트 렌더링 문제 미해결:** 외부 앱 캡처는 되었으나 앱 화면에는 `Failed to fetch`/`보고서를 불러오지 못했습니다`가 표시되었다. 진단 코드 `PASSIVE_EXTERNAL_FETCH_REJECTED`. PNG 저장이나 `COMPLETED`만으로 화면 성공을 선언하지 않는다. 외부 리소스/CSP/중계 정책 관련 원인 후보는 있으나 실제 원격 서버/CORS 원인까지 확정된 것은 아니다.
 - **F1/F2 최근 진전:** `f91d434...` (2026-10-17)에서 관찰 상태 노드/액션 그래프, BFS 경로, 커버리지 검증, `function-graph.json` 내보내기를 추가했다. 관찰된 합성 상태 전이의 커버리지 100%는 미관찰/실제 사이트 커버리지를 뜻하지 않는다.
 - **F4 합성 검증:** 독립 HTML의 분기형 상태 머신을 `catalog`와 `analytics`라는 두 가지 메모리 내 합성 앱의 별도 Chrome 재생으로 확인. 시뮬레이션 API 카운터이며 실제 외부 네트워크 호출은 없다.
-- **GitHub CI:** 최신 기능 코드 `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`의 `Local Studio Node regression` 전체 체크(일반 Node + 합성 Chrome P4/F2/F4) 2026-10-17 성공: https://github.com/hibi89/web-rea-studio/actions/runs/38994454894. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
+- **GitHub CI:** 최신 기능 코드 `d96ea6df594bcf9a4c86b49428ebf711a4817b4f`의 `Local Studio Node regression` 전체 체크(일반 Node + 격리 Chrome P4/F2/P2 두 출처 CORS 실험/F4) 2026-10-17 성공: https://github.com/hibi89/web-rea-studio/actions/runs/38994833194. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
+- **P2 두 출처 합성 브라우저 검증:** `studio/synthetic-cross-origin-browser.mjs` 및 `tests/p2-cross-origin-chrome-e2e.mjs`. 실제 Chrome에서 ① 기본 외부 API 차단→fetch 실패, ② CSP 허용·CORS 부재→fetch 실패, ③ CSP 허용·정확한 CORS 응답→합성 JSON 표시 성공을 확인했다. **인터넷 API 호출 0건**, 원래의 `dynamic-gateway.mjs`/`dynamic-browser.mjs`/실제 허용목록/CSP는 변경하지 않았으며 실대상 복구 증거는 아니다.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
 
 ## 3. 중요 저장소 구조
@@ -42,6 +43,7 @@
 | --- | --- |
 | `studio/server.mjs`, `studio/start.mjs`, `studio/public/*` | Windows 로컬 Studio 서버, 실행/조회 API, 사용자 UI |
 | `studio/dynamic-browser.mjs`, `studio/dynamic-gateway.mjs`, `studio/static-analysis.mjs` | 허가된 사이트 정적/수동 동적 관측과 중계·격리 |
+| `studio/synthetic-cross-origin-browser.mjs` | 두 통제된 HTTPS 출처를 Chrome CDP로 메모리 내 응답 처리하는 실험 전용 코드. 실제 서비스에는 연결되지 않음 |
 | `studio/support-packet.mjs` | 저장된 실패 기록에서 개인정보 최소화 공유용 원인 분석 패킷; 원격 요청 없음 |
 | `studio/passive-blueprint.mjs`, `studio/passive-dependencies.mjs` | 저장된 외부 사이트 F1/F2 읽기 전용 통합 명세와 API 그룹 분류 |
 | `studio/observed-controls.mjs`, `studio/behavior-exploration.mjs`, `studio/generic-fixture-browser.mjs` | F1/F2 컨트롤 관측, 합성 상태 그래프 및 경로 검증 |
@@ -93,6 +95,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | P2 실제 Chrome 두 출처 CSP·CORS 검증 | 코드 `d96ea6df`, CI `38994833194` 전체 SUCCESS. 기본 차단/허용·CORS 누락/양쪽 충족 3경우 Chrome 성공적 판별. 모든 응답 메모리 합성·실제 외부 호출 0건 | 실대상 서버/CORS 검증과 API 호스트 권한 승인은 별도. Windows 과거 실패 데이터 `support-packet` 확인이 다음 단계 |
 | 2026-10-17 | P2 개인정보 최소화 실패 진단 패킷 | 실패/중단된 기존 passive run에서 진단 코드, 요청·거부 수치, 호스트명, 경로 유형만 결합한 `support-packet` JSON 다운로드·UI·단위/HTTP 테스트 추가. 스크린샷·입력값·원본 URL·본문 제외, 외부 재요청 0건 | 코드 `9d4bcf36` 및 GitHub Actions `38994454894` 전체 SUCCESS 확인; 사용자 Windows 기존 실패 기록의 패킷 실제 열람·공유 전 점검 필요 |
 | 2026-10-17 | F1/F2 읽기 전용 관찰 명세 | 코드 `4a2031bd54a7b833efc9a26555b30df3c61eaa9c`, CI `38994112399` 전체 PASS. 저장된 컨트롤·API 관찰 증거 통합 JSON API·Studio 링크·회귀 테스트, 외부 호출·클릭 및 검증된 인과관계 0건 | 사용자 Windows 실기록/실화면 검증 필요; 실제 `Failed to fetch` 미해결 |
 | 2026-10-17 | P2 저장된 API 의존성 화면 연동 | 실패 진단에서 허가된 경로·외부 호스트 증거를 최대 10개 표시하고 JSON 다운로드. 코드 `e1063bb0`, GitHub Node·Chrome CI 전체 success 확인 | 사용자 Windows의 과거 캡처 확인과 실제 API 연결은 미검증 |
@@ -105,15 +108,18 @@
 
 ### 다음 세션 첫 작업 (마지막 작업 이후 갱신 필요)
 
+다음 작업의 조건: 두 출처 실험은 **브라우저 통신 메커니즘만 검증**했으므로, 실제 인터넷 API나 확장된 CSP/relay를 배포하지 않는다. 사용자 소유/허용 범위, 실제 host·method·path, 데이터 보유·요청 상한, DNS/TLS/인증/리다이렉트 위험을 검토하고 명시적으로 승인받기 전에는 네트워크 범위를 넓히지 않는다.
+
 현재 기본 우선순위는 **Windows 로컬 Studio의 기존 실패한 passive 분석 이력에서 `안전 진단 패킷 JSON`(GET `/api/runs/:id/support-packet`)을 확보하여 민감정보 제외 여부를 검토하고 `passive-blueprint` 및 `/dependencies`와 비교하여 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
 ## 7. 중요 링크
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 이전 기능 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/e1063bb07c73b26356f319298ff1d1b621ce2349
-- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/9d4bcf36c1241080e8ef09074ce6f9de1e8a9875
-- 최신 확인된 기능 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38994454894
+- 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/d96ea6df594bcf9a4c86b49428ebf711a4817b4f
+- 최신 확인된 기능 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38994833194
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
+- 새 P2 합성 CSP/CORS 실험과 실환경 제약: `docs/P2_SYNTHETIC_CORS_LAB.md`.
 - 새 안전 진단 패킷 및 Windows 확인 절차: `docs/P2_SUPPORT_PACKET.md`.
 - F1/F2 통합 관찰 명세: `docs/F1_F2_PASSIVE_BLUEPRINT.md`.
 - 신규 API 의존성 리포트: `docs/P2_DEPENDENCY_REVIEW.md`.
