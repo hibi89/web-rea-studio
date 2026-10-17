@@ -55,3 +55,22 @@ Functional SHA `c77a5e8d6a29e67c4a1266bfb5375d21eee7c937`, [Windows GitHub Actio
 - The receipt contains only allowlisted results; tests check that injected credential-like strings and actual browser/user paths are not included.
 - **Both mandatory jobs (Windows and full Linux Chrome regressions) concluded SUCCESS** in this same Actions run. The owner-PC acceptance remains separate.
 - Owner's actual PC is still **UNTESTED**. Running this command on GitHub infrastructure cannot inspect, validate, or modify a user's own Windows installation.
+
+## Field report: owner Windows runner stopped at node-regressions (2026-10-17)
+
+The owner ran `git pull --ff-only` and `npm run accept:local` in the project directory. The first child Node regression process exited successfully (`RESULT node-regressions completed`), but the owner acceptance receipt recorded `CHECK_PROOF_MISSING`; **it is not evidence that any Node unit test failed**. The prior proof reader recognized only TAP's exact `# tests / # pass / # fail` footer, and the tool intentionally did not keep raw private stdout. Therefore the precise on-device output format is **unknown**. Do not assert this was a Node 24 default reporter without corroboration.
+
+Fix: the child `node --test` invocation now requests `--test-reporter=tap` explicitly so Node's machine-readable footer is stable even when the owner uses a different supported Node release or terminal. The receipt reader also accepts Node's alternate `ℹ tests / ℹ pass / ℹ fail` spec summary or ANSI-colored TAP, but always requires **one internally consistent final count**, **at least 205 executed**, **all passed** and **zero failures**. Missing or conflicting totals remain blocked; no exit-code-only pass.
+
+Regression tests cover both output styles, ANSI and intentionally inconsistent/missing/forged totals. Windows CI now tests the same one-command acceptance on **both Node 22 and Node 24**. Until that run is green, this is a code fix, not a newly verified PC success.
+
+Owner retry after the corresponding GitHub CI passes:
+
+```powershell
+git pull --ff-only
+npm run accept:local
+```
+
+The new JSON filename will differ from the previous failed receipt. Share only its sanitized `status` and `checks` if further troubleshooting is needed.
+
+**Privacy note:** `results/acceptance/` is Git-ignored but is inside the clone. If the clone is under a OneDrive-synced Desktop or other synced directory, the receipt can also synchronize through that user's configured service. It is designed to omit credentials, URLs and personal paths, but a Git ignore rule is not a cloud-sync exclusion.
