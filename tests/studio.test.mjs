@@ -235,6 +235,17 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   assert.equal(x.passive_browser.recent_network_events[0].path,'/api/report');
   assert.equal(JSON.stringify(x).includes('HIDDEN'),false);
   assert.equal(JSON.stringify(x).includes('SECRET'),false);
+  const preflightRes=await fetch(base+'/api/runs/'+id+'/permission-preflight');
+  assert.equal(preflightRes.status,200);
+  assert.match(preflightRes.headers.get('content-disposition'),/attachment/);
+  const preflight=await preflightRes.json();
+  assert.equal(preflight.kind,'rea-q1-offline-permission-preflight');
+  assert.equal(preflight.decision,'BLOCK_NETWORK_EXPANSION');
+  assert.equal(preflight.network_requests_issued,0);
+  assert.equal(preflight.executable_policy_generated,false);
+  assert.deepEqual(preflight.host_candidates.map(x=>x.host),['api.owner.example.org']);
+  assert.ok(!JSON.stringify(preflight).includes('HIDDEN'));
+  assert.ok(!JSON.stringify(preflight).includes('SECRET'));
   const supportRes=await fetch(base+'/api/runs/'+id+'/support-packet');
   assert.equal(supportRes.status,200);
   assert.match(supportRes.headers.get('content-disposition'),/attachment/);
@@ -252,6 +263,7 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   await fetch(base+'/api/runs/'+id+'/dependencies');
   await fetch(base+'/api/runs/'+id+'/passive-blueprint');
   await fetch(base+'/api/runs/'+id+'/support-packet');
+  await fetch(base+'/api/runs/'+id+'/permission-preflight');
   assert.equal(countRuns,before);
   const success=await s.store.create({target_url:expected(),mode:'rea-browser'});
   await s.store.update(success.id,{status:'completed',verdict:'PASS'});
@@ -259,12 +271,15 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/dependencies')).status,404);
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/passive-blueprint')).status,404);
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/support-packet')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+success.id+'/permission-preflight')).status,404);
   const completedPassive=await s.store.create({target_url:target,mode:'dynamic-passive'});
   await s.store.update(completedPassive.id,{status:'completed',verdict:'PASS'});
   assert.equal((await fetch(base+'/api/runs/'+completedPassive.id+'/support-packet')).status,409);
+  assert.equal((await fetch(base+'/api/runs/'+completedPassive.id+'/permission-preflight')).status,409);
   const missingEvidence=await s.store.create({target_url:target,mode:'dynamic-passive'});
   await s.store.update(missingEvidence.id,{status:'failed',verdict:'FAIL'});
   assert.equal((await fetch(base+'/api/runs/'+missingEvidence.id+'/support-packet')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+missingEvidence.id+'/permission-preflight')).status,404);
   assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/passive-blueprint')).status,404);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
@@ -276,6 +291,8 @@ test('actual local Studio has failure postmortem panel',async()=>{
   assert.match(h,/id="download-dependencies"/);
   assert.match(h,/id="download-passive-blueprint"/);
   assert.match(h,/id="download-support-packet"/);
+   assert.match(h,/id="download-permission-preflight"/);
+   assert.match(js,/permission-preflight/);
   assert.match(js,/support-packet/);
   assert.match(js,/passive-blueprint/);
   assert.match(js,/\/dependencies/);
