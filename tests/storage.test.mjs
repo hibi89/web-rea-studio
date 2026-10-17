@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,rename,readdir,readFile,writeFile,mkdir,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
 import {makeStore,defaultRunStorageDir,importLegacyRuns} from '../studio/core.mjs';
 import {diagnoseRuns} from '../studio/diagnose.mjs';
 
@@ -19,7 +19,7 @@ const blocksOverwrite=async(from,to)=>{
 
 test('Windows local storage uses LOCALAPPDATA instead of OneDrive project folder',()=>{
  assert.equal(defaultRunStorageDir({platform:'win32',env:{LOCALAPPDATA:'C:\\Users\\tester\\AppData\\Local'},cwd:'C:\\Users\\tester\\OneDrive'}),join('C:\\Users\\tester\\AppData\\Local','WebREAStudio','runs'));
- assert.equal(defaultRunStorageDir({platform:'win32',env:{WEB_REA_DATA_DIR:'/tmp/custom',LOCALAPPDATA:'/tmp/local'},cwd:'/tmp/work'}),'/tmp/custom');
+ assert.equal(defaultRunStorageDir({platform:'win32',env:{WEB_REA_DATA_DIR:'/tmp/custom',LOCALAPPDATA:'/tmp/local'},cwd:'/tmp/work'}),resolve('/tmp/custom'));
  assert.throws(()=>defaultRunStorageDir({platform:'win32',env:{},cwd:'/tmp/on-drive'}),/LOCALAPPDATA/);
 });
 
