@@ -532,6 +532,47 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     }
     return respond(res,200,meta);
    }
+   const colorPost=/^\/api\/runs\/([a-f0-9-]+)\/color-repair$/.exec(path);
+   if(req.method==='POST'&&colorPost){
+    if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
+    if(!String(req.headers['content-type']||'').startsWith('application/json'))
+     return respond(res,415,{error:'json_required'});
+    let raw='';
+    for await(const part of req){
+     raw+=part.toString('utf8');
+     if(Buffer.byteLength(raw)>256)return respond(res,413,{error:'request_too_large'});
+    }
+    let input;
+    try{input=JSON.parse(raw);}catch{return respond(res,400,{error:'invalid_json'});}
+    if(!input||Array.isArray(input)||typeof input!=='object'||
+       Object.keys(input).length!==1||input.confirm!=='offline-color-review')
+     return respond(res,400,{error:'explicit_offline_confirmation_required'});
+    const id=colorPost[1];
+    if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
+    const meta=await store.get(id);
+    if(!meta)return respond(res,404,{error:'not_found'});
+    if(meta.mode!=='static-visual'||meta.status!=='completed')
+     return respond(res,409,{error:'static_visual_completed_only'});
+    const [report,inspection,comparison,png]=await Promise.all([
+     store.getReport(id),store.getInspection(id),store.getComparison(id),store.getScreenshot(id)]);
+    if(report?.reconstruction_available!==true||report?.screenshot_saved!==true||
+       inspection?.mode!=='static-visual'||inspection?.page?.reconstruction_blueprint?.source!=='p4-geometry'||
+       comparison?.schema_version!==2||!Buffer.isBuffer(png))
+     return respond(res,409,{error:'static_visual_evidence_missing'});
+    try{await readFile(join(store.pathFor(id),'color-repair.json'),'utf8');
+     return respond(res,409,{error:'color_review_already_finished'});
+    }catch(e){if(e.code!=='ENOENT')throw e;}
+    if(active||colorRepairActive.size)return respond(res,409,{error:'local_chrome_already_busy'});
+    colorRepairActive.add(id);
+    colorRepairFailures.delete(id);
+    void (async()=>{
+     try{await colorRepairExecutor({store,id,browserPath,replayExecutor});}
+     catch{colorRepairFailures.set(id,true);}
+     finally{colorRepairActive.delete(id);}
+    })();
+    return respond(res,202,{status:'running',kind:'offline-static-color-review',
+     original_site_refetched:false,additional_origins_approved:0});
+   }
    if(req.method==='POST'&&path==='/api/runs'){
     if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
     if(!String(req.headers['content-type']||'').startsWith('application/json'))return respond(res,415,{error:'json_required'});
