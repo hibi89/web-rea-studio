@@ -36,6 +36,19 @@ A completed Static Visual run with existing P5 v2 evidence now offers **오프�
 
 The new [F5 bounded-repair experiment](docs/F5_BOUNDED_REPAIR.md) proposes at most **two** evidence-backed static color changes, re-renders every proposal in a new isolated Chrome capture, and keeps only measured improvements. Failed or non-improving proposals are rejected. This is a reusable **engine and CI experiment**, not yet a user-facing general repair button, an authorized real-site result, or proof of application/API/behavior equivalence.
 
+## Q1 offline failure attribution (saved evidence only)
+
+Failed passive browser runs now expose **Q1 실패 원인 판정 JSON** from
+`GET /api/runs/:id/q1-assessment`. It cross-checks the existing redacted
+support packet and permission checklist against the actual local same-origin
+GET/CSP policy, and marks evidence as bounded, partial, or inconsistent.
+A finding of `LOCAL_POLICY_BOUNDARY_COMPATIBLE_NOT_CAUSAL` means a rejected
+off-origin fetch is **compatible** with current local policy; it does **not**
+prove the remote server is reachable, CORS-correct, necessary, or authorized.
+The export contains no original external hostnames/URLs/paths/credentials.
+It makes no external request, changes no allowlist and never marks a product
+functional. See [Q1 failure assessment](docs/Q1_FAILURE_ASSESSMENT.md).
+
 ## Q1 offline permission planning (read-only)
 
 For an already failed/interrupted passive analysis, the local Studio failure inspector now offers **Q1 권한 사전 점검 JSON**. It reports saved evidence for rejected external hostnames, missing explicit authorization and path/method/budget requirements, with extra warnings for local/IP-coded DNS hostnames. The output is **never an executable allowlist** and every verdict blocks new external access pending approval. It makes **no outbound request**. See [Q1 preflight](docs/Q1_PERMISSION_PREFLIGHT.md). The user's original dashboard data-loading error remains unresolved.
