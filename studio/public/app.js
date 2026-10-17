@@ -417,6 +417,8 @@ function setCurrent(run){
  el('diagnosis-panel').hidden=true;
  el('download-dependencies').hidden=true;
  el('download-dependencies').removeAttribute('href');
+ el('download-passive-gap-contract').hidden=true;
+ el('download-passive-gap-contract').removeAttribute('href');
  el('download-support-packet').hidden=true;
  el('download-support-packet').removeAttribute('href');
  el('download-permission-preflight').hidden=true;
@@ -470,6 +472,8 @@ async function select(id){
   }
 
   if(run.mode==='dynamic-passive'&&!active){
+   const gap=el('download-passive-gap-contract');
+   gap.href=`/api/runs/${id}/passive-gap-contract`;gap.hidden=false;
    const link=el('download-passive-blueprint');
    link.href=`/api/runs/${id}/passive-blueprint`;
    link.hidden=false;
