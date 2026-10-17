@@ -162,6 +162,19 @@ async function loadDiagnosis(id){
     lines.push('이 요약은 저장된 기록만 읽으며 새로운 외부 요청을 하지 않습니다.');
    }catch{lines.push('저장된 API 의존성 정보를 불러오지 못했습니다. 기존 진단은 유지됩니다.');}
   }
+  if(p){
+   try{
+    const gate=await api('/api/runs/'+id+'/permission-preflight');
+    if(state.id!==id)return;
+    const exportLink=el('download-permission-preflight');
+    exportLink.href='/api/runs/'+id+'/permission-preflight';
+    exportLink.hidden=false;
+    lines.push('Q1 외부 연결 사전 점검: '+gate.decision+' (권한 자동 승인 0건)');
+    lines.push('호스트 후보 '+gate.host_candidates.length+'개 · 미충족 조건 '+gate.blockers.length+'개');
+    lines.push('연결 전에 필요한 증거: 소유자 권한, 정확한 경로·메서드, 요청 상한, 인증·CORS·보안 정책');
+    lines.push('주의: 읽기 전용 사전 점검은 연결 승인이나 실제 서버 검증이 아닙니다.');
+   }catch{lines.push('Q1 권한 사전 점검 자료가 없습니다. 외부 연결은 계속 금지됩니다.');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -213,6 +226,8 @@ function setCurrent(run){
  el('download-dependencies').removeAttribute('href');
  el('download-support-packet').hidden=true;
  el('download-support-packet').removeAttribute('href');
+ el('download-permission-preflight').hidden=true;
+ el('download-permission-preflight').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
