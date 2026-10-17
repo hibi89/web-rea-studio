@@ -13,6 +13,7 @@ import {buildPassivePermissionPreflight} from './permission-preflight.mjs';
 import {assessSavedQ1Failure} from './q1-failure-assessment.mjs';
 import {generateP4Reconstruction,sanitizeP4Geometry} from './p4-reconstruction.mjs';
 import {auditSavedStaticPipeline} from './static-pipeline-audit.mjs';
+import {auditSavedControlledChain} from './controlled-chain-audit.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
 import {compareChromeScreenshots,evaluateStaticVisualGate} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
@@ -355,7 +356,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -385,6 +386,28 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       status:'STOPPED_REPLAY_ERROR',kind:'offline-saved-geometry-review',
       product_ready:false});
      return respond(res,404,{error:'geometry_repair_not_started'});
+    }
+    if(what==='controlled-chain-audit'){
+      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+       return respond(res,404,{error:'controlled_chain_audit_not_available'});
+      if(meta.status!=='completed')
+       return respond(res,409,{error:'controlled_chain_audit_requires_completed_run'});
+      const readOptional=async(filename)=>{
+       try{return await readFile(join(store.pathFor(id),filename),'utf8');}
+       catch(e){if(e.code==='ENOENT')return null;throw e;}
+      };
+      const [report,inspection,manifest,graphText,html]=await Promise.all([
+       store.getReport(id),store.getInspection(id),store.getManifest(id),
+       readOptional('function-graph.json'),readOptional('generic-prototype.html')
+      ]);
+      let graph=null;
+      if(graphText!==null){
+       try{graph=JSON.parse(graphText);}catch{graph={corrupt:true};}
+      }
+      const audit=auditSavedControlledChain({meta,report,inspection,manifest,graph,html});
+      return respond(res,200,audit,jsonContent,{
+       'Content-Disposition':'attachment; filename="rea-controlled-synthetic-chain-audit.json"'
+      });
     }
     if(what==='static-pipeline-audit'){
       if(meta.mode!=='static-visual')return respond(res,404,{error:'static_pipeline_audit_not_available'});
