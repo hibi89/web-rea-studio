@@ -118,7 +118,7 @@ test('real owner Windows loopback failures return only bounded diagnostic phase/
  ])assert.equal(extractSafeAcceptanceFailure('windows-studio-loopback',malicious),null);
  const out=await runOwnerOfflineAcceptance({...opts,executor:async step=>{
   if(step.id==='windows-studio-loopback')
-   return {exitCode:1,stdout:safe+'\\npassword=HIDDEN_TOKEN'};
+   return {exitCode:1,stdout:safe+'\npassword=HIDDEN_TOKEN'};
   return {exitCode:0,stdout:outputs[step.id]};
  }});
  assert.equal(out.status,'FAIL');
