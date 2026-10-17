@@ -25,3 +25,11 @@ This proves only that the bounded generated replay resists the specific **unobse
 The test runs on Linux Chrome via the existing required GitHub Actions suite. Windows jobs exercise their existing Node/P4/F5 acceptance, but not the dedicated F4 Chrome end-to-end script. Any CI failure must be repaired and rechecked; do not count pending runs as success.
 
 Next: after independent Chrome CI succeeds, continue evidence-linked F1/F2/F3→F4 reconstruction. Actual source-site/API authorization and live behavioral parity remain separate gates.
+
+## Verified GitHub Chrome evidence (2026-10-17)
+
+Functional code SHA `da27ef615d87f55a92f985c27cc2aa86d49d46e5`, [GitHub Actions run 39013744143](https://github.com/hibi89/web-rea-studio/actions/runs/39013744143) **completed SUCCESS** for Linux Node 22, Windows Node 22 and Windows Node 24. Each Node environment: **216/216 PASS, 0 FAIL**; both Windows jobs also ran the owner-style offline acceptance steps successfully.
+
+Required **real Linux Chrome** F4 replay logs independently confirm `catalog`: 3 positive observed transitions, **5 denied unobserved transition probes**, 1 simulated API count, **0 real API requests**; `analytics`: 3 positive transitions, **5 denied probes**, 1 simulated API count, **0 real API requests**. A probe temporarily removed the button's disabled flag and emitted a synthetic event to validate the JavaScript handler guard itself.
+
+Historical nuance: an earlier intermediate code run [39013618409](https://github.com/hibi89/web-rea-studio/actions/runs/39013618409) had a Windows Node 22 **owner-style acceptance P4 smoke failure**, though its separate preceding P4 test passed and Windows Node 24/Linux jobs passed. That single failure's root cause was not proven. The final distinct functional SHA's Windows Node22 **and** Node24 jobs passed; do not attribute the earlier smoke failure to the F4 code or claim a proven environmental repair.
