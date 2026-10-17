@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 explicit saved two-view Chrome acceptance receipt
+
+The existing anonymous 3×3 HTML can now be **separately accepted** by a user-triggered local `POST /api/runs/:id/f3-q1-layout-acceptance`. It runs only isolated **in-memory generated HTML** in Chrome at 1440×900 and 390×844, checks computed CSS with zero active controls/source requests, then stores a write-once positive receipt bound to **both the HTML SHA-256 and saved evidence SHA-256**, only after both views pass. Its corresponding GET/download is **read-only** and rejects changed evidence, missing verification and tampered receipts. This is not an original-site fidelity certificate and makes no new network approval. Details: [F3/Q1 saved two-view acceptance](docs/F3_Q1_SAVED_TWO_VIEW_ACCEPTANCE.md).
+
 ## F3/Q1 measured responsive layout acceptance (offline)
 
 The existing anonymized three-by-three geometry sheet now has a required [isolated Chrome computed-layout gate](docs/F3_Q1_COMPUTED_LAYOUT_GATE.md). A **fixed, opt-in, scriptless, in-memory-only** CDP probe reads computed grid columns, nine zone rectangles and document width without touching the original site. The gate verifies desktop 3-column and mobile 1-column order, no horizontal document overflow, and zero native action controls. An intentionally corrupted four-column variant must fail. It is **synthetic generated-output verification only**, not original-site responsive or functional parity. GET/download routes remain unchanged and do not launch Chrome.
