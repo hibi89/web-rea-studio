@@ -30,7 +30,7 @@ test('owner acceptance exact 5 offline checks, no unauthorised site or source fi
  const calls=[];
  const result=await runOwnerOfflineAcceptance({...opts,executor:async step=>{
   calls.push(step.id);
-  return {exitCode:0,stdout:outputs[step.id]+'\\npassword=SECRET-PLEASE-DO-NOT-STORE'};
+  return {exitCode:0,stdout:outputs[step.id]+'\npassword=SECRET-PLEASE-DO-NOT-STORE'};
  }});
  assert.equal(result.status,'PASS');
  assert.equal(result.static_browser_verified,true);
