@@ -14,6 +14,7 @@ import {assessSavedQ1Failure} from './q1-failure-assessment.mjs';
 import {generateP4Reconstruction,sanitizeP4Geometry} from './p4-reconstruction.mjs';
 import {auditSavedStaticPipeline} from './static-pipeline-audit.mjs';
 import {auditSavedControlledChain} from './controlled-chain-audit.mjs';
+import {buildReviewedDelivery} from './reviewed-delivery.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
 import {compareChromeScreenshots,evaluateStaticVisualGate} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
@@ -356,7 +357,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -386,6 +387,54 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       status:'STOPPED_REPLAY_ERROR',kind:'offline-saved-geometry-review',
       product_ready:false});
      return respond(res,404,{error:'geometry_repair_not_started'});
+    }
+    if(what==='delivery-receipt'||what==='reviewed-export'){
+      // Both outputs come from one local snapshot: no browser or original URL.
+      if(!['static-visual','fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+       return respond(res,404,{error:'reviewed_delivery_not_supported'});
+      if(meta.status!=='completed')
+       return respond(res,409,{error:'reviewed_delivery_requires_completed_run'});
+      const optional=async(name,encoding)=>{
+       try{return await readFile(join(store.pathFor(id),name),encoding);}
+       catch(e){if(e.code==='ENOENT')return null;throw e;}
+      };
+      let html=null,audit=null;
+      if(meta.mode==='static-visual'){
+       const [report,inspection,comparison,htmlBytes,sourcePng,replayPng]=await Promise.all([
+        store.getReport(id),store.getInspection(id),store.getComparison(id),
+        optional('reconstruction.html'),store.getScreenshot(id),
+        store.getReconstructionScreenshot(id)
+       ]);
+       html=htmlBytes&&htmlBytes.length<=250000?htmlBytes.toString('utf8'):null;
+       audit=auditSavedStaticPipeline({meta,report,inspection,comparison,html,
+        sourcePng,replayPng});
+      }else{
+       const [report,inspection,manifest,graphText,artifact]=await Promise.all([
+        store.getReport(id),store.getInspection(id),store.getManifest(id),
+        optional('function-graph.json','utf8'),optional('generic-prototype.html','utf8')
+       ]);
+       let graph=null;
+       if(graphText!==null){
+        try{graph=JSON.parse(graphText);}catch{graph={corrupt:true};}
+       }
+       html=artifact;
+       audit=auditSavedControlledChain({meta,report,inspection,manifest,graph,html});
+      }
+      const receipt=buildReviewedDelivery({meta,audit,html});
+      if(what==='delivery-receipt')
+       return respond(res,200,receipt,jsonContent,{
+        'Content-Disposition':'attachment; filename="rea-reviewed-delivery-receipt.json"'
+       });
+      if(!receipt.export_eligible)return respond(res,409,{
+       error:'reviewed_export_blocked',reason:receipt.reason,
+       product_ready:false,source_site_verified:false});
+      const contentPolicy=meta.mode==='static-visual'?
+       "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; sandbox":
+       "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
+      return respond(res,200,html,'text/html; charset=utf-8',{
+       'Content-Disposition':'attachment; filename="'+receipt.artifact.filename+'"',
+       'Content-Security-Policy':contentPolicy
+      });
     }
     if(what==='controlled-chain-audit'){
       if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
