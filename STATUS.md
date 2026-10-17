@@ -2,6 +2,14 @@
 
 **Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `d96ea6df...` passed Node and isolated Chrome CI including isolated P2 cross-origin CSP/CORS proof on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38994833194). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
 
+## 2026-10-17 Q0 quality-first full-canvas P5 comparison
+- Fixed visual false-positive: previously P5 ignored bottom-right notice area and compared only screenshot overlap. Now P5 v2 scores the **entire sampled canvas**, assigns 255 RGB error to missing pixels, records sample coverage, and does not automatically mask any region.
+- Added independent static-only quality gate (same screenshot dimensions, 100% coverage, >=90% sampled pixel match, <=20 RGB MAE, >=70% geometry match). Missing geometry/masked comparisons block this gate. The gate always declares functional/backend/autonomous-repair readiness **false**, even with excellent pixels.
+- Local Studio P5 comparison now displays pass/fail and warns that historical v1 comparisons did **not** pass the new gate. Older run results remain unchanged.
+- Node regressions cover cropped but identical overlaps, zero geometry, large RGB divergence, masked evidence and legacy UI. Real isolated Chrome P4 visual test now checks the quality gate and keeps F2/P2/F4 regression checks.
+- Current functional code baseline after UI/test changes: `6ef1af91aa4c78853e64f9b384e2d93da7e89353`. Check exact CI for this SHA before claiming green. Previous P5 core baseline `846568bf` passed Node 168/168 + isolated Chrome full suite: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999.
+- Product acceptance roadmap: `docs/QUALITY_FIRST_ROADMAP.md`. **No real external site is yet fully reconstructed**; Q1 still requires Windows saved-run evidence and host authorization before any expanded API relay.
+
 ## 2026-10-17 P2 two-origin synthetic browser lab
 - Chrome CDP **in-memory** fixture tested default cross-origin API denial, CSP approval without CORS (still failure), and CSP approval with exact CORS response (synthetic JSON successfully read). Independent DNS/proxy access disabled; real external API calls = 0.
 - Exact GET/Fetch/XHR-only synthetic endpoint policy and denial cases covered. GitHub functional SHA d96ea6df; Node and Chrome P4/F2/P2-CORS/F4 CI **SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38994833194.
