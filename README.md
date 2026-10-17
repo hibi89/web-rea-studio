@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## F5 owner-triggered saved draft geometry review
+
+A previously registered **independent P4 draft** can now be explicitly reviewed from local Studio. The action verifies the local HTML's SHA-256 and canonical scriptless template, uses a **fixed synthetic in-memory URL** for fresh Chrome draft evidence, uniquely aligns painted regions against the saved original and applies at most two measured static x/y/width/height corrections. It saves a separate result receipt; a downloadable improved HTML is exposed **only after independently accepted visual improvement**. Normal GET/read-only history causes no browser actions. This is still a static, single-viewport bounded experiment, **not** a complete functional clone or a new external API permission. See [F5 saved independent geometry review](docs/F5_SAVED_GEOMETRY_REPAIR.md).
+
 ## F5 safe independent draft intake (local, explicit)
 
 Local Studio now provides a **Static Visual → F5 independent draft** workflow: download the sanitized P4 geometry JSON, modify the separate static layout draft, select the edited JSON and explicitly register it. Studio deterministically generates a scriptless standalone HTML and saves it **once per run**, without changing original analysis files, contacting the original website, executing uploaded HTML or expanding network permissions. Strict canonical HTML+geometry bundles are also accepted via the API; arbitrary HTML uploads are **rejected**. Receipt status remains **STORED_UNVERIFIED**; real Chrome visual identity, geometry repairs, behavior and backend equivalence must be proven separately. See [safe local draft intake](docs/F5_LOCAL_DRAFT_INTAKE.md).
