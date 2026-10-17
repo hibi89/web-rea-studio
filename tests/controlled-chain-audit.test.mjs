@@ -1,4 +1,10 @@
 import test from 'node:test';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createServer as netServer} from 'node:net';
+import {createStudioServer} from '../studio/server.mjs';
+
 import assert from 'node:assert/strict';
 import {buildEvidenceManifest} from '../studio/evidence-manifest.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from '../studio/behavior-exploration.mjs';
@@ -107,4 +113,51 @@ test('missing F4/manifest or unapproved run never passes chain',()=>{
  assert.equal(auditSavedControlledChain(failed).status,'INCOMPLETE');
  const denied=syntheticChainFixture();denied.inspection.exploration.permission_policy.unauthorized_actions_executed=1;
  assert.equal(auditSavedControlledChain(denied).status,'INCOMPLETE');
+});
+
+test('Studio exposes repeated read-only cross-stage audit, no Chrome or network, and rejects other modes',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'rea-chain-audit-test-'));
+ const node=netServer();await new Promise((ok,bad)=>node.once('error',bad).listen(0,'127.0.0.1',ok));
+ const port=node.address().port;await new Promise(ok=>node.close(ok));
+ let browserCalls=0;
+ const studio=createStudioServer({studioPort:port,storageDir:root,
+  genericObserver:async()=>{browserCalls++;throw Error('UNEXPECTED_OBSERVATION');},
+  genericVerifier:async()=>{browserCalls++;throw Error('UNEXPECTED_REPLAY');}});
+ try{
+  await studio.init();
+  await new Promise((ok,bad)=>studio.server.once('error',bad).listen(port,'127.0.0.1',ok));
+  const data=syntheticChainFixture();
+  const meta=await studio.store.create({mode:data.meta.mode,target_url:data.meta.target_url});
+  await studio.store.update(meta.id,{status:'completed'});
+  await studio.store.saveReport(meta.id,data.report);
+  await studio.store.saveInspection(meta.id,data.inspection);
+  await studio.store.saveManifest(meta.id,data.manifest);
+  await writeFile(join(studio.store.pathFor(meta.id),'function-graph.json'),JSON.stringify(data.graph));
+  await writeFile(join(studio.store.pathFor(meta.id),'generic-prototype.html'),data.html);
+  const api='http://127.0.0.1:'+port+'/api/runs/'+meta.id+'/controlled-chain-audit';
+  for(let i=0;i<3;i++){
+   const res=await fetch(api);
+   assert.equal(res.status,200);
+   assert.match(res.headers.get('content-disposition'),/attachment/);
+   const body=await res.text(),obj=JSON.parse(body);
+   assert.equal(obj.status,'SYNTHETIC_SAVED_CHAIN_CONSISTENT',body);
+   assert.equal(obj.replay_independently_reexecuted,false);
+   assert.doesNotMatch(body,/SUPER_PRIVATE|SECRET-ORIGIN|<script|\/api\/items/);
+  }
+  assert.equal(browserCalls,0);
+  const fetchedHtml=await(await fetch('http://127.0.0.1:'+port+'/')).text();
+  assert.match(fetchedHtml,/id="download-controlled-chain-audit"/);
+  const f4Js=await(await fetch('http://127.0.0.1:'+port+'/app.js')).text();
+  assert.match(f4Js,/controlled-chain-audit/);
+  const invalidMode=await studio.store.create({mode:'dynamic-passive',target_url:'https://example.invalid'});
+  await studio.store.update(invalidMode.id,{status:'completed'});
+  assert.equal((await fetch('http://127.0.0.1:'+port+'/api/runs/'+invalidMode.id+'/controlled-chain-audit')).status,404);
+  const pending=await studio.store.create({mode:data.meta.mode,target_url:data.meta.target_url});
+  assert.equal((await fetch('http://127.0.0.1:'+port+'/api/runs/'+pending.id+'/controlled-chain-audit')).status,409);
+  assert.equal(browserCalls,0);
+  assert.equal((await studio.store.get(meta.id)).status,'completed');
+ }finally{
+  if(studio.server.listening)await new Promise(ok=>studio.server.close(ok));
+  await rm(root,{recursive:true,force:true});
+ }
 });
