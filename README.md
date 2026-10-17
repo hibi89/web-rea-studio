@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F4 F1/F2-to-F3-to-standalone-app reconstruction contract (offline)
+
+Completed controlled synthetic `catalog` and `analytics` runs now save a bounded `reconstruction-contract.json`. The contract ties observed action/state transitions, F3 manifest and the independently generated F4 HTML to exact SHA-256 digests, safe simulated-call counters, and explicit unknown real-world effects. `GET /api/runs/:id/reconstruction-contract` is read-only and returns 409 when linked saved graph, manifest or HTML no longer matches. The underlying HTML generator and old runs remain unchanged. A new planner-shaped synthetic schema is covered by Node tests only; source Chrome/real-site behavior is **not** proven for it. This does not recover any external backend or original API. See [bounded F4 reconstruction contract](docs/F4_RECONSTRUCTION_CONTRACT.md).
+
 ## F5 reviewed standalone export + SHA-256 delivery receipt (offline)
 
 For completed `static-visual` and the two verified **synthetic-only** branching app run types, Studio now provides a `delivery-receipt` JSON link and a separate **reviewed HTML download**. The download is available only when the corresponding existing saved-artifact audit succeeds. Static pages additionally must meet their recorded visual quality gate; controlled synthetic apps must have consistent saved replay evidence. A failed, incomplete or modified artifact is **blocked** from this reviewed export path; legacy unreviewed download options remain available.
