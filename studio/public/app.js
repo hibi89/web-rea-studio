@@ -195,6 +195,55 @@ el('copy-diagnosis').addEventListener('click',async()=>{
  }catch{el('diagnosis-copy-status').textContent='자동 복사 불가. 위 텍스트를 선택해 복사하세요.';}
 });
 
+async function refreshIndependentDraft(id){
+ if(state.id!==id)return;
+ const status=el('independent-draft-status'),btn=el('store-independent-draft'),
+  link=el('download-independent-draft');
+ link.hidden=true;link.removeAttribute('href');
+ try{
+  const receipt=await api('/api/runs/'+id+'/independent-draft');
+  if(state.id!==id)return;
+  btn.disabled=true;
+  el('independent-draft-file').disabled=true;
+  status.textContent='별도 정적 초안 저장됨 · '+receipt.status+
+   ' · HTML '+receipt.bytes+' bytes · SHA-256 '+receipt.html_sha256.slice(0,12)+
+   '… · 원본 사이트 재접속/Chrome 검증/자동 보정 0회';
+  link.href='/api/runs/'+id+'/independent-draft-download';
+  link.hidden=false;
+ }catch{
+  if(state.id!==id)return;
+  btn.disabled=false;el('independent-draft-file').disabled=false;
+  status.textContent='아직 별도 초안을 등록하지 않았습니다. 기존 JSON을 수정해 선택한 뒤 명시적으로 저장하십시오.';
+ }
+}
+el('store-independent-draft').addEventListener('click',async()=>{
+ const id=state.id,source=el('independent-draft-file').files?.[0];
+ if(!id||el('independent-draft-panel').hidden)return;
+ const status=el('independent-draft-status');
+ if(!source){status.textContent='JSON 파일을 먼저 선택하십시오.';return;}
+ if(source.size>310000){status.textContent='선택 파일이 크기 제한을 초과했습니다.';return;}
+ const button=el('store-independent-draft');
+ button.disabled=true;
+ status.textContent='정적 도형 초안을 로컬 저장소에 등록하는 중입니다.';
+ try{
+  const text=await source.text(),parsed=JSON.parse(text);
+  const geometry=parsed?.geometry;
+  if(!geometry||typeof geometry!=='object')
+   throw Error('JSON은 geometry 속성을 포함해야 합니다.');
+  // Reject arbitrary HTML from this minimal UI. Advanced clients may supply
+  // the exact canonical HTML, but no submitted HTML is executed by Studio.
+  await api('/api/runs/'+id+'/independent-draft',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'store-scriptless-p4-draft',geometry})
+  });
+  if(state.id===id)await refreshIndependentDraft(id);
+ }catch(err){
+  if(state.id===id){
+   status.textContent='저장하지 못했습니다: '+err.message;
+   button.disabled=false;
+  }
+ }
+});
 async function refreshColorReview(id){
  const button=el('run-color-review'),status=el('color-review-status'),link=el('download-color-review');
  if(state.id!==id)return;
@@ -270,6 +319,13 @@ function setCurrent(run){
  clearTimeout(state.repairTimer);
  el('p5-comparison').hidden=true;
  el('p5-color-review').hidden=true;
+ el('independent-draft-panel').hidden=true;
+ el('download-independent-draft').hidden=true;
+ el('download-independent-draft').removeAttribute('href');
+ el('download-draft-starter').removeAttribute('href');
+ el('independent-draft-file').value='';
+ el('independent-draft-file').disabled=false;
+ el('store-independent-draft').disabled=false;
  el('download-color-review').hidden=true;
  el('download-color-review').removeAttribute('href');
  el('run-color-review').disabled=false;
@@ -399,6 +455,11 @@ async function select(id){
      if(run.status==='completed'&&reconstructionAvailable){
       el('p5-color-review').hidden=false;
       await refreshColorReview(id);
+      if(state.id===id){
+       el('independent-draft-panel').hidden=false;
+       el('download-draft-starter').href='/api/runs/'+id+'/independent-draft-starter';
+       await refreshIndependentDraft(id);
+      }
      }
     }
    }catch{
