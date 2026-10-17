@@ -36,3 +36,11 @@ Status strings: `BOUNDED_STATIC_GEOMETRY_IMPROVEMENT`, `NO_SAFE_GEOMETRY_PATCH`,
 ## Remaining gaps
 
 Real-world F1–F5 site flow; owner Windows proof; original site's `Failed to fetch` API authorization; real second-viewport evidence; complicated nested/grid/flex layouts and text/image/gradient/JS; automated region correspondence under substantial layout changes. No product-ready claim is justified by this synthetic proof.
+
+## Verified CI and lessons — 2026-10-17
+
+- GitHub functional code SHA `f9d6754d57b313d06fc724affdd74945f839561f`: Node **195/195**, isolated real Chrome P4/F5 color & screenshot/F5 multi-viewport/F5 geometry/F2/P2 CORS/F4 all **SUCCESS**. https://github.com/hibi89/web-rea-studio/actions/runs/39000084339
+- Real isolated Chrome synthetic rectangle experiment: deliberately shifted `aside.x +28px` and `aside.w +54px` relative to the observed source; independently recaptured baseline plus **two** proposed corrections. Accepted `x`, then `w`. Full-canvas sampled RGB MAE **2.08 → 1.28**, accepted=2, scriptless isolated generated replays=3, external network requests=0, `product_ready:false`.
+- Failure diagnosis 1: Node test initially rejected a newly matched rectangle because its addition could raise an *average over only matched regions* even while region match coverage increased. Gate now requires non-increasing matched error only when matching coverage does not improve. Full-screen MAE and all other safety checks remain mandatory.
+- Failure diagnosis 2: In the first Chrome defect, the second `w` change improved measured MAE by only **0.17**, below our explicit **0.3** minimum, so the engine correctly rejected it. The controlled test was updated to use a **54px** error (within the unchanged 64px safe-delta cap), not an easier threshold. Both fixes then passed on a fresh Chrome run.
+- This proves a bounded **static geometry vertical slice**, not general original-site layout inference or live website cloning. Keep the exact limitations above in all future summaries.
