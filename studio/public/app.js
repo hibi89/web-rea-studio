@@ -201,6 +201,18 @@ async function loadDiagnosis(id){
     lines.push('근거가 부족하거나 충돌하면 실제 사이트 기능 완성으로 판정하지 않습니다.');
    }catch{lines.push('F3/Q1 교차 검증 결과가 없습니다. 외부 통신과 실제 사이트 재구성은 계속 차단됩니다.');}
   }
+  if(p){
+   try{
+    const plan=await api('/api/runs/'+id+'/f3-q1-work-plan');
+    if(state.id!==id)return;
+    const link=el('download-f3-q1-work-plan');
+    link.href='/api/runs/'+id+'/f3-q1-work-plan';link.hidden=false;
+    lines.push('F3/Q1 구현 우선순위: '+plan.status+
+     ' · 오프라인 구조 계획 '+plan.counts.plannable_offline+
+     '건 / 근거 부족·미승인 차단 '+plan.counts.blocked+'건');
+    lines.push('동작·API·원본 DB 재구성은 승인 및 증거 확보 전까지 차단됩니다.');
+   }catch{lines.push('F3/Q1 우선순위 계획을 읽지 못했습니다. 실사이트 기능 구현은 계속 차단됩니다.');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -440,6 +452,8 @@ function setCurrent(run){
  el('download-q1-assessment').removeAttribute('href');
  el('download-f3-q1-readiness').hidden=true;
  el('download-f3-q1-readiness').removeAttribute('href');
+ el('download-f3-q1-work-plan').hidden=true;
+ el('download-f3-q1-work-plan').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');

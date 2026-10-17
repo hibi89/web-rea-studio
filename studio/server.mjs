@@ -10,6 +10,7 @@ import {buildPassiveDependencyReview} from './passive-dependencies.mjs';
 import {buildPassiveSiteBlueprint} from './passive-blueprint.mjs';
 import {buildPassiveGapContract} from './passive-gap-contract.mjs';
 import {assessF3Q1Readiness} from './f3-q1-readiness.mjs';
+import {planF3Q1Work} from './f3-q1-work-plan.mjs';
 import {buildPassiveSupportPacket} from './support-packet.mjs';
 import {buildPassivePermissionPreflight} from './permission-preflight.mjs';
 import {assessSavedQ1Failure} from './q1-failure-assessment.mjs';
@@ -369,7 +370,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -614,6 +615,21 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       const review=assessF3Q1Readiness({mode:meta.mode,inspection,report,diagnosis});
       return respond(res,200,review,jsonContent,{
        'Content-Disposition':`attachment; filename="rea-f3-q1-readiness-${id}.json"`
+      });
+    }
+    if(what==='f3-q1-work-plan'){
+      if(meta.mode!=='dynamic-passive')
+       return respond(res,404,{error:'f3_q1_work_plan_not_available'});
+      if(!['failed','interrupted'].includes(meta.status))
+       return respond(res,409,{error:'f3_q1_work_plan_requires_failed_run'});
+      const inspection=await store.getInspection(id);
+      if(!inspection)return respond(res,404,{error:'passive_inspection_not_ready'});
+      if(inspection.mode!=='dynamic-passive')
+       return respond(res,409,{error:'passive_evidence_mode_mismatch'});
+      const report=await store.getReport(id),diagnosis=await diagnoseRuns(storageDir,id);
+      const plan=planF3Q1Work({mode:meta.mode,inspection,report,diagnosis});
+      return respond(res,200,plan,jsonContent,{
+       'Content-Disposition':`attachment; filename="rea-f3-q1-work-plan-${id}.json"`
       });
     }
     if(what==='q1-assessment'){
