@@ -5,7 +5,7 @@ import {existsSync} from 'node:fs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join,relative} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {runOwnerOfflineAcceptance} from './local-acceptance-core.mjs';
+import {NODE_REGRESSION_ARGS,runOwnerOfflineAcceptance} from './local-acceptance-core.mjs';
 
 function browserChoice(env){
  const override=env.REA_BROWSER_EXECUTABLE?.trim()||env.CHROME_BIN?.trim();
@@ -18,7 +18,7 @@ function browserChoice(env){
 }
 function runStep(step){
  return new Promise(resolve=>{
-  const args=step.script?[step.script]:['--test','scripts/*.test.mjs','tests/*.test.mjs'];
+  const args=step.script?[step.script]:[...NODE_REGRESSION_ARGS];
   const child=spawn(process.execPath,args,{
    cwd:process.cwd(),shell:false,windowsHide:true,stdio:['ignore','pipe','pipe'],
    env:{...process.env,
