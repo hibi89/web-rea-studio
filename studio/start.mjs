@@ -11,8 +11,16 @@ if(!path||!existsSync(path))console.warn('REA_BROWSER_EXECUTABLE not found; conf
 const dataDir=defaultRunStorageDir();
 const legacyDir=join(process.cwd(),'results','studio','runs');
 let migration={imported:0,skipped:0};
-try{migration=await importLegacyRuns({from:legacyDir,to:dataDir});}
-catch(e){console.warn('Existing history could not be copied. Originals remain intact. Check OneDrive permissions; new runs use local storage.');}
+// The owner-PC synthetic smoke must never inspect or import private legacy
+// runs. This bypass requires an explicit, isolated temp storage override;
+// normal Studio startup still performs the same non-destructive migration.
+const isolatedSmoke=process.env.WEB_REA_ACCEPTANCE_SMOKE==='1'&&
+ typeof process.env.WEB_REA_DATA_DIR==='string'&&
+ process.env.WEB_REA_DATA_DIR.trim().length>0;
+if(!isolatedSmoke){
+ try{migration=await importLegacyRuns({from:legacyDir,to:dataDir});}
+ catch(e){console.warn('Existing history could not be copied. Originals remain intact. Check OneDrive permissions; new runs use local storage.');}
+}
 const approvedUrls=await loadApprovedTargets();
 const fixture=createFixtureServer(),studio=createStudioServer({fixturePort,studioPort,browserPath:path,storageDir:dataDir,approvedUrls});
 await studio.init();
