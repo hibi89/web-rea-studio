@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 evidence and authority readiness gate (offline)
+
+The new `GET /api/runs/:id/f3-q1-readiness` endpoint is available only for **saved failed/interrupted passive Chrome runs**. It intersects F3 missing action/data proofs, F1/F2 observed event counts, the existing Q1 exact-permission preflight and saved local-policy failure assessment. It never infers an original API or creates any authorization. **Real-site functionality and network expansion remain blocked**, while verified *presence only* may inform a limited offline UI structure plan. Conflicted evidence blocks even that planning. The resulting report omits hostnames, paths, labels, form values, response bodies and secrets. Details: [F3/Q1 offline readiness](docs/F3_Q1_OFFLINE_READINESS.md).
+
 ## F3 passive functional and data gaps (offline)
 
 The Studio's stored approved **Passive Browser** run can now export a read-only [F3 functional/data gap contract](docs/F3_PASSIVE_FUNCTION_DATA_GAPS.md) via `GET /api/runs/:id/passive-gap-contract`. The JSON summarizes only coarse observed control categories/counts and network event totals, explicitly marking action effects, state changes, control/API causality, response schemas, backend/DB and external permissions **unknown or unapproved**. Hostnames, URL paths, form values, labels, response bodies and credentials are omitted. It runs on **saved evidence** only; reloading this report makes no new requests or user actions and does not recover real source behavior.
