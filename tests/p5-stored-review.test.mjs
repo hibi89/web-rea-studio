@@ -133,3 +133,46 @@ test('Studio P5 POST requires explicit action, deduplicates and reads receipt wi
   await rm(root,{recursive:true,force:true});
  }
 });
+
+test('only receipt-verified improved P5 HTML is downloadable, under no-script CSP',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'p5-review-download-'));
+ const port=await freePort(),fixturePort=await freePort();
+ const studio=createStudioServer({studioPort:port,fixturePort,storageDir:root,
+  browserPath:'test-only',approvedUrls:['https://owner.example.org/static'],
+  colorRepairExecutor:async({store,id})=>{
+   await writeFile(join(store.pathFor(id),'color-repair.html'),
+    '<!doctype html><html><body>Measured static correction</body></html>',{flag:'wx'});
+   await writeFile(join(store.pathFor(id),'color-repair.json'),
+    JSON.stringify({status:'BOUNDED_STATIC_COLOR_IMPROVEMENT',
+     kind:'stored-static-p5-color-review',accepted:1,
+     downloadable_improved_html:true,product_ready:false}),{flag:'wx'});
+  }});
+ await studio.init();
+ const id=await seed(studio.store);
+ await new Promise(ok=>studio.server.listen(port,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+port;
+ try{
+  assert.equal((await fetch(base+'/api/runs/'+id+'/color-repair-download')).status,404);
+  const submission=await fetch(base+'/api/runs/'+id+'/color-repair',{
+   method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'offline-color-review'})});
+  assert.equal(submission.status,202);
+  let ready=false;
+  for(let i=0;i<40;i++){
+   const status=await fetch(base+'/api/runs/'+id+'/color-repair');
+   if(status.status===200){const result=await status.json();ready=result.downloadable_improved_html;break;}
+   await new Promise(ok=>setTimeout(ok,10));
+  }
+  assert.equal(ready,true);
+  const html=await fetch(base+'/api/runs/'+id+'/color-repair-download');
+  assert.equal(html.status,200);
+  assert.match(html.headers.get('content-disposition'),/attachment/);
+  assert.match(html.headers.get('content-security-policy'),/script-src 'none'/);
+  assert.match(html.headers.get('content-security-policy'),/connect-src 'none'/);
+  assert.match(await html.text(),/Measured static correction/);
+  assert.equal((await studio.store.get(id)).status,'completed');
+ }finally{
+  await new Promise(ok=>studio.server.close(ok));
+  await rm(root,{recursive:true,force:true});
+ }
+});
