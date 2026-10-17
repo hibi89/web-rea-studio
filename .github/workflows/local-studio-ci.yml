@@ -52,6 +52,9 @@ jobs:
       - name: Run Chrome F5 stored independent static draft acceptance
         timeout-minutes: 3
         run: node tests/p5-independent-draft-chrome-e2e.mjs
+      - name: Run Chrome F5 saved draft geometry alignment and repair acceptance
+        timeout-minutes: 4
+        run: node tests/p5-saved-geometry-chrome-e2e.mjs
       - name: Run real Chrome F2 controlled action causality acceptance
         timeout-minutes: 2
         run: node tests/f2-controlled-chrome-e2e.mjs
