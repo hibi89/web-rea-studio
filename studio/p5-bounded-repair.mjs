@@ -1,6 +1,7 @@
 import {sanitizeP4Geometry,generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
 import {compareChromeScreenshots,evaluateStaticVisualGate} from './p5-visual-diff.mjs';
+import {proposeScreenshotRegionColor} from './p5-pixel-colors.mjs';
 
 // Offline, narrowly scoped P4 repair. No site navigation, network
 // permissions, JavaScript, DOM selectors or remote resources are generated.
@@ -39,10 +40,12 @@ export function proposeSafeP4ColorRepair(reference,draft){
 }
 
 export async function runBoundedP4ColorRepair({referenceGeometry,startingGeometry,
- referencePng,renderCandidate,maxAttempts=2,minMaeImprovement=0.1}={}){
+ referencePng,renderCandidate,maxAttempts=2,minMaeImprovement=0.1,
+ enableScreenshotColorInference=false}={}){
  if(![1,2].includes(maxAttempts)||!Number.isFinite(minMaeImprovement)||
   minMaeImprovement<=0||minMaeImprovement>20||
-  !Buffer.isBuffer(referencePng)||typeof renderCandidate!=='function')
+  !Buffer.isBuffer(referencePng)||typeof renderCandidate!=='function'||
+  typeof enableScreenshotColorInference!=='boolean')
   throw Error('P5_REPAIR_INVALID_OPTIONS');
  const {ref,cur}=safeEvidence(referenceGeometry,startingGeometry);
  const history=[];let accepted=0,renders=0,work=cur;
@@ -56,7 +59,7 @@ export async function runBoundedP4ColorRepair({referenceGeometry,startingGeometr
    throw Error('P5_REPAIR_RENDER_INCOMPLETE');
   const visual=compareChromeScreenshots(referencePng,observed.screenshot);
   visual.geometry=compareP4Geometry(ref,observed.geometry);
-  return {html,visual,gate:evaluateStaticVisualGate(visual)};
+  return {html,visual,screenshot:observed.screenshot,gate:evaluateStaticVisualGate(visual)};
  };
  let baseline;
  try{baseline=await measure(work,0);}
@@ -66,7 +69,13 @@ export async function runBoundedP4ColorRepair({referenceGeometry,startingGeometr
   independent_chrome_verified_by_module:false};}
  let last=baseline,status='NO_SAFE_COLOR_PATCH';
  for(let i=1;i<=maxAttempts;i++){
-  const next=proposeSafeP4ColorRepair(ref,work);
+  let next;
+  try{
+   next=enableScreenshotColorInference?
+    proposeScreenshotRegionColor({referenceGeometry:ref,currentGeometry:work,
+     referencePng,baselinePng:last.screenshot}):
+    proposeSafeP4ColorRepair(ref,work);
+  }catch{status='STOPPED_INFERENCE_UNAVAILABLE';break;}
   if(!next)break;
   let observed;
   try{observed=await measure(next.geometry,i);}
@@ -100,12 +109,14 @@ export async function runBoundedP4ColorRepair({referenceGeometry,startingGeometr
    gate:last.gate.status},
   candidate_html:last.html,
   rollback_on_nonimprovement:true,
+  screenshot_inference_enabled:enableScreenshotColorInference,
   externally_authorized_actions:0,
   functional_equivalence_verified:false,
   backend_equivalence_verified:false,
   independent_chrome_verified_by_module:false,
   product_ready:false,
   limitations:['Only recorded P4 background and region colors may be changed',
+   'Screenshot inference uses only high-confidence uniformly painted region interiors',
    'A callback must independently capture every proposed result',
    'No behavioral repair, API access, generic website repair or user Windows proof']
  };
