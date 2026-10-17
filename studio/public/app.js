@@ -213,6 +213,21 @@ async function loadDiagnosis(id){
     lines.push('동작·API·원본 DB 재구성은 승인 및 증거 확보 전까지 차단됩니다.');
    }catch{lines.push('F3/Q1 우선순위 계획을 읽지 못했습니다. 실사이트 기능 구현은 계속 차단됩니다.');}
   }
+  if(p){
+   try{
+    const receipt=await api('/api/runs/'+id+'/f3-q1-wireframe-receipt');
+    if(state.id!==id)return;
+    if(receipt.status==='OFFLINE_NONINTERACTIVE_PREVIEW'){
+     for(const [key,suffix] of [
+      ['open-f3-q1-wireframe','f3-q1-wireframe'],
+      ['download-f3-q1-wireframe','f3-q1-wireframe-download'],
+      ['download-f3-q1-wireframe-receipt','f3-q1-wireframe-receipt']]){
+      const a=el(key);a.href='/api/runs/'+id+'/'+suffix;a.hidden=false;
+     }
+     lines.push('F3/Q1 익명 UI 구조 미리보기: 생성 가능 · 원본 디자인/동작/데이터 일치 미검증');
+    }
+   }catch{lines.push('F3/Q1 익명 UI 구조 미리보기: 증거 부족 또는 충돌로 생성 차단');}
+  }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
   el('diagnosis-details').textContent=lines.join('\n');
@@ -454,6 +469,10 @@ function setCurrent(run){
  el('download-f3-q1-readiness').removeAttribute('href');
  el('download-f3-q1-work-plan').hidden=true;
  el('download-f3-q1-work-plan').removeAttribute('href');
+ for(const key of ['open-f3-q1-wireframe','download-f3-q1-wireframe',
+  'download-f3-q1-wireframe-receipt']){
+  el(key).hidden=true;el(key).removeAttribute('href');
+ }
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
