@@ -95,9 +95,13 @@ function improves(before,after,minImprovement){
  return after.rgb_mae<=before.rgb_mae-minImprovement&&
   after.pixel_match_pct>=before.pixel_match_pct&&
   after.region_match_pct>=before.region_match_pct&&
-  (before.avg_geometry_error_px===null||
-   after.avg_geometry_error_px===null||
-   after.avg_geometry_error_px<=before.avg_geometry_error_px)&&
+  // Mean geometry error only covers matched regions. When a previously
+  // unmatched shape becomes matched, comparing its new mean to the old one
+  // misclassifies an actual coverage improvement as regression.
+  (after.region_match_pct>before.region_match_pct||
+   before.avg_geometry_error_px===null||
+   (after.avg_geometry_error_px!==null&&
+    after.avg_geometry_error_px<=before.avg_geometry_error_px))&&
   !(before.gate==='VISUAL_THRESHOLD_MET_STATIC_ONLY'&&
      after.gate!=='VISUAL_THRESHOLD_MET_STATIC_ONLY');
 }
