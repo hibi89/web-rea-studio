@@ -52,6 +52,6 @@ Functional SHA `ee839bf2f1378e874369713bdb03de98ca8f6cad`, GitHub Actions [39004
 - `npm run check:launcher` **PASS** using direct `node -> npx-cli.js`, npm CLI version `10.9.9` (no REA capture or installation invoked).
 - Windows local Studio startup smoke **PASS**: real child process running `studio/start.mjs`, path with spaces, loopback fixture/UI/GET, empty run storage, actual hostile Host rejection, strict API query rejection; **0 external requests**.
 - Real Windows Chrome **P4 PASS** and **F5 saved-draft Chrome PASS**. F5 independently replays one canonical draft and two candidate edits, accepts **x** then **w**, RGB MAE **2.41 → 1.61** on Windows, 5 synthetic generated replays plus one synthetic source response, **0 original-site refetches / real external requests**, `product_ready:false`.
-- Linux has a separate full Chrome suite, also required for the entire workflow success. Check its final conclusion in the run before describing the **whole** workflow as green.
+- Linux **full P4/F2/F4/F5 Chrome suite also SUCCESS** in the same required workflow run, so **both Windows and Linux jobs are green** at functional SHA `ee839bf2`.
 - This proof is a real Windows GitHub runner but **not an owner-machine acceptance**. No user-provided private site/browser profile was accessed.
 
