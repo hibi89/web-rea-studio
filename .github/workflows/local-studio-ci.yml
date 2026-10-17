@@ -40,6 +40,9 @@ jobs:
       - name: Run real Chrome F2 controlled action causality acceptance
         timeout-minutes: 2
         run: node tests/f2-controlled-chrome-e2e.mjs
+      - name: Run isolated Chrome P2 two-origin CSP and CORS proof
+        timeout-minutes: 2
+        run: node tests/p2-cross-origin-chrome-e2e.mjs
       - name: Run real Chrome F4 generic two-app branching acceptance
         timeout-minutes: 3
         run: node tests/f4-generic-chrome-e2e.mjs
