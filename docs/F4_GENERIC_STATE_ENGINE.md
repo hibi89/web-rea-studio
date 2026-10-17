@@ -49,3 +49,7 @@ No analysis is rerun when these saved artifacts are opened.
 ## Follow-up negative-action verification
 
 The isolated generated F4 app must also reject events on buttons that are disabled for the current observed state, even when Chrome temporarily bypasses DOM `disabled` and dispatches an artificial click event directly (restoring the flag immediately). `studio/generic-fixture-browser.mjs` compares the current state, completed-action counter, simulated API counter and intercepted fixture API requests before and after each synthetic event; any change fails the Chrome acceptance. This uses the **same in-memory Chrome replay** with no new origin or user-site contact. The mandatory `tests/f4-generic-chrome-e2e.mjs` on Linux Chrome requires at least four such denied probes in each of `catalog` and `analytics` (see `docs/F4_NEGATIVE_TRANSITION_GUARD.md`). It establishes only bounded negative-path fidelity for the two known synthetic fixtures, not arbitrary website support.
+
+### Final required CI proof
+
+[Actions 39013744143](https://github.com/hibi89/web-rea-studio/actions/runs/39013744143), code SHA `da27ef6`: all three required Linux/Windows jobs `SUCCESS`, 216/216 Node on Linux22 and Windows22/24. The Linux real Chrome F4 logs report **five denied unobserved actions** on each of `catalog` and `analytics` alongside all three positive transitions, with real API calls zero. Windows jobs verify the established local Node/Chrome P4/F5 safety smoke but do **not** directly run the F4-specific Chrome test.
