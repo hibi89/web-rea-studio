@@ -32,4 +32,6 @@ This **does not implement** arbitrary Chart.js/D3/Recharts/ECharts, axis labels,
 
 ## CI evidence
 
-Pending new feature SHA's complete GitHub Actions run and the real Chrome measured before/after MAE. Do not infer a PASS from previous feature run.
+**Verified PASS**: functional SHA `e64151d6cab8db07dcc6cfc2d831969a00086554`, [GitHub Actions run 39016306602](https://github.com/hibi89/web-rea-studio/actions/runs/39016306602). All three mandatory jobs SUCCESS. Linux Node 22, Windows Node 22 and Windows Node 24 each **229/229 Node tests PASS**, no failures. Both Windows jobs additionally completed established local launcher, real Chrome P4/F5 and owner-style offline acceptance. The required Linux Chrome P4 compact chart differential output reports **six colored bar primitives**, full-canvas RGB MAE **4.43 legacy → 1.60 measured** (decrease **2.83 / 63.9%**) and exactly two independently generated replays, zero external requests, zero source JavaScript execution. Linux also passed the established P2/F2/F4/F5 and previous P4 Chrome regressions.
+
+The source for this proof is **one controlled synthetic static six-bar chart**. It does not establish real-world chart behavior, original data, alternative chart libraries, mobile responsiveness or API recoverability. The owner was not asked to test their own local PC, which remains a separate final acceptance gate. Early incomplete intermediate commits are not used to infer final CI success.
