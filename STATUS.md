@@ -21,6 +21,11 @@
 - Failed passive-run diagnosis panel now shows bounded, saved-evidence dependency summary and a local JSON download link. It uses only the already-tested read-only local API; no extra target fetch or authorization.
 - UI availability and DOM tests added; functional SHA `e1063bb0` passed GitHub Node+Chrome CI (run 38992975379). Actual Windows UI and live backend remain unverified.
 
+## 2026-10-17 F1/F2 external passive evidence blueprint
+- Added read-only stored F1 controls + F2 network evidence JSON through GET /api/runs/:id/passive-blueprint, a local Studio link, and regression tests. No external fetch, clicks, permission change or inferred button/API causality.
+- Feature code baseline 4a2031bd54a7b833efc9a26555b30df3c61eaa9c; GitHub CI and Windows real-data acceptance are separate checks.
+- Actual live dashboard Failed to fetch issue is unresolved. See docs/F1_F2_PASSIVE_BLUEPRINT.md and HANDOFF.md.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)
