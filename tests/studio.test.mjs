@@ -256,6 +256,8 @@ test('actual local Studio has failure postmortem panel',async()=>{
  assert.match(h,/id="diagnosis-panel"/);
  assert.match(js,/\/diagnosis/);
   assert.match(h,/id="download-dependencies"/);
+  assert.match(h,/id="download-passive-blueprint"/);
+  assert.match(js,/passive-blueprint/);
   assert.match(js,/\/dependencies/);
 });
 
