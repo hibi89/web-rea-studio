@@ -1,5 +1,5 @@
 /* Read-only visual geometry probe: no clicks, requests or input values. */
-export const P4_GEOMETRY_PROBE="(()=>{\n const max=180,nodes=[...document.querySelectorAll('body,header,nav,main,aside,section,article,footer,div,h1,h2,h3')].slice(0,1400);\n const boxes=[],titles=[];\n const asNum=n=>Number.isFinite(n)?Math.round(n):0;\n const bg=s=>s&&s!=='transparent'&&!/^rgba?\\(0,\\s*0,\\s*0,\\s*0\\)$/.test(s);\n const depth=n=>{let d=0;while(n.parentElement&&d<32){n=n.parentElement;d++;}return d;};\n for(const n of nodes){\n  const t=n.tagName.toLowerCase(),rect=n.getBoundingClientRect();\n  const s=getComputedStyle(n);\n  if(rect.width<4||rect.height<4||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)continue;\n  const x=asNum(rect.left+scrollX),y=asNum(rect.top+scrollY),w=asNum(rect.width),h=asNum(rect.height);\n  if(x>6000||y>6000||x+w<0||y+h<0)continue;\n  const isTitle=/^h[123]$/.test(t);\n  if(isTitle&&titles.length<32){\n   titles.push({tag:t,x,y,w,h,text:String(n.textContent||'').trim().slice(0,100),\n    color:s.color,font_size:s.fontSize,font_weight:s.fontWeight,\n    white_space:s.whiteSpace,line_height:s.lineHeight,text_align:s.textAlign});\n  }\n  if(boxes.length>=max)continue;\n  const p=n.parentElement,ps=p?getComputedStyle(p):null;\n  const colored=bg(s.backgroundColor);\n  const different=colored&&(!ps||s.backgroundColor!==ps.backgroundColor);\n  const curved=parseFloat(s.borderTopLeftRadius)>3;\n  const semantic=['body','aside','main','nav','section','article','header','footer'].includes(t);\n  const bordered=parseFloat(s.borderTopWidth)>0;\n  const shadowed=typeof s.boxShadow==='string'&&s.boxShadow!=='none';\n  if(!semantic&&!different&&!curved&&!bordered&&!shadowed)continue;\n  if(w<80||h<36)continue;\n  boxes.push({tag:t,depth:depth(n),x,y,w,h,\n   background:s.backgroundColor,border_color:s.borderTopColor,\n   border_width:s.borderTopWidth,radius:s.borderTopLeftRadius,box_shadow:s.boxShadow});\n }\n const body=getComputedStyle(document.body),root=getComputedStyle(document.documentElement);\n return {source:'p4-geometry',viewport:{width:innerWidth,height:innerHeight},\n   document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},\n   body_color:body.backgroundColor,root_color:root.backgroundColor,\n   candidates:nodes.length,boxes,titles};\n})()";
+export const P4_GEOMETRY_PROBE="(()=>{\n const max=180,smallMax=48,nodes=[...document.querySelectorAll('body,header,nav,main,aside,section,article,footer,div,h1,h2,h3')].slice(0,1400);\n const boxes=[],titles=[],primitives=[];\n const asNum=n=>Number.isFinite(n)?Math.round(n):0;\n const bg=s=>s&&s!=='transparent'&&!/^rgba?\\(0,\\s*0,\\s*0,\\s*0\\)$/.test(s);\n const depth=n=>{let d=0;while(n.parentElement&&d<32){n=n.parentElement;d++;}return d;};\n for(const n of nodes){\n  const t=n.tagName.toLowerCase(),rect=n.getBoundingClientRect();\n  const s=getComputedStyle(n);\n  if(rect.width<4||rect.height<4||s.display==='none'||s.visibility==='hidden'||parseFloat(s.opacity)===0)continue;\n  const x=asNum(rect.left+scrollX),y=asNum(rect.top+scrollY),w=asNum(rect.width),h=asNum(rect.height);\n  if(x>6000||y>6000||x+w<0||y+h<0)continue;\n  const isTitle=/^h[123]$/.test(t);\n  if(isTitle&&titles.length<32){\n   titles.push({tag:t,x,y,w,h,text:String(n.textContent||'').trim().slice(0,100),\n    color:s.color,font_size:s.fontSize,font_weight:s.fontWeight,\n    white_space:s.whiteSpace,line_height:s.lineHeight,text_align:s.textAlign});\n  }\n  if(boxes.length>=max&&primitives.length>=smallMax)continue;\n  const p=n.parentElement,ps=p?getComputedStyle(p):null;\n  const colored=bg(s.backgroundColor);\n  const different=colored&&(!ps||s.backgroundColor!==ps.backgroundColor);\n  const curved=parseFloat(s.borderTopLeftRadius)>3;\n  const semantic=['body','aside','main','nav','section','article','header','footer'].includes(t);\n  const bordered=parseFloat(s.borderTopWidth)>0;\n  const shadowed=typeof s.boxShadow==='string'&&s.boxShadow!=='none';\n  if(t==='div'&&different&&primitives.length<smallMax&&w>=8&&h>=8&&\n     (w<80||h<36)&&w*h>=144&&w<=800&&h<=480){\n   primitives.push({x,y,w,h,background:s.backgroundColor,radius:s.borderTopLeftRadius});\n   continue;\n  }\n  if(!semantic&&!different&&!curved&&!bordered&&!shadowed)continue;\n  if(boxes.length>=max||w<80||h<36)continue;\n  boxes.push({tag:t,depth:depth(n),x,y,w,h,\n   background:s.backgroundColor,border_color:s.borderTopColor,\n   border_width:s.borderTopWidth,radius:s.borderTopLeftRadius,box_shadow:s.boxShadow});\n }\n const body=getComputedStyle(document.body),root=getComputedStyle(document.documentElement);\n return {source:'p4-geometry',viewport:{width:innerWidth,height:innerHeight},\n   document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},\n   body_color:body.backgroundColor,root_color:root.backgroundColor,\n   candidates:nodes.length,boxes,titles,primitives};\n})()";
 const clamp=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)?Math.max(min,Math.min(max,Math.round(n))):0;
 const palette=v=>typeof v==='string'&&v.length<=65&&/^(?:rgba?\([0-9.,\s%]+\)|#[0-9a-f]{3,8}|transparent)$/i.test(v)?v:'transparent';
 const length=v=>typeof v==='string'&&/^(?:[0-9]{1,3}(?:\.[0-9]{1,2})?px|0px)$/.test(v)?v:'0px';
@@ -44,6 +44,14 @@ export function sanitizeP4Geometry(raw){
     border_width:length(v.border_width),radius:length(v.radius),
     ...(safeBoxShadow(v.box_shadow)?{box_shadow:safeBoxShadow(v.box_shadow)}:{})}))
   .filter(v=>v.w>=80&&v.h>=36&&v.x<bounds.width&&v.y<bounds.height);
+ const primitives=(Array.isArray(raw.primitives)?raw.primitives:[]).slice(0,48)
+  .filter(v=>v&&Object.keys(v).every(k=>['x','y','w','h','background','radius'].includes(k)))
+  .map(v=>({x:clamp(v.x,-100,4000),y:clamp(v.y,-100,4000),
+   w:clamp(v.w,0,4000),h:clamp(v.h,0,4000),
+   background:palette(v.background),radius:length(v.radius)}))
+  .filter(v=>v.w>=8&&v.h>=8&&(v.w<80||v.h<36)&&v.w*v.h>=144&&
+   v.w<=800&&v.h<=480&&v.x<bounds.width&&v.y<bounds.height&&
+   v.background!=='transparent'&&!/^rgba?\\(0,\\s*0,\\s*0,\\s*0\\)$/.test(v.background));
  const titles=(Array.isArray(raw.titles)?raw.titles:[]).slice(0,32)
   .filter(v=>v&&['h1','h2','h3'].includes(v.tag))
   .map(v=>({tag:v.tag,x:clamp(v.x,-100,4000),y:clamp(v.y,-100,4000),
@@ -58,7 +66,7 @@ export function sanitizeP4Geometry(raw){
   viewport:{width:w,height:clamp(raw.viewport?.height,1,3000)},
   document:bounds,candidates:clamp(raw.candidates,0,1400),
   background:palette(raw.background)!=='transparent'?palette(raw.background):palette(raw.body_color)!=='transparent'?palette(raw.body_color):palette(raw.root_color),
-  boxes,titles,limitations:['Layout is reconstructed only from captured static geometry','No live backend data or original JavaScript','No interaction fidelity guarantee']};
+  boxes,titles,...(primitives.length?{primitives}:{}),limitations:['Layout is reconstructed only from captured static geometry','No live backend data or original JavaScript','No interaction fidelity guarantee']};
 }
 const escapeHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 export function generateP4Reconstruction(raw){
@@ -75,6 +83,9 @@ export function generateP4Reconstruction(raw){
   return '<div class="region" aria-hidden="true" style="left:'+v.x+'px;top:'+v.y+'px;width:'+v.w+'px;height:'+v.h+
    'px;'+background+'border-radius:'+v.radius+';'+edge+shadow+'"></div>';
  }).join('\n');
+ const primitiveBlocks=(data.primitives||[]).map(v=>'<div class="primitive" aria-hidden="true" style="left:'+
+  v.x+'px;top:'+v.y+'px;width:'+v.w+'px;height:'+v.h+'px;background:'+v.background+
+  ';border-radius:'+v.radius+';"></div>').join('\n');
  const labels=data.titles.map(t=>{
   const measured=(t.white_space?'white-space:'+t.white_space+';':'')+
    (t.line_height?'line-height:'+t.line_height+';':'')+
@@ -85,7 +96,7 @@ export function generateP4Reconstruction(raw){
  }).join('\n');
  const css='html,body{margin:0;padding:0}body{background:'+data.background+
   ';font-family:Arial,system-ui,sans-serif}.page{width:'+width+'px;height:'+height+
-  'px;position:relative;overflow:hidden}.region,.label{box-sizing:border-box;position:absolute}'+
+  'px;position:relative;overflow:hidden}.region,.label'+(data.primitives?.length?',.primitive':'')+'{box-sizing:border-box;position:absolute}'+
   '.label{overflow:hidden;white-space:nowrap;line-height:1.45}.notice{position:fixed;right:14px;bottom:14px;'+
   'z-index:10000;background:#131b2b;color:white;padding:10px 14px;border-radius:9px;font:12px system-ui;'+
   'box-shadow:0 1px 8px #0004}';
@@ -93,6 +104,6 @@ export function generateP4Reconstruction(raw){
  return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
   '<meta http-equiv="Content-Security-Policy" content="'+escapeHtml(csp)+'">'+
   '<title>Web REA Studio · 독립형 레이아웃 청사진</title><style>'+css+'</style></head><body>'+
-  '<main class="page" aria-label="증거 기반 UI 구조 미리보기">'+blocks+labels+'</main>'+
+  '<main class="page" aria-label="증거 기반 UI 구조 미리보기">'+blocks+primitiveBlocks+labels+'</main>'+
   '<div class="notice">Web REA Studio · 구조 기반 재구성 · 실제 데이터/동작 없음</div></body></html>';
 }
