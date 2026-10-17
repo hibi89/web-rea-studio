@@ -45,7 +45,7 @@ test('no matched host, missing count, incomplete or omitted evidence never becom
  ]));
  assert.equal(unmatched.finding,'FETCH_FAILURE_CAUSE_UNATTRIBUTED');
  assert.equal(unmatched.observed.matched_external_host_count,0);
- assert.equal(unmatched.evidence_status,'PARTIAL');
+ assert.equal(unmatched.evidence_status,'BOUNDED');
  const omitted=assessSavedQ1Failure(sample([...pair('api.vendor.example.org'),
   {kind:'made-up',raw:'SECRET_SENTINEL'}]));
  assert.equal(omitted.finding,'LOCAL_POLICY_BOUNDARY_COMPATIBLE_NOT_CAUSAL');
