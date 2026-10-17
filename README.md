@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## F5 independent cross-viewport guard
+
+The bounded F5 engine can now receive **separately captured reference evidence for up to two other viewport sizes**. It replays the exact same proposed scriptless HTML at each size and rejects a desktop paint fix when any observed secondary view worsens (or cannot be independently measured). A new synthetic-only Chrome viewport override is permitted only for memory-relayed, script-disabled capture; real-site capture defaults and authorization are unchanged. **The ordinary local Studio still has only a single saved source viewport and does not claim multi-viewport verification.** See [independent viewport acceptance and scope](docs/F5_MULTIVIEWPORT_GUARD.md).
+
 ## F5 opt-in saved-only review in local Studio
 
 A completed Static Visual run with existing P5 v2 evidence now offers **오프라인 색상 재검증 실행**. This is an explicit, one-time local Chrome replay of the **generated scriptless reconstruction** using a fixed synthetic interception URL. Loading run history or reading the result does not recapture the original site. No external host permissions, network relay or original run data change. The saved screenshot path can now infer **one paint color at a time** when a large, unobscured region differs strongly and is near-uniform in both original and independently rendered images. Gradients, textures, text-heavy areas and uncertain evidence remain unsupported; **NO_SAFE_COLOR_PATCH** stays an expected safe outcome. An improved HTML is downloadable only after a fresh replay proves a measurable benefit. See [limitations and acceptance](docs/F5_STUDIO_OFFLINE_REVIEW.md).
