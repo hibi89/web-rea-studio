@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F5 reviewed standalone export + SHA-256 delivery receipt (offline)
+
+For completed `static-visual` and the two verified **synthetic-only** branching app run types, Studio now provides a `delivery-receipt` JSON link and a separate **reviewed HTML download**. The download is available only when the corresponding existing saved-artifact audit succeeds. Static pages additionally must meet their recorded visual quality gate; controlled synthetic apps must have consistent saved replay evidence. A failed, incomplete or modified artifact is **blocked** from this reviewed export path; legacy unreviewed download options remain available.
+
+Receipts include the **exact HTML SHA-256 and byte count**, an explicit static/synthetic scope, and non-parity warnings. The receipt is not signed and **does not certify the original website's behavior, API, database or production readiness**. Rechecking downloaded SHA-256 proves the pair matches, not that the source site was authenticated. No live URL fetch, Chrome run, local capture mutation, Vercel deployment or outside origin approval is involved. See [reviewed delivery boundaries](docs/F5_REVIEWED_DELIVERY.md).
+
 ## F1→F5 controlled synthetic app integrity audit (read-only)
 
 Completed `fixture-generic-catalog` and `fixture-generic-analytics` runs now provide a **cross-stage saved evidence audit** in Studio's F4 panel and at `GET /api/runs/:id/controlled-chain-audit`. It checks that a synthetic permitted state graph, F3 evidence manifest, F4 generated standalone branching HTML, and **previously recorded** F5 Chrome replay counters describe a consistent saved chain. Canonical HTML is independently regenerated and compared byte-for-byte. Altered/missing artifacts are marked `EVIDENCE_CONFLICT` or `INCOMPLETE`.
