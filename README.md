@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F1→F5 controlled synthetic app integrity audit (read-only)
+
+Completed `fixture-generic-catalog` and `fixture-generic-analytics` runs now provide a **cross-stage saved evidence audit** in Studio's F4 panel and at `GET /api/runs/:id/controlled-chain-audit`. It checks that a synthetic permitted state graph, F3 evidence manifest, F4 generated standalone branching HTML, and **previously recorded** F5 Chrome replay counters describe a consistent saved chain. Canonical HTML is independently regenerated and compared byte-for-byte. Altered/missing artifacts are marked `EVIDENCE_CONFLICT` or `INCOMPLETE`.
+
+This GET starts no browser, does not revisit original URLs, and never claims fresh replay or real-site data/functional parity. It deliberately supports only the two already authorized **isolated synthetic** branching fixtures, not third-party websites. See [controlled F1–F5 saved chain audit](docs/F1_F5_CONTROLLED_CHAIN_AUDIT.md).
+
 ## Saved P4→P5 static pipeline integrity audit (read-only)
 
 A completed `static-visual` run now offers **저장된 정적 재구현 검증 보고서 JSON** in the local Studio P4 results panel. `GET /api/runs/:id/static-pipeline-audit` reads previously saved artifacts only: it checks that the generated scriptless HTML matches the stored sanitized geometry byte-for-byte, recomputes full-canvas P5 screenshot metrics from the two locally saved PNGs, and detects inconsistent stored comparison or threshold claims. It reports `OFFLINE_ARTIFACTS_VERIFIED`, `INCOMPLETE` or `EVIDENCE_CONFLICT`.
