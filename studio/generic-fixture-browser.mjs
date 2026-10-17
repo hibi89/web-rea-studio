@@ -42,6 +42,10 @@ const profiles={
   source:`<!doctype html><html><body>
   <button id="src-range">Range</button><button id="src-chart">Chart</button>
   <button id="source-reset">Reset</button>
+  <button id="src-delete" type="button" onclick="document.body.dataset.unsafeAction='1';fetch('/api/delete',{method:'POST'})">Delete</button>
+  <button id="src-submit" type="submit">Submit</button>
+  <a href="https://offsite-denied.example.org/?token=PRIVATE">Offsite</a>
+  <input type="password" value="DONT_COLLECT_SECRET_VALUE">
   <span id="state-chart">bar</span><span id="state-range">week</span><span id="state-total">12</span>
   <script>
   let chart='bar',range='week',total=12;
