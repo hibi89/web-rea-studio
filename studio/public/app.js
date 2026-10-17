@@ -369,6 +369,9 @@ function setCurrent(run){
  for(const linkId of ['open-control-map','download-control-map','download-control-contract']){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
+ el('download-controlled-chain-audit').hidden=true;
+ el('download-controlled-chain-audit').removeAttribute('href');
+ el('f4-chain-status').textContent='합성 상태 전이부터 독립 앱까지 저장 결과 검증 전입니다.';
  el('feature-graph-panel').hidden=true;
  el('download-passive-blueprint').hidden=true;
  el('download-passive-blueprint').removeAttribute('href');
@@ -474,6 +477,20 @@ async function select(id){
     ?'두 분기 경로의 3개 행동을 Chrome에서 재생성·검증했습니다. 실제 API 요청 0건.'
     :'범용 재생성 검증을 통과한 결과물이 없습니다.';
    el('f4-caveat').textContent='상품 목록/분석 대시보드의 합성 행동만 재생합니다. 임의의 외부 웹사이트 복원은 아닙니다.';
+   if(run.status==='completed'){
+    try{
+     const audit=await api('/api/runs/'+id+'/controlled-chain-audit');
+     if(state.id!==id)return;
+     const link=el('download-controlled-chain-audit');
+     link.href='/api/runs/'+id+'/controlled-chain-audit';link.hidden=false;
+     el('f4-chain-status').textContent=audit.status==='SYNTHETIC_SAVED_CHAIN_CONSISTENT'
+      ?'F1/F2 관찰→F3 명세→F4 독립 앱 저장 증거 일치 · F5 Chrome 재검사는 이번 조회에서 실행하지 않음 · 실사이트 미검증'
+      :audit.status==='EVIDENCE_CONFLICT'
+       ?'F1~F5 저장 증거 사이에 불일치가 있습니다. 기능 검증 완료로 판단할 수 없습니다.'
+       :'F1~F5 저장 증거가 불완전합니다. 기능 검증 완료로 판단할 수 없습니다.';
+    }catch{if(state.id===id)el('f4-chain-status').textContent=
+     'F1~F5 저장 증거 연결 검증을 완료하지 못했습니다.';}
+   }
    if(genericAvailable){
     const p=el('open-generic'),d=el('download-generic');
     p.href=`/api/runs/${id}/generic-prototype`;p.hidden=false;
