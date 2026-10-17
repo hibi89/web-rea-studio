@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## Q1 offline permission planning (read-only)
+
+For an already failed/interrupted passive analysis, the local Studio failure inspector now offers **Q1 권한 사전 점검 JSON**. It reports saved evidence for rejected external hostnames, missing explicit authorization and path/method/budget requirements, with extra warnings for local/IP-coded DNS hostnames. The output is **never an executable allowlist** and every verdict blocks new external access pending approval. It makes **no outbound request**. See [Q1 preflight](docs/Q1_PERMISSION_PREFLIGHT.md). The user's original dashboard data-loading error remains unresolved.
+
 ## What it does today
 
 | Mode | Site | Engine | Output |
