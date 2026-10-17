@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## P4 observed heading layout fidelity (offline)
+
+The script-disabled static visual capture now reuses already observed **H1/H2/H3** data to preserve bounded Chrome-computed `white-space`, `line-height` and `text-align` values in standalone HTML. Values are strictly sanitized; no additional text categories, input values or external resources are collected. Old saved analyses lacking these fields retain their original generator defaults and HTML compatibility.
+
+The mandatory in-memory Chrome test creates a wrapped heading, independently renders a legacy reconstruction and a measured reconstruction, and requires the **measured version to have lower full-canvas RGB error**. This is typography-only fidelity for a controlled fixture, **not** real website behavior, responsive design or backend equivalence. See [P4 heading typography](docs/P4_HEADING_TYPOGRAPHY.md).
+
 ## Product quality standard
 
 Our goal is independent, runnable website reconstruction on multiple **authorized real sites**, not a screen-only clone or synthetic-only demonstration. See [quality-first completion contract](docs/QUALITY_FIRST_ROADMAP.md) for F1–F5 evidence gates, security boundaries, closed-loop correction and acceptance milestones.
