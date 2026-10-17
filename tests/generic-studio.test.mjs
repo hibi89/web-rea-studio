@@ -31,6 +31,10 @@ function observed(id){
   verification:'real-isolated-chrome',app_id:id,
   title:analytics?'분석 대시보드 실험':'상품 목록 실험',
   initial,observed_action_api_links:1,
+  execution_policy:{source:'controlled-action-audit',scope:'in-memory-synthetic-only',
+   authorized_controls:3,denied_controls:4,unauthorized_actions_executed:0,
+   external_navigation_performed:false,form_submissions_performed:0,
+   approved_action_ids:analytics?['range','chart','reset']:['filter','layout','reset']},
   steps:[state(0,initial,first,1),state(1,first,second),state(1,initial,alternate)]};
 }
 test('generic Studio modes are exact-fixture-only and persist Chrome-verified branching prototypes',async()=>{
@@ -69,6 +73,10 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    const report=await(await fetch(base+'/api/runs/'+id+'/report')).json();
    assert.equal(report.analysis_mode,mode);
    assert.equal(report.generic_prototype_available,true);
+   assert.equal(report.action_policy_checked,true);
+   assert.equal(report.approved_dom_controls,3);
+   assert.equal(report.denied_dom_controls,4);
+   assert.equal(report.unauthorized_actions_executed,0);
    assert.equal(report.generic_replay_verified_steps,3);
    assert.equal(report.generic_replay_real_api_calls,0);
    assert.equal(report.generic_branch_paths,2);
@@ -80,6 +88,9 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    const manifest=await(await fetch(base+'/api/runs/'+id+'/manifest')).json();
    assert.equal(manifest.analysis_mode,mode);
    assert.equal(manifest.network.causal_links_verified,1);
+   assert.equal(manifest.controlled_scenario.permission_policy.authorized_controls,3);
+   assert.equal(manifest.controlled_scenario.permission_policy.denied_controls,4);
+   assert.equal(manifest.findings.find(f=>f.id==='synthetic-action-permissions').status,'verified-synthetic-only');
    assert.equal(manifest.network.attribution_scope,'controlled-synthetic-only');
    assert.equal(manifest.generated_artifacts.generic_branching_prototype,true);
    const preview=await fetch(base+'/api/runs/'+id+'/generic-prototype');
