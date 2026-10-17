@@ -214,6 +214,15 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   assert.equal(diagRes.status,200);
   const x=await diagRes.json();
   assert.equal(x.passive_browser.pending,1);
+  const blueprintResponse=await fetch(base+'/api/runs/'+id+'/passive-blueprint');
+  assert.equal(blueprintResponse.status,200);
+  assert.match(blueprintResponse.headers.get('content-disposition'),/attachment/);
+  const blueprint=await blueprintResponse.json();
+  assert.equal(blueprint.kind,'read-only-f1-f2-blueprint');
+  assert.equal(blueprint.network.causal_links_verified,0);
+  assert.deepEqual(blueprint.network.control_to_api_links,[]);
+  assert.equal(blueprint.network_requests_issued,0);
+  assert.ok(!JSON.stringify(blueprint).includes('HIDDEN'));
   const dependenciesResponse=await fetch(base+'/api/runs/'+id+'/dependencies');
   assert.equal(dependenciesResponse.status,200);
   assert.match(dependenciesResponse.headers.get('content-disposition'),/attachment/);
@@ -231,11 +240,14 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   await fetch(base+'/api/runs/'+id+'/report');
   assert.equal(countRuns,before);
   await fetch(base+'/api/runs/'+id+'/dependencies');
+  await fetch(base+'/api/runs/'+id+'/passive-blueprint');
   assert.equal(countRuns,before);
   const success=await s.store.create({target_url:expected(),mode:'rea-browser'});
   await s.store.update(success.id,{status:'completed',verdict:'PASS'});
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/diagnosis')).status,409);
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/dependencies')).status,404);
+  assert.equal((await fetch(base+'/api/runs/'+success.id+'/passive-blueprint')).status,404);
+  assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/passive-blueprint')).status,404);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
 test('actual local Studio has failure postmortem panel',async()=>{
