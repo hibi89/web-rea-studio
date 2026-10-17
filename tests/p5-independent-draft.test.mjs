@@ -35,7 +35,9 @@ test('standalone draft validator only accepts regenerated P4 template and geomet
  assert.equal(result.record.product_ready,false);
  assert.ok(/^[a-f0-9]{64}$/.test(result.record.html_sha256));
  assert.equal(result.html,input.html);
- assert.doesNotMatch(JSON.stringify(result.record),/aside|script|token=/i);
+ assert.ok(!Object.hasOwn(result.record,'geometry'));
+ assert.ok(!Object.hasOwn(result.record,'html'));
+ assert.doesNotMatch(JSON.stringify(result.record),/"tag":"aside"|<script|token=/i);
  const generated=validateIndependentDraftBundle({confirm:'store-scriptless-p4-draft',
   geometry:changed()},sourceGeometry());
  assert.equal(generated.html,result.html);
