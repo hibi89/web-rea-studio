@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 measured responsive layout acceptance (offline)
+
+The existing anonymized three-by-three geometry sheet now has a required [isolated Chrome computed-layout gate](docs/F3_Q1_COMPUTED_LAYOUT_GATE.md). A **fixed, opt-in, scriptless, in-memory-only** CDP probe reads computed grid columns, nine zone rectangles and document width without touching the original site. The gate verifies desktop 3-column and mobile 1-column order, no horizontal document overflow, and zero native action controls. An intentionally corrupted four-column variant must fail. It is **synthetic generated-output verification only**, not original-site responsive or functional parity. GET/download routes remain unchanged and do not launch Chrome.
+
 ## F3/Q1 anonymous 3×3 geometry preview (offline)
 
 When the same saved failed/interrupted passive capture has consistent F3/Q1 counts, **fully valid observed control rectangles**, a measured computed-DOM viewport, and matching screenshot/report dimensions, Studio can additionally offer a [coarsely geometry-binned anonymous HTML preview](docs/F3_Q1_ANONYMOUS_COARSE_GEOMETRY.md) via `/api/runs/:id/f3-q1-geometry-preview` and separate download/receipt endpoints. Only coarse 3×3 positions and width bands are reflected; exact source pixels, labels, URLs, actions or data are never exported. Conflicted/incomplete evidence returns 409 without HTML. Actual isolated Chrome exercised both desktop (1440px) and mobile (390px) *generated output* with **zero real controls or external requests**. This does **not** prove original website appearance, mobile behavior or functional/backend parity.
