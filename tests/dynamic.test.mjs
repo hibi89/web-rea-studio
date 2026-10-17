@@ -105,6 +105,18 @@ test('complete passive capture remains capture PASS without claiming visual equi
 });
 
 
+test('an invisible fetch rejection or blocked core request fails passive acceptance',()=>{
+ const fetchFailure=assessPassiveRender({application_fetch_error_visible:false},{requested:2,fulfilled:2,blocked:0,pending:0,fetchRejections:1});
+ assert.equal(fetchFailure.verdict,'FAIL');
+ assert.deepEqual(fetchFailure.failures,['fetch_requests_rejected']);
+ const dataFailure=assessPassiveRender({application_fetch_error_visible:false},{requested:3,fulfilled:2,blocked:1,pending:0,criticalBlocked:1});
+ assert.equal(dataFailure.verdict,'FAIL');
+ assert.deepEqual(dataFailure.failures,['critical_resources_blocked']);
+ const cosmetic=assessPassiveRender({application_fetch_error_visible:false},{requested:3,fulfilled:2,blocked:1,pending:0,criticalBlocked:0});
+ assert.equal(cosmetic.verdict,'PASS');
+ assert.equal(cosmetic.render_fidelity,'partial');
+});
+
 test('passive idle barrier waits for a late API request and its completion',async()=>{
  const started=Date.now();let requested=0,settled=0,pending=0;
  const a=setTimeout(()=>{requested++;pending=1;},35);

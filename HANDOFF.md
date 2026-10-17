@@ -91,6 +91,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | P2 실제 앱 상태 판정 보강 | 화면 오류 문구 없이도 JS fetch 거부/핵심 Document·Script·XHR·Fetch 리소스 차단 시 FAIL 판정하도록 코드·테스트 추가. 기존 허용 정책 변경 없음 | 저장된 과거 보고서는 소급 변경되지 않음; 실제 Windows 캡처 검증 대기 |
 | 2026-10-17 | 제작방 2 인계 체계 구축 | 과거 기록 + 현재 GitHub 트리/HEAD/CI를 대조; `HANDOFF.md` 작성 및 AGENTS/README/STATUS 연결을 문서 변경으로 적용 | 다음 기능 작업 전 최신 HEAD 조회; 외부 사이트 `Failed to fetch` 문제 미해결 |
 | 2026-10-17 | F1/F2 상태 그래프 | 코드 커밋 `f91d434...`; GitHub Node+Chrome CI 성공 | 외부 URL에서 비파괴 조작 및 API 인과관계 미검증 |
 | 2026-10-16 | 실제 사이트 P2 동적 캡처 | PNG 및 오류 진단 저장 | 앱 `Failed to fetch`, `PASSIVE_EXTERNAL_FETCH_REJECTED` 미해결 |

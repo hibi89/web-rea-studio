@@ -2,6 +2,11 @@
 
 **Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). GitHub code head `f91d434...` passed Node and isolated Chrome CI. Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
 
+## 2026-10-17 P2 passive capture verdict hardening
+- Added capture FAIL verdict when a client fetch is rejected or core Document/Script/XHR/Fetch resource is blocked, even if literal error text is absent. Report includes `critical_resources_blocked`; cosmetic image/favicon errors alone do not fail application verdict.
+- No external host allowlist changes, active clicks, new credentials, extra network requests, or retroactive report changes.
+- Automated tests added; compare CI results against this exact commit. User Windows/real-dashboard verification is separately pending.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)

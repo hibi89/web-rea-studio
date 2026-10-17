@@ -20,6 +20,8 @@ export function assessPassiveRender(page,metrics){
  const failures=[];
  if(page?.application_fetch_error_visible===true)failures.push('application_fetch_error_visible');
  if(pending>0)failures.push('resource_requests_unsettled');
+ if((metrics.fetchRejections||0)>0)failures.push('fetch_requests_rejected');
+ if((metrics.criticalBlocked||0)>0)failures.push('critical_resources_blocked');
  return {verdict:failures.length?'FAIL':'PASS',failures,pending,
   render_fidelity:failures.length?'incomplete':metrics.blocked?'partial':'unverified'};
 }
@@ -190,7 +192,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
  const profile=await mkdtemp(join(tmpdir(),'webrea-cdp-'));
  const flags=['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-extensions','--disable-component-update','--disable-sync','--disable-quic','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',`--user-data-dir=${profile}`,'about:blank'];
  let child,cdp,sessionId;
- const events=[],metrics={requested:0,fulfilled:0,blocked:0,bytes:0,synthetic_favicons:0},start=Date.now(),tasks=new Set();
+ const events=[],metrics={requested:0,fulfilled:0,blocked:0,criticalBlocked:0,bytes:0,synthetic_favicons:0},start=Date.now(),tasks=new Set();
  const pendingIds=new Set(),networkPaths=new Map();
  let chromeFailures=0;
  try{
@@ -227,6 +229,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
     const request={url:req.request?.url,method:req.request?.method,resourceType:req.resourceType};
     const approved=approveBrowserRequest(request,{target,seen:metrics.requested-1,bytes:metrics.bytes});
     const path=redactedResourcePath(req.request?.url,target);
+    const criticalResource=['Document','Script','XHR','Fetch'].includes(req.resourceType);
     // Record the request even if it remains pending when the screenshot is taken.
     // Only same-origin pathname metadata is retained; query parameters are removed.
     if(events.length<120)events.push({kind:'requested',...sanitizedNetworkTarget(req.request?.url,target),resource_type:req.resourceType});
@@ -245,7 +248,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
      }
      return;
     }
-    if(!approved.allowed){metrics.blocked++;if(events.length<120)events.push({kind:'blocked',...sanitizedNetworkTarget(req.request?.url,target),reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
+    if(!approved.allowed){metrics.blocked++;if(criticalResource)metrics.criticalBlocked++;if(events.length<120)events.push({kind:'blocked',...sanitizedNetworkTarget(req.request?.url,target),resource_type:req.resourceType,reason:approved.reason});await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId);return;}
     try{
      const response=await relay(approved.url);
      if(metrics.bytes+response.body.length>DYNAMIC_LIMITS.maxBytes)throw error('BUDGET_EXHAUSTED','Resource budget');
@@ -257,8 +260,9 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
      if(events.length<120)events.push({kind:'fulfilled',path,status:response.status,bytes:response.body.length});
     }catch(e){
      metrics.blocked++;
+     if(criticalResource)metrics.criticalBlocked++;
      const reason=typeof e.code==='string'&&/^[A-Z_]{3,50}$/.test(e.code)?e.code:'REQUEST_FAILED';
-     if(events.length<120)events.push({kind:'blocked',path,reason});
+     if(events.length<120)events.push({kind:'blocked',path,resource_type:req.resourceType,reason});
      await cdp.send('Fetch.failRequest',{requestId:req.requestId,errorReason:'BlockedByClient'},sessionId).catch(()=>{});
     }
    })();tasks.add(promise);
@@ -343,14 +347,14 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   const networkEvidence=[...events,...telemetry.events].slice(0,100);
   const dependencyMap=summarizePassiveDependencies(networkEvidence,inventory,{
    mode:scriptsDisabled?'static-visual':'dynamic-passive'});
-  const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size});
+  const assessment=assessPassiveRender(page,{...metrics,pending:pendingIds.size,fetchRejections:scriptsDisabled?0:telemetry.rejections});
   const mode=scriptsDisabled?'static-visual':'dynamic-passive';
   const completeness=scriptsDisabled
    ?assessment.verdict==='FAIL'?'incomplete-static-visual':'static-dom-visual-only'
    :assessment.verdict==='FAIL'?'incomplete':metrics.blocked?'partial-resource-load':'passive-browser-only';
   const inspection={schema_version:3,scope:'explicit-https-allowlist',mode,completeness,scripts_executed:!scriptsDisabled,screen_capture:{width:screenshotSize.width,height:screenshotSize.height,variant:captureVariant,truncated:region?.truncated===true&&captureVariant==='full-page-bounded'},
     browser:{product:'Chrome/CDP',version:null},page,exploration:{inventory:page.interaction_inventory,dependencies:dependencyMap},steps:[{step_id:'authorized-navigation',action:'GET',status:'completed',elapsed_ms:Date.now()-start}],network:[...events,...telemetry.events].slice(0,100),network_diagnostics:{browser_failures:chromeFailures,wait_ms:idle.wait_ms,wait_idle:idle.idle,pending_requests:pendingIds.size,fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons},limitations:[...(scriptsDisabled?['JavaScript blocked by CSP; HTML-only visual capture, not real application rendering','No live API calls or interactions']:['Passive fetch/XHR observation (no added HTTP requests)']),'favicon.ico may be locally synthesized','No clicks or form submission','Only same-origin GET resources relayed','No cookies, authentication, redirects or third-party assets','Not a full operating-system network sandbox','No original source-code recovery']};
-  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,controls_discovered:inventory?.counts?.total??0,verified_control_effects:0,p4_regions:geometry?.boxes?.length??0,p4_titles:geometry?.titles?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,screenshot_width:screenshotSize.width,screenshot_height:screenshotSize.height,screenshot_variant:captureVariant,screenshot_truncated:region?.truncated===true&&captureVariant==='full-page-bounded',render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
+  const report={verdict:assessment.verdict,analysis_mode:mode,scripts_executed:!scriptsDisabled,application_render_status:scriptsDisabled?'not-executed':'attempted',failures:assessment.failures,step_count:1,completed_steps:1,resource_requests:metrics.requested,resource_fulfilled:metrics.fulfilled,resource_blocked:metrics.blocked,critical_resources_blocked:metrics.criticalBlocked,resource_pending:assessment.pending,chrome_network_failures:chromeFailures,resource_wait_idle:idle.idle,resource_wait_ms:idle.wait_ms,resource_bytes:metrics.bytes,layout_elements:layout?.components?.length??0,controls_discovered:inventory?.counts?.total??0,verified_control_effects:0,p4_regions:geometry?.boxes?.length??0,p4_titles:geometry?.titles?.length??0,layout_capture_status:layout?'captured':'unavailable',capture_status:'screenshot-captured',fetch_attempts:telemetry.fetches,fetch_rejections:telemetry.rejections,xhr_attempts:telemetry.xhrs,synthetic_favicons:metrics.synthetic_favicons,screenshot_saved:true,screenshot_sha256,screenshot_width:screenshotSize.width,screenshot_height:screenshotSize.height,screenshot_variant:captureVariant,screenshot_truncated:region?.truncated===true&&captureVariant==='full-page-bounded',render_fidelity:scriptsDisabled?'static-html-only':assessment.render_fidelity,application_fetch_error_visible:page.application_fetch_error_visible===true,note:scriptsDisabled?'JS blocked by script-src none CSP: HTML-only visual snapshot. No original app functionality, live API data, or parity validated.':'PNG/DOM capture is separate from application render success; failures indicate incomplete data loading. No clicks or complete reconstruction.'};
   return {report,inspection};
  }finally{
   if(cdp){try{await cdp.send('Browser.close',{},undefined,1500);}catch{}cdp.close();}
