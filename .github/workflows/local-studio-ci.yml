@@ -97,10 +97,19 @@ jobs:
           if (-not $found) { throw "Real Chrome missing on Windows runner; do not infer browser acceptance" }
           "CHROME_BIN=$found" >> $env:GITHUB_ENV
           & $found --version
-      - name: Run real Windows local Studio startup and loopback smoke
+      - name: Run Windows isolated Studio smoke with existing legacy run present
         timeout-minutes: 3
         shell: pwsh
-        run: node scripts/windows-studio-startup-smoke.mjs
+        run: |
+          $legacy = Join-Path (Get-Location) 'results/studio/runs/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+          New-Item -ItemType Directory -Path $legacy -Force | Out-Null
+          try {
+            Set-Content -LiteralPath (Join-Path $legacy 'metadata.json') -Value '{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","status":"completed"}'
+            node scripts/windows-studio-startup-smoke.mjs
+            if ($LASTEXITCODE -ne 0) { throw "Isolated Windows Studio smoke failed" }
+          } finally {
+            Remove-Item -LiteralPath $legacy -Recurse -Force -ErrorAction SilentlyContinue
+          }
       - name: Run real Windows Chrome P4 offline acceptance
         timeout-minutes: 4
         shell: pwsh
