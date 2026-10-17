@@ -1,7 +1,7 @@
 // First measured F5 edit -> replay -> improve -> replay, completely offline.
 // Deliberately NOT a general website repair proof.
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {runDynamicAnalysis} from '../studio/dynamic-browser.mjs';
@@ -19,6 +19,7 @@ const target='https://p5-repair-source.example.org/';
 const root=await mkdtemp(join(tmpdir(),'webrea-p5-repair-'));
 let requests=0;
 async function capture(dir,url,html){
+ await mkdir(dir,{recursive:true,mode:0o700});
  return runDynamicAnalysis({target:url,browserPath:chrome,dir,scriptsDisabled:true,
   relay:async (requested)=>{
    requests++;
