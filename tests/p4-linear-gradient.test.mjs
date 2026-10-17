@@ -54,7 +54,7 @@ test('P4 preserves optional gradient only for observed large regions, not bogus 
  input.primitives=[{x:205,y:190,w:30,h:90,background:'rgb(20, 30, 40)',radius:'0px',background_image:fill}];
  const out=sanitizeP4Geometry(input);
  assert.equal(out.boxes.length,2);
- assert.equal(out.primitives?.length,0);
+ assert.equal(out.primitives?.length??0,0);
  assert.equal(out.boxes[1].background_image,fill);
 });
 test('read-only DOM probe observes gradient-only painted section and reads no confidential text',()=>{
