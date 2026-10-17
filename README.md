@@ -49,6 +49,10 @@ For an already failed/interrupted passive analysis, the local Studio failure ins
 
 **Limitations:** The tool does **not** reconstruct private server source, analyze unauthorised domains, bypass authentication or make unrestricted external browser requests. Static external analysis does not execute JavaScript or take screenshots.
 
+## Owner Windows one-command offline self-test
+
+The owner can run `npm run accept:local` **in the local Windows clone** to verify the actual machine's Node regression suite, locally installed npm/Chrome, loopback Studio startup and real synthetic P4/F5 Chrome repair. This is a **user-triggered offline check**, not a live-site replay, a third-party REA install or source API permission. Every run creates a new **private redacted** result JSON in `results/acceptance/` (already Git-ignored), with stage results and generic error codes but no site URLs, raw HTML, browser profile, token or local user path. CI separately exercises this same entrypoint, while the owner-PC result remains unknown until run there. [Detailed commands and limits](docs/WINDOWS_OWNER_ONE_COMMAND_ACCEPTANCE.md).
+
 ## Verified GitHub Windows offline compatibility (2026-10-17)
 
 Beyond Linux, [both Windows and Linux CI jobs now pass](https://github.com/hibi89/web-rea-studio/actions/runs/39004521346) at code SHA `ee839bf2`: real Windows Node **205/205**, no-download npx launcher preflight, actual local Studio startup with a path containing spaces and loopback Host protection, real Windows Chrome P4 capture, and stored user P4 draft → Chrome F5 x/width correction (RGB MAE **2.41 → 1.61**, two accepted edits). No real third-party website or API is contacted.
