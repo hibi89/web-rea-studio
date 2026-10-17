@@ -50,5 +50,5 @@ test('sanitized labels and dangerous data cannot be injected into standalone HTM
  assert.equal(contract.total,4);
  const html=generateObservedControlMapHtml(geometry,contract);
  assert.doesNotMatch(html,/<script\b|alert\(1\)|example.org|tester@example.com|DUPLICATE|PRIVATE/);
- assert.match(html,/&lt;|&gt;|\[URL\]/);
+ assert.match(html,/&lt;|&gt;|\[EMAIL\]/);
 });

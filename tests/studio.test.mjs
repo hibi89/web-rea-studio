@@ -337,7 +337,7 @@ test('P4 static-visual capture persists isolated reconstruction once and serves 
   const mapped=await controlResponse.text();
   assert.match(mapped,/data-id="control-001"/);
   assert.match(mapped,/type="button" disabled/);
-  assert.doesNotMatch(mapped,/<script\\b|<input\\b|<form\\b|https?:\\/\\//);
+  assert.doesNotMatch(mapped,/<script\b|<input\b|<form\b|https?:\/\//);
   const controlDownload=await fetch(base+'/api/runs/'+id+'/control-map-download');
   assert.equal(controlDownload.status,200);
   assert.match(controlDownload.headers.get('content-disposition'),/attachment.*html/);

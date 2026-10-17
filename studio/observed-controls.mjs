@@ -1,7 +1,7 @@
 import {sanitizeP4Geometry,generateP4Reconstruction} from './p4-reconstruction.mjs';
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const num=(n,max)=>Number.isFinite(n)?Math.max(0,Math.min(max,Math.round(n))):0;
-const label=s=>typeof s==='string'?s.replace(/https?:\/\/\S+/gi,'[URL]').replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi,'[EMAIL]').replace(/[A-Za-z0-9_-]{20,}/g,'[REDACTED]').replace(/[<>]/g,'').slice(0,64):'';
+const label=s=>typeof s==='string'&&!/[<>]/.test(s)?s.replace(/https?:\/\/\S+/gi,'[URL]').replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi,'[EMAIL]').replace(/[A-Za-z0-9_-]{20,}/g,'[REDACTED]').replace(/[<>]/g,'').slice(0,64):'';
 const kinds=['button','link','tab','input','select','textarea','interactive'];
 export function buildObservedControlContract(geometry,inventory){
  const g=sanitizeP4Geometry(geometry);
