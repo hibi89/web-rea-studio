@@ -185,8 +185,18 @@ const browserJs=`(()=>{
  * All browser network requests route through a bounded Node HTTPS relay, while
  * browser DNS resolution and proxy use are disabled as defense in depth.
  */
-export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs,scriptsDisabled=false}={}){
+export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGatewayResource,launch=spawn,timeoutMs=DYNAMIC_LIMITS.maxDurationMs,scriptsDisabled=false,offlineViewport=null}={}){
  if(typeof scriptsDisabled!=='boolean')throw error('INVALID_RENDER_OPTION','scriptsDisabled must be boolean');
+ // Custom viewports are only available for script-disabled, memory-relayed
+ // comparison experiments. Never alter the approved live-site capture contract.
+ if(offlineViewport!==null&&(!scriptsDisabled||relay===fetchGatewayResource||
+    typeof relay!=='function'||!offlineViewport||
+    Object.keys(offlineViewport).sort().join(',')!=='height,width'||
+    !Number.isInteger(offlineViewport.width)||offlineViewport.width<360||offlineViewport.width>1440||
+    !Number.isInteger(offlineViewport.height)||offlineViewport.height<400||offlineViewport.height>900))
+  throw error('OFFLINE_VIEWPORT_REJECTED','Custom viewport requires bounded scriptless offline relay');
+ const actualViewport=offlineViewport?{...STATIC_VISUAL_VIEWPORT,
+  width:offlineViewport.width,height:offlineViewport.height}:STATIC_VISUAL_VIEWPORT;
  validateHttpsUrl(target);
  if(typeof browserPath!=='string'||!browserPath.trim())throw error('BROWSER_NOT_FOUND','Chrome path required');
  const profile=await mkdtemp(join(tmpdir(),'webrea-cdp-'));
@@ -203,7 +213,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   sessionId=(await cdp.send('Target.attachToTarget',{targetId:created.targetId,flatten:true})).sessionId;
   await cdp.send('Page.enable',{},sessionId);
   // Only the opt-in Static Visual mode changes viewport size.
-  if(scriptsDisabled)await cdp.send('Emulation.setDeviceMetricsOverride',STATIC_VISUAL_VIEWPORT,sessionId);
+  if(scriptsDisabled)await cdp.send('Emulation.setDeviceMetricsOverride',actualViewport,sessionId);
   await cdp.send('Network.enable',{},sessionId);
   await cdp.send('Network.setBypassServiceWorker',{bypass:true},sessionId);
   await cdp.send('Runtime.enable',{},sessionId);
@@ -290,7 +300,7 @@ export async function runDynamicAnalysis({target,browserPath,dir,relay=fetchGate
   if(scriptsDisabled){
    try{
     const m=await cdp.send('Page.getLayoutMetrics',{},sessionId,2500);
-    region=staticVisualCaptureSpec(m);
+    region=staticVisualCaptureSpec(m,{width:actualViewport.width,height:actualViewport.height});
    }catch{}
   }
   let shot;
