@@ -575,14 +575,16 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(active||colorRepairActive.size)return respond(res,409,{error:'local_analysis_busy'});
     if(await readIndependentDraftReceipt(store,id))
      return respond(res,409,{error:'draft_already_stored'});
-    let raw='',tooLarge=false;
+    const incoming=[];let size=0,tooLarge=false;
     for await(const chunk of req){
-     raw+=chunk.toString('utf8');
-     if(Buffer.byteLength(raw)>MAX_INDEPENDENT_DRAFT_BODY){tooLarge=true;break;}
+     size+=chunk.length;
+     if(size>MAX_INDEPENDENT_DRAFT_BODY){tooLarge=true;break;}
+     incoming.push(chunk);
     }
     if(tooLarge)return respond(res,413,{error:'draft_too_large'});
     let bundle;
-    try{bundle=JSON.parse(raw);}catch{return respond(res,400,{error:'invalid_json'});}
+    try{bundle=JSON.parse(Buffer.concat(incoming,size).toString('utf8'));}
+    catch{return respond(res,400,{error:'invalid_json'});}
     try{
      const saved=await saveIndependentDraftBundle({
       store,id,bundle,originalGeometry:inspection.page.reconstruction_blueprint
