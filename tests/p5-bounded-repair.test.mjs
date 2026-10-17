@@ -45,6 +45,24 @@ test('repair plan picks one safe grounded style token at a time',()=>{
  assert.equal(broken().boxes[0].background,'rgb(0, 0, 0)');
 });
 
+test('page paint repair updates its covering body region as one semantic patch',()=>{
+ const ref=reference();
+ ref.boxes.unshift({tag:'body',depth:1,x:0,y:0,w:1440,h:900,
+  background:'rgb(240, 240, 240)',border_width:'0px',radius:'0px'});
+ const flawed=structuredClone(ref);
+ flawed.background='rgb(0, 0, 0)';
+ flawed.boxes[0].background='rgb(0, 0, 0)';
+ flawed.boxes[1].background='rgb(0, 0, 0)';
+ const first=proposeSafeP4ColorRepair(ref,flawed);
+ assert.equal(first.patch.kind,'page-background');
+ assert.equal(first.geometry.background,ref.background);
+ assert.equal(first.geometry.boxes[0].background,ref.boxes[0].background);
+ assert.equal(first.geometry.boxes[1].background,'rgb(0, 0, 0)');
+ const second=proposeSafeP4ColorRepair(ref,first.geometry);
+ assert.equal(second.patch.kind,'painted-region-color');
+ assert.equal(second.patch.region_index,1);
+});
+
 test('bounded repair accepts two independently measured improvements without certifying product',async()=>{
  let calls=0;
  const out=await runBoundedP4ColorRepair({referenceGeometry:reference(),startingGeometry:broken(),
