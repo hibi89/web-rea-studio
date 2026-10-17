@@ -41,6 +41,9 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
   .filter(e=>e&&e.kind==='fetch-attempt'&&e.scope==='other-origin'&&typeof e.host==='string'&&/^[a-z0-9.-]{1,180}$/.test(e.host))
   .map(e=>e.host));
  const rejectedHost=rejectedExternalHosts.find(host=>attemptedExternalHosts.has(host))||null;
+ const reviewHosts=rejectedExternalHosts.filter(host=>attemptedExternalHosts.has(host)).slice(0,8);
+ const criticalBlocks=Number.isInteger(report?.critical_resources_blocked)&&report.critical_resources_blocked>0?report.critical_resources_blocked:0;
+ const fetchRejections=Number.isInteger(report?.fetch_rejections)&&report.fetch_rejections>0?report.fetch_rejections:0;
  const isExternalFetchRejection=isPassive&&rejectedHost!==null&&
    report?.application_fetch_error_visible===true&&
    (report?.fetch_rejections??inspection?.network_diagnostics?.fetch_rejections??0)>0;
@@ -48,9 +51,15 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
   oldNetwork.some(e=>e?.kind==='requested'&&e.path==='/favicon.ico')&&
   !oldNetwork.some(e=>e?.kind==='requested'&&e.path!=='/'&&e.path!=='/favicon.ico');
  const diagnosis=directDiagnosis==='UNKNOWN'&&isExternalFetchRejection?'PASSIVE_EXTERNAL_FETCH_REJECTED':
+  directDiagnosis==='UNKNOWN'&&criticalBlocks>0?'PASSIVE_CRITICAL_RESOURCE_BLOCKED':
+  directDiagnosis==='UNKNOWN'&&fetchRejections>0?'PASSIVE_FETCH_REJECTED_UNATTRIBUTED':
   directDiagnosis==='UNKNOWN'&&pendingFaviconOnly?'PASSIVE_FAVICON_PENDING':directDiagnosis;
  const nextAction=isExternalFetchRejection?
   'A page fetch to external host '+rejectedHost+' was rejected. Current passive browser enforces same-origin CSP and same-origin GET relay. This likely explains the visible data-load error, but CORS and remote-server availability remain unverified. Do not approve external requests automatically; first confirm ownership or authorization for the external API host.' :
+  diagnosis==='PASSIVE_CRITICAL_RESOURCE_BLOCKED'?
+  'A core document, script or API request was blocked. Inspect saved request reasons before changing permissions; external API necessity and reachability remain unverified.' :
+  diagnosis==='PASSIVE_FETCH_REJECTED_UNATTRIBUTED'?
+  'Application fetch failed without a matching saved external host. Inspect sanitized browser failures; this alone does not justify new external API access.' :
   pendingFaviconOnly?
   'Only /favicon.ico was pending; no report API call was recorded. This does not explain the Failed to fetch screen. Run the updated passive diagnostics once to identify fetch/XHR attempts.' :
   isPassive&&diagnosis==='UNKNOWN'?
@@ -75,6 +84,10 @@ export async function diagnoseRuns(root=defaultRunStorageDir(),requestedId){
     failures:Array.isArray(report?.failures)?report.failures.filter(x=>/^[a-z_]{3,50}$/.test(x)).slice(0,10):[],
     requested:report?.resource_requests??null,fulfilled:report?.resource_fulfilled??null,
     blocked:report?.resource_blocked??null,pending:report?.resource_pending??null,
+    critical_resource_blocks:report?.critical_resources_blocked??null,
+    external_permission_review:{approved:false,additional_requests_sent:false,
+      evidence:'matched_saved_fetch_attempt_and_rejection',candidate_hosts:reviewHosts,
+      requires_explicit_approval:reviewHosts.length>0},
     browser_failures:report?.chrome_network_failures??null,
     fetch_attempts:report?.fetch_attempts??inspection?.network_diagnostics?.fetch_attempts??null,
     fetch_rejections:report?.fetch_rejections??inspection?.network_diagnostics?.fetch_rejections??null,

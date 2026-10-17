@@ -133,6 +133,11 @@ async function loadDiagnosis(id){
    lines.push('요청 '+(p.requested??'—')+' · 성공 '+(p.fulfilled??'—')+' · 차단 '+(p.blocked??'—')+' · 미완료 '+(p.pending??'—')+' · 네트워크 오류 '+(p.browser_failures??'—'));
    if(p.fetch_attempts!==null&&p.fetch_attempts!==undefined)lines.push('앱 JS fetch 시도 '+p.fetch_attempts+' · 거부 '+(p.fetch_rejections??'—')+' · XHR open '+(p.xhr_attempts??'—'));
    if(p.synthetic_favicons!==null&&p.synthetic_favicons!==undefined)lines.push('파비콘 로컬 처리 '+p.synthetic_favicons+'건 (실제 사이트 요청 아님)');
+   if(p.critical_resource_blocks!==null&&p.critical_resource_blocks!==undefined)lines.push('핵심 문서·스크립트·API 차단 '+p.critical_resource_blocks+'건');
+   if(p.external_permission_review?.requires_explicit_approval){
+    lines.push('외부 호스트 승인 검토 후보 (자동 허용 없음): '+p.external_permission_review.candidate_hosts.join(', '));
+    lines.push('주의: 호스트 관찰만으로 원인·API 필요성·접근 권한은 확인되지 않습니다.');
+   }
    lines.push('오류 분류: '+(p.failures||[]).join(', '));
    lines.push('최근 요청 경로/호스트 (쿼리 제외):');
    for(const n of p.recent_network_events||[])lines.push('  '+n.kind+' · '+(n.path||n.external_host||'—')+' · '+(n.reason||n.status||'—'));

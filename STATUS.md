@@ -7,6 +7,11 @@
 - No external host allowlist changes, active clicks, new credentials, extra network requests, or retroactive report changes.
 - Automated tests added; compare CI results against this exact commit. User Windows/real-dashboard verification is separately pending.
 
+## 2026-10-17 Read-only passive permission-review follow-up
+- Failed saved passive captures now surface a bounded list of unapproved external hostnames **only when fetch-attempt and fetch-rejected both match**. They are not verified required APIs or authorized hosts.
+- Separate diagnoses handle core Document/Script/XHR/Fetch blocks and fetch rejections without matched external host; the local diagnosis UI displays these without touching the site.
+- No new external requests, allowlist changes, credentials, or previous run data changes. CI/Windows verification remain separate gates.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)

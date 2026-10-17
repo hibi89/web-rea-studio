@@ -62,6 +62,10 @@ test('failed report fetch to different origin gets a clear next action without a
   assert.match(result.next_action,/practice02.61-107-199-22.sslip.io/);
   assert.match(result.next_action,/CORS and remote-server availability remain unverified/);
   assert.equal(result.passive_browser.recent_network_events.at(-1).external_host,'practice02.61-107-199-22.sslip.io');
+  assert.deepEqual(result.passive_browser.external_permission_review.candidate_hosts,['practice02.61-107-199-22.sslip.io']);
+  assert.equal(result.passive_browser.external_permission_review.approved,false);
+  assert.equal(result.passive_browser.external_permission_review.additional_requests_sent,false);
+  assert.equal(result.passive_browser.external_permission_review.requires_explicit_approval,true);
   assert.equal(JSON.stringify(result).includes('SECRET'),false);
   assert.equal(JSON.stringify(result).includes('/private'),false);
  }finally{await rm(root,{recursive:true,force:true});}
@@ -75,7 +79,24 @@ test('a rejected fetch without matching external attempt cannot be misclassified
   await writeFile(join(folder,'report.json'),JSON.stringify({verdict:'FAIL',application_fetch_error_visible:true,fetch_rejections:1}));
   await writeFile(join(folder,'inspection.json'),JSON.stringify({network:[{kind:'fetch-rejected',scope:'other-origin',host:'api.example.net'}]}));
   const result=await diagnoseRuns(root);
-  assert.equal(result.diagnosis,'UNKNOWN');
+  assert.equal(result.diagnosis,'PASSIVE_FETCH_REJECTED_UNATTRIBUTED');
+  assert.deepEqual(result.passive_browser.external_permission_review.candidate_hosts,[]);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('critical data resource block creates safe diagnosis from stored evidence',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'rea-critical-'));
+ const id='b1dc6a18-a23c-4ef3-b01b-478bd2399ed7';
+ try{
+  const dir=join(root,id);await mkdir(dir);
+  await writeFile(join(dir,'metadata.json'),JSON.stringify({id,status:'failed',mode:'dynamic-passive',created_at:'2026-10-17T07:00:00Z'}));
+  await writeFile(join(dir,'report.json'),JSON.stringify({verdict:'FAIL',critical_resources_blocked:1,resource_blocked:1,fetch_rejections:0}));
+  await writeFile(join(dir,'inspection.json'),JSON.stringify({network:[{kind:'blocked',path:'/api/report',resource_type:'Fetch',reason:'HTTP_REJECTED',raw_url:'https://example.com/?token=VERY_PRIVATE'}]}));
+  const r=await diagnoseRuns(root);
+  assert.equal(r.diagnosis,'PASSIVE_CRITICAL_RESOURCE_BLOCKED');
+  assert.equal(r.passive_browser.critical_resource_blocks,1);
+  assert.deepEqual(r.passive_browser.external_permission_review.candidate_hosts,[]);
+  assert.equal(JSON.stringify(r).includes('VERY_PRIVATE'),false);
  }finally{await rm(root,{recursive:true,force:true});}
 });
 

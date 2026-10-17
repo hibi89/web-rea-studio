@@ -15,3 +15,8 @@
 - Node test: critical resource block fails.
 - Node test: cosmetic resource block stays partial, not assumed full fidelity.
 - Existing CI includes Node tests and isolated synthetic Chrome integration. Real Windows and target-host behavior remain unverified until observed.
+
+## Saved-run read-only diagnosis extension
+- Matched cross-origin fetch attempt + rejection hostnames appear as **unapproved permission review candidates**, not guaranteed required backend hosts.
+- Core resources blocked and rejected fetch without matching external host get separate conservative diagnoses.
+- Only previously stored local evidence is inspected. No external network request, no allowance change and no sensitive request path/query exposed.
