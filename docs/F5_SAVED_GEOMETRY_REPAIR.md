@@ -36,3 +36,9 @@ Only after the owner presses the new button, Studio:
 - `tests/studio.test.mjs`: opt-in UI and conditional download.
 - `tests/p5-saved-geometry-chrome-e2e.mjs`: truly isolated Chrome with separately captured synthetic original and explicitly stored independent draft; observes changed painted `div`, verifies normalized draft preflight, independently approves x and width correction, persists only verified HTML, original and draft intact, external HTTP 0.
 - GitHub CI includes all prior P4/F2/F4 and F5 color/viewport/geometry regression steps; record verified SHA and CI status in `HANDOFF.md` before calling this complete.
+
+## Actual isolated Chrome acceptance evidence
+
+The required synthetic Chrome acceptance at functional code SHA `c8f06948977b63bc740300180481f164e88ed3d5` passed [GitHub Actions 39003492896](https://github.com/hibi89/web-rea-studio/actions/runs/39003492896): 205/205 Node regression tests, Chrome F5 saved draft correction and all existing browser suites PASS. The saved P4 draft, not merely a test-local starting geometry, produced an independently observed rendered `div`, passed canonical-draft matching, then accepted **x and w** repairs: screenshot RGB MAE **2.08 → 1.28**. Five offline rendered passes after the synthetic source capture, six in-memory HTML responses total, **zero original-site revisits** and **zero real external API calls**. Original saved screenshot and inspection remained byte-for-byte unchanged.
+
+A subsequent code change also excludes new Studio capture runs during active F5 geometry review and adds an HTTP regression assertion; its own CI must pass before being reported as the latest functional SHA. This limitation does not affect the separately verified prior Chrome end-to-end proof.
