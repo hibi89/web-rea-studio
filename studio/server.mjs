@@ -21,6 +21,7 @@ import {observeGenericControlledApp,verifyGenericControlledReplay} from './gener
 import {normalizeGenericBehaviorEvidence,generateGenericBehaviorHtml} from './generic-behavior.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from './behavior-exploration.mjs';
 import {reviewSavedP5ColorRepair} from './p5-stored-review.mjs';
+import {reviewSavedP5GeometryRepair} from './p5-saved-geometry-repair.mjs';
 import {MAX_INDEPENDENT_DRAFT_BODY,saveIndependentDraftBundle,readIndependentDraftReceipt} from './independent-draft.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
@@ -34,7 +35,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable(),colorRepairExecutor=reviewSavedP5ColorRepair}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable(),colorRepairExecutor=reviewSavedP5ColorRepair,geometryRepairExecutor=reviewSavedP5GeometryRepair}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
@@ -51,6 +52,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
  const store=makeStore(storageDir);
  let active=null;
  const colorRepairActive=new Set(),colorRepairFailures=new Map();
+ const geometryRepairActive=new Set(),geometryRepairFailures=new Map();
  async function begin(input){
   const {url,mode}=classifyTarget(input);
   if(active) return {conflict:true};
@@ -351,12 +353,37 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
     const meta=await store.get(id);
     if(!meta)return respond(res,404,{error:'not_found'});
+    if(what==='geometry-repair'||what==='geometry-repair-download'){
+     if(meta.mode!=='static-visual')return respond(res,404,{error:'geometry_repair_unavailable'});
+     let result;
+     try{result=JSON.parse(await readFile(join(store.pathFor(id),'geometry-repair.json'),'utf8'));}
+     catch(e){if(e.code!=='ENOENT')throw e;}
+     if(what==='geometry-repair-download'){
+      if(result?.downloadable_improved_html!==true||
+         result?.kind!=='saved-independent-p4-geometry-review'||result.accepted<1)
+       return respond(res,404,{error:'verified_geometry_html_unavailable'});
+      let content;
+      try{content=await readFile(join(store.pathFor(id),'geometry-repair.html'),'utf8');}
+      catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'verified_geometry_html_unavailable'});throw e;}
+      return respond(res,200,content,'text/html; charset=utf-8',{
+       'Content-Disposition':'attachment; filename="rea-verified-static-geometry-correction.html"',
+       'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; sandbox"
+      });
+     }
+     if(result)return respond(res,200,result);
+     if(geometryRepairActive.has(id))
+      return respond(res,202,{status:'running',kind:'offline-saved-geometry-review'});
+     if(geometryRepairFailures.has(id))return respond(res,200,{
+      status:'STOPPED_REPLAY_ERROR',kind:'offline-saved-geometry-review',
+      product_ready:false});
+     return respond(res,404,{error:'geometry_repair_not_started'});
+    }
     if(what==='independent-draft-starter'){
      if(meta.mode!=='static-visual'||meta.status!=='completed')
       return respond(res,404,{error:'draft_starter_unavailable'});
@@ -572,7 +599,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        inspection?.mode!=='static-visual'||
        inspection?.page?.reconstruction_blueprint?.source!=='p4-geometry')
      return respond(res,409,{error:'static_geometry_evidence_missing'});
-    if(active||colorRepairActive.size)return respond(res,409,{error:'local_analysis_busy'});
+    if(active||colorRepairActive.size||geometryRepairActive.size)return respond(res,409,{error:'local_analysis_busy'});
     if(await readIndependentDraftReceipt(store,id))
      return respond(res,409,{error:'draft_already_stored'});
     const incoming=[];let size=0,tooLarge=false;
@@ -596,6 +623,52 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       return respond(res,400,{error:e.code});
      throw e;
     }
+   }
+   const geometryPost=/^\/api\/runs\/([a-f0-9-]+)\/geometry-repair$/.exec(path);
+   if(req.method==='POST'&&geometryPost){
+    if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
+    if(req.headers['content-type']!=='application/json')return respond(res,415,{error:'json_required'});
+    const chunks=[];let size=0;
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>256)return respond(res,413,{error:'request_too_large'});
+     chunks.push(chunk);
+    }
+    let input;
+    try{input=JSON.parse(Buffer.concat(chunks,size).toString('utf8'));}
+    catch{return respond(res,400,{error:'invalid_json'});}
+    if(!input||Array.isArray(input)||typeof input!=='object'||
+       Object.keys(input).length!==1||input.confirm!=='offline-geometry-review')
+     return respond(res,400,{error:'explicit_geometry_review_confirmation_required'});
+    const id=geometryPost[1];
+    if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
+    const meta=await store.get(id);
+    if(!meta)return respond(res,404,{error:'not_found'});
+    if(meta.mode!=='static-visual'||meta.status!=='completed')
+     return respond(res,409,{error:'completed_static_visual_required'});
+    const [receipt,report,inspection,comparison,png]=await Promise.all([
+     readIndependentDraftReceipt(store,id),store.getReport(id),store.getInspection(id),
+     store.getComparison(id),store.getScreenshot(id)
+    ]);
+    if(receipt?.status!=='STORED_UNVERIFIED'||report?.reconstruction_available!==true||
+       report?.screenshot_saved!==true||inspection?.mode!=='static-visual'||
+       inspection?.page?.reconstruction_blueprint?.source!=='p4-geometry'||
+       comparison?.schema_version!==2||comparison?.ignored_notice_area!==false||
+       !Buffer.isBuffer(png))
+     return respond(res,409,{error:'saved_independent_geometry_evidence_missing'});
+    try{await readFile(join(store.pathFor(id),'geometry-repair.json'),'utf8');
+     return respond(res,409,{error:'geometry_review_already_finished'});
+    }catch(e){if(e.code!=='ENOENT')throw e;}
+    if(active||colorRepairActive.size||geometryRepairActive.size)
+     return respond(res,409,{error:'local_chrome_already_busy'});
+    geometryRepairActive.add(id);geometryRepairFailures.delete(id);
+    void(async()=>{
+     try{await geometryRepairExecutor({store,id,browserPath,replayExecutor});}
+     catch{geometryRepairFailures.set(id,true);}
+     finally{geometryRepairActive.delete(id);}
+    })();
+    return respond(res,202,{status:'running',kind:'offline-saved-geometry-review',
+     original_site_refetched:false,additional_origins_approved:0});
    }
    const colorPost=/^\/api\/runs\/([a-f0-9-]+)\/color-repair$/.exec(path);
    if(req.method==='POST'&&colorPost){
@@ -627,7 +700,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     try{await readFile(join(store.pathFor(id),'color-repair.json'),'utf8');
      return respond(res,409,{error:'color_review_already_finished'});
     }catch(e){if(e.code!=='ENOENT')throw e;}
-    if(active||colorRepairActive.size)return respond(res,409,{error:'local_chrome_already_busy'});
+    if(active||colorRepairActive.size||geometryRepairActive.size)return respond(res,409,{error:'local_chrome_already_busy'});
     colorRepairActive.add(id);
     colorRepairFailures.delete(id);
     void (async()=>{
