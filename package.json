@@ -10,7 +10,8 @@
     "check": "node scripts/check-host.mjs",
     "studio": "node studio/start.mjs",
     "diagnose": "node studio/diagnose.mjs",
-    "check:launcher": "node studio/check-launcher.mjs"
+    "check:launcher": "node studio/check-launcher.mjs",
+    "accept:local": "node scripts/local-acceptance.mjs"
   },
   "engines": {
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
