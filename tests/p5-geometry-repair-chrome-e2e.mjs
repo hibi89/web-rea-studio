@@ -36,7 +36,7 @@ try{
  const damaged=structuredClone(baseline.geometry);
  const aside=damaged.boxes.find(b=>b.tag==='aside');
  aside.x+=28;
- aside.w+=24;
+ aside.w+=54; // clearly measurable while inside the 64px safety budget
  let captured=0;
  const results=await runBoundedP4GeometryRepair({
   referenceGeometry:baseline.geometry,startingGeometry:damaged,
