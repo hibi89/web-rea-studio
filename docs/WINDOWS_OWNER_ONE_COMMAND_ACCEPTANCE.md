@@ -45,3 +45,13 @@ The owner can share this specific JSON report for troubleshooting after a person
 ## Remaining development priorities
 
 After owner-machine acceptance, inspect a personally reviewed redacted Q1 support/permission preflight packet for the specific failed dashboard. Do not grant external API access or alter target scope without explicit approval of the exact domain/path/method/rate and data handling. Improve generic multi-state/visual repair within the fixed original safety limits.
+
+## First verified integration run (GitHub Windows runner, 2026-10-17)
+
+Functional SHA `c77a5e8d6a29e67c4a1266bfb5375d21eee7c937`, [Windows GitHub Actions run 39006172347](https://github.com/hibi89/web-rea-studio/actions/runs/39006172347):
+
+- **Owner-style `npm run accept:local` executed by the actual Windows runner: PASS.** Five proof-gated steps passed, and a locally ignored `results/acceptance/acceptance-*.json` receipt was actually generated. The CLI itself was exercised end-to-end; this is not only a mocked unit test.
+- Windows Node **209/209 PASS**, local npm launcher PASS, local Studio startup/Host rules PASS, actual Chrome P4 PASS, actual Chrome F5 saved-draft pass with **two accepted `x,w` changes and MAE 2.41→1.61**.
+- The receipt contains only allowlisted results; tests check that injected credential-like strings and actual browser/user paths are not included.
+- The Windows GitHub job concluded SUCCESS. The separate Linux job completes independently; check its final run conclusion before describing both OS jobs as completed.
+- Owner's actual PC is still **UNTESTED**. Running this command on GitHub infrastructure cannot inspect, validate, or modify a user's own Windows installation.
