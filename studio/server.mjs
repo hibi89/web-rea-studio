@@ -21,6 +21,7 @@ import {observeGenericControlledApp,verifyGenericControlledReplay} from './gener
 import {normalizeGenericBehaviorEvidence,generateGenericBehaviorHtml} from './generic-behavior.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from './behavior-exploration.mjs';
 import {reviewSavedP5ColorRepair} from './p5-stored-review.mjs';
+import {MAX_INDEPENDENT_DRAFT_BODY,saveIndependentDraftBundle,readIndependentDraftReceipt} from './independent-draft.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
 const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
@@ -350,12 +351,23 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
     const meta=await store.get(id);
     if(!meta)return respond(res,404,{error:'not_found'});
+    if(what==='independent-draft'||what==='independent-draft-download'){
+     if(meta.mode!=='static-visual')return respond(res,404,{error:'independent_draft_unavailable'});
+     const receipt=await readIndependentDraftReceipt(store,id);
+     if(!receipt)return respond(res,404,{error:'independent_draft_not_stored'});
+     if(what==='independent-draft')return respond(res,200,receipt);
+     const document=await readFile(join(store.pathFor(id),'independent-draft.html'),'utf8');
+     return respond(res,200,document,'text/html; charset=utf-8',{
+      'Content-Disposition':'attachment; filename="rea-unverified-independent-static-draft.html"',
+      'Content-Security-Policy':"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; sandbox"
+     });
+    }
     if(what==='color-repair'||what==='color-repair-download'){
      if(meta.mode!=='static-visual')return respond(res,404,{error:'color_repair_unavailable'});
      let receipt;
@@ -531,6 +543,46 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       });
     }
     return respond(res,200,meta);
+   }
+   const draftPost=/^\/api\/runs\/([a-f0-9-]+)\/independent-draft$/.exec(path);
+   if(req.method==='POST'&&draftPost){
+    if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
+    if(req.headers['content-type']!=='application/json')return respond(res,415,{error:'json_required'});
+    if(Number(req.headers['content-length']||0)>MAX_INDEPENDENT_DRAFT_BODY)
+     return respond(res,413,{error:'draft_too_large'});
+    const id=draftPost[1];
+    if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
+    const meta=await store.get(id);
+    if(!meta)return respond(res,404,{error:'not_found'});
+    if(meta.mode!=='static-visual'||meta.status!=='completed')
+     return respond(res,409,{error:'completed_static_visual_required'});
+    const report=await store.getReport(id),inspection=await store.getInspection(id);
+    if(report?.reconstruction_available!==true||
+       inspection?.mode!=='static-visual'||
+       inspection?.page?.reconstruction_blueprint?.source!=='p4-geometry')
+     return respond(res,409,{error:'static_geometry_evidence_missing'});
+    if(active||colorRepairActive.size)return respond(res,409,{error:'local_analysis_busy'});
+    if(await readIndependentDraftReceipt(store,id))
+     return respond(res,409,{error:'draft_already_stored'});
+    let raw='',tooLarge=false;
+    for await(const chunk of req){
+     raw+=chunk.toString('utf8');
+     if(Buffer.byteLength(raw)>MAX_INDEPENDENT_DRAFT_BODY){tooLarge=true;break;}
+    }
+    if(tooLarge)return respond(res,413,{error:'draft_too_large'});
+    let bundle;
+    try{bundle=JSON.parse(raw);}catch{return respond(res,400,{error:'invalid_json'});}
+    try{
+     const saved=await saveIndependentDraftBundle({
+      store,id,bundle,originalGeometry:inspection.page.reconstruction_blueprint
+     });
+     return respond(res,201,saved);
+    }catch(e){
+     if(e.code==='EEXIST')return respond(res,409,{error:'draft_files_already_present'});
+     if(typeof e.code==='string'&&e.code.startsWith('DRAFT_'))
+      return respond(res,400,{error:e.code});
+     throw e;
+    }
    }
    const colorPost=/^\/api\/runs\/([a-f0-9-]+)\/color-repair$/.exec(path);
    if(req.method==='POST'&&colorPost){
