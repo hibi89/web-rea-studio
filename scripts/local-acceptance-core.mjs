@@ -1,6 +1,12 @@
 // Pure owner-PC offline acceptance policy. No URLs, secrets, filesystem
 // paths or third-party evidence are admitted into the persisted receipt.
 const VERSION=1;
+// Pin the Node test runner's machine-readable reporter. Node 22/24 can
+// otherwise emit different default output (TAP vs spec), depending on
+// terminal/configuration, even when the tests exit successfully.
+export const NODE_REGRESSION_ARGS=Object.freeze([
+ '--test','--test-reporter=tap','scripts/*.test.mjs','tests/*.test.mjs'
+]);
 export const STEPS=Object.freeze([
  {id:'node-regressions',script:null,timeout_ms:120000},
  {id:'local-npx-launcher',script:'studio/check-launcher.mjs',timeout_ms:30000},
@@ -34,11 +40,20 @@ export function validateOwnerAcceptanceEnvironment({platform=process.platform,
 }
 export function extractSafeAcceptanceProof(id,stdout=''){
  if(id==='node-regressions'){
-  const n=/^# tests (\d+)\s*$/m.exec(stdout)?.[1];
-  const passed=/^# pass (\d+)\s*$/m.exec(stdout)?.[1];
-  const failed=/^# fail (\d+)\s*$/m.exec(stdout)?.[1];
-  if(!n||!passed||failed!=='0'||Number(n)!==Number(passed)||Number(n)<205)return null;
-  return {tests:Number(n),passed:Number(passed),failed:0};
+  // Also recognize Node's 'spec' footer from user machines that applied
+  // a local reporter setting. This is a strict summary (not an exit-0
+  // assumption); incomplete, conflicting or failed summaries are rejected.
+  const plain=String(stdout).replace(/\x1b\[[0-9;]*m/g,'');
+  const lines=plain.split(/\r?\n/).map(x=>x.trim());
+  const counts={tests:[],pass:[],fail:[]};
+  for(const line of lines){
+   const m=/^(?:#|ℹ\uFE0F?)\s*(tests|pass|fail)\s+(\d+)\s*$/.exec(line);
+   if(m)counts[m[1]].push(Number(m[2]));
+  }
+  if(Object.values(counts).some(a=>a.length!==1))return null;
+  const [n,passed,failed]=[counts.tests[0],counts.pass[0],counts.fail[0]];
+  if(!Number.isSafeInteger(n)||n<205||passed!==n||failed!==0)return null;
+  return {tests:n,passed,failed:0};
  }
  if(id==='local-npx-launcher'){
   const p=stdout;
