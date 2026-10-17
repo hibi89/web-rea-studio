@@ -105,3 +105,7 @@ jobs:
         timeout-minutes: 8
         shell: pwsh
         run: node tests/p5-saved-geometry-chrome-e2e.mjs
+      - name: Run owner-style one-command local acceptance on Windows
+        timeout-minutes: 7
+        shell: pwsh
+        run: npm run accept:local
