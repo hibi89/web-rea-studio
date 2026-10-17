@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {runDynamicAnalysis,screenshotPngDimensions} from '../studio/dynamic-browser.mjs';
 import {generateP4Reconstruction} from '../studio/p4-reconstruction.mjs';
-import {compareChromeScreenshots} from '../studio/p5-visual-diff.mjs';
+import {compareChromeScreenshots,evaluateStaticVisualGate} from '../studio/p5-visual-diff.mjs';
 import {compareP4Geometry} from '../studio/p5-geometry-diff.mjs';
 import {buildEvidenceManifest} from '../studio/evidence-manifest.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from '../studio/observed-controls.mjs';
@@ -143,6 +143,15 @@ try{
   assert.equal(regionMetrics.status,'measured-not-certified');
   assert.ok(regionMetrics.original_regions>=5);
   assert.ok(regionMetrics.region_match_pct>=70,JSON.stringify(regionMetrics));
+  compared.geometry=regionMetrics;
+  const quality=evaluateStaticVisualGate(compared);
+  assert.equal(compared.ignored_notice_area,false,'Must assess full replica including its notice');
+  assert.equal(compared.coverage_pct,100);
+  assert.equal(compared.missing_sample_count,0);
+  assert.equal(quality.status,'VISUAL_THRESHOLD_MET_STATIC_ONLY',JSON.stringify(quality));
+  assert.equal(quality.product_ready,false);
+  assert.equal(quality.functional_equivalence_verified,false);
+  console.log(JSON.stringify({p5_chrome_visual_quality_gate:quality}));
   console.log(JSON.stringify({p5_chrome_geometry_comparison:regionMetrics}));
   console.log(JSON.stringify({p5_chrome_visual_comparison:compared}));
  }finally{await rm(replayDir,{recursive:true,force:true});}
