@@ -243,6 +243,8 @@ test('actual local Studio has failure postmortem panel',async()=>{
  const js=await(await fetch(url+'/app.js')).text();
  assert.match(h,/id="diagnosis-panel"/);
  assert.match(js,/\/diagnosis/);
+  assert.match(h,/id="download-dependencies"/);
+  assert.match(js,/\/dependencies/);
 });
 
 test('frontend blueprint inspector appears in local Studio UI, not in mock Vercel preview',async()=>{

@@ -127,6 +127,10 @@ async function loadDiagnosis(id){
   const x=await api('/api/runs/'+id+'/diagnosis');
   if(state.id!==id)return;
   const p=x.passive_browser;
+  const link=el('download-dependencies');
+  link.hidden=!p;
+  if(p)link.href='/api/runs/'+id+'/dependencies';
+  else link.removeAttribute('href');
   const lines=['진단 코드: '+(x.diagnosis||'UNKNOWN'), '상태: '+x.status+' / 방식: '+(x.mode||'—')];
   if(p){
    lines.push('브라우저 판정: '+(p.verdict||'UNKNOWN'));
@@ -141,6 +145,19 @@ async function loadDiagnosis(id){
    lines.push('오류 분류: '+(p.failures||[]).join(', '));
    lines.push('최근 요청 경로/호스트 (쿼리 제외):');
    for(const n of p.recent_network_events||[])lines.push('  '+n.kind+' · '+(n.path||n.external_host||'—')+' · '+(n.reason||n.status||'—'));
+  }
+  if(p){
+   try{
+    const review=await api('/api/runs/'+id+'/dependencies');
+    if(state.id!==id)return;
+    lines.push('저장된 API 의존성: 네트워크 이벤트 '+review.summary.events_saved+'개 · 대상 그룹 '+review.summary.dependencies+'개');
+    for(const dep of review.dependencies.slice(0,10)){
+     const label=dep.scope==='external'?'외부 호스트 '+dep.host:'승인된 사이트 경로 '+dep.path;
+     lines.push('  '+label+' · fetch '+dep.fetch_attempts+' / 거부 '+dep.fetch_rejections+' · 차단 '+dep.blocked+' · '+dep.assessment);
+    }
+    if(review.summary.missing_fetch_details)lines.push('누락된 요청 증거가 있어 실제 서버/API 작동 원인을 확정할 수 없습니다.');
+    lines.push('이 요약은 저장된 기록만 읽으며 새로운 외부 요청을 하지 않습니다.');
+   }catch{lines.push('저장된 API 의존성 정보를 불러오지 못했습니다. 기존 진단은 유지됩니다.');}
   }
   lines.push('다음 단계: '+(x.next_action||'실패 단계 확인'));
   lines.push('주의: 원본 로그, 인증정보, 쿼리 문자열은 표시하지 않습니다.');
@@ -187,6 +204,8 @@ function setCurrent(run){
  el('p5-comparison').hidden=true;
  for(const key of ['p5-original','p5-replica'])el(key).removeAttribute('src');
  el('diagnosis-panel').hidden=true;
+ el('download-dependencies').hidden=true;
+ el('download-dependencies').removeAttribute('href');
  el('diagnosis-copy-status').textContent='';
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');

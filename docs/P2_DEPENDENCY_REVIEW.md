@@ -15,3 +15,7 @@
 ## Testing and remaining boundaries
 - Unit tests and local Studio route tests included in `npm test`; CI Chrome suites continue unchanged.
 - Windows execution, target live rendering, external host authorization and real F1/F2 behavior remain unverified.
+
+## Failure inspector UI
+- Selecting a saved failed `dynamic-passive` analysis shows an up-to-ten-row dependency summary with data completeness warning and `API 의존성 JSON` download link. It reuses `GET /api/runs/:id/dependencies` and never re-runs analysis.
+- Non-passive failed analyses have no dependency link. Local Windows UI acceptance is outstanding.

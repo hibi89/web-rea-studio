@@ -17,6 +17,10 @@
 - Unit, redaction and local HTTP route tests added. New commit CI and Windows real capture must be checked separately; live data-loading problem is unresolved.
 - Detail in `docs/P2_DEPENDENCY_REVIEW.md`.
 
+## 2026-10-17 P2 local dependency review UI
+- Failed passive-run diagnosis panel now shows bounded, saved-evidence dependency summary and a local JSON download link. It uses only the already-tested read-only local API; no extra target fetch or authorization.
+- UI availability and DOM tests added. Actual Windows UI and live backend remain unverified.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)
