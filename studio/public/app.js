@@ -1,5 +1,5 @@
 const el=id=>document.getElementById(id);
-const state={id:null,timer:null};
+const state={id:null,timer:null,repairTimer:null};
 async function api(url,options){const res=await fetch(url,{cache:'no-store',...options});const body=await res.json();if(!res.ok)throw Error(body.error||`HTTP ${res.status}`);return body;}
 function show(msg){el('error').textContent=msg||'';}
 function diagnostic(run){const area=el('run-error');if(run.status==='failed'||run.status==='interrupted'){area.hidden=false;area.textContent=`분석 실패 · ${run.error_code||'CHECK_LOG'} · ${run.error||'실행 기록을 확인하십시오'}`+(run.diagnostic_path?` · 진단 로그: ${run.diagnostic_path}`:'');}else{area.hidden=true;area.textContent='';}}
@@ -195,6 +195,54 @@ el('copy-diagnosis').addEventListener('click',async()=>{
  }catch{el('diagnosis-copy-status').textContent='자동 복사 불가. 위 텍스트를 선택해 복사하세요.';}
 });
 
+async function refreshColorReview(id){
+ const button=el('run-color-review'),status=el('color-review-status'),link=el('download-color-review');
+ if(state.id!==id)return;
+ clearTimeout(state.repairTimer);
+ link.hidden=true;link.removeAttribute('href');
+ try{
+  const result=await api('/api/runs/'+id+'/color-repair');
+  if(state.id!==id)return;
+  if(result.status==='running'){
+   button.disabled=true;
+   status.textContent='로컬 Chrome에서 독립 HTML만 재검증 중입니다. 원본 사이트는 재요청하지 않습니다.';
+   state.repairTimer=setTimeout(()=>refreshColorReview(id),1300);
+   return;
+  }
+  button.disabled=true;
+  if(result.status==='BOUNDED_STATIC_COLOR_IMPROVEMENT')
+   status.textContent='정적 색상 개선 '+result.accepted+'건 검증 · RGB 오차 '+
+    result.baseline.rgb_mae+' → '+result.final.rgb_mae+' · 기능/API 동등성 미검증';
+  else if(result.status==='NO_SAFE_COLOR_PATCH')
+   status.textContent='현재 저장된 정적 구조에서 안전하게 변경할 색상 후보가 없습니다. 임의의 수정은 하지 않았습니다.';
+  else status.textContent='안전 검증 중단: '+result.status+' · 기존 파일은 그대로 보존했습니다.';
+  if(result.downloadable_improved_html===true){
+   link.href='/api/runs/'+id+'/color-repair-download';link.hidden=false;
+  }
+ }catch{
+  if(state.id!==id)return;
+  button.disabled=false;
+  status.textContent='아직 오프라인 색상 검토가 없습니다. 실행은 버튼을 누를 때만 시작합니다.';
+ }
+}
+el('run-color-review').addEventListener('click',async()=>{
+ const id=state.id;
+ if(!id||el('p5-color-review').hidden)return;
+ const button=el('run-color-review');
+ button.disabled=true;el('color-review-status').textContent='로컬 색상 재검증을 요청 중입니다.';
+ try{
+  await api('/api/runs/'+id+'/color-repair',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'offline-color-review'})
+  });
+  await refreshColorReview(id);
+ }catch(err){
+  if(state.id===id){
+   el('color-review-status').textContent='검토를 시작하지 못했습니다: '+err.message;
+   button.disabled=false;
+  }
+ }
+});
 function setCurrent(run){
  state.id=run.id;
  el('open-screenshot').hidden=true;
@@ -219,7 +267,12 @@ function setCurrent(run){
  }
  el('open-reconstruction').hidden=true;
  el('open-reconstruction').removeAttribute('href');
+ clearTimeout(state.repairTimer);
  el('p5-comparison').hidden=true;
+ el('p5-color-review').hidden=true;
+ el('download-color-review').hidden=true;
+ el('download-color-review').removeAttribute('href');
+ el('run-color-review').disabled=false;
  for(const key of ['p5-original','p5-replica'])el(key).removeAttribute('src');
  el('diagnosis-panel').hidden=true;
  el('download-dependencies').hidden=true;
@@ -343,6 +396,10 @@ async function select(id){
       :'영역 비교 데이터 없음';
      el('p5-original').src=`/api/runs/${id}/screenshot`;
      el('p5-replica').src=`/api/runs/${id}/reconstruction-screenshot`;
+     if(run.status==='completed'&&reconstructionAvailable){
+      el('p5-color-review').hidden=false;
+      await refreshColorReview(id);
+     }
     }
    }catch{
     el('p5-comparison').hidden=true;
