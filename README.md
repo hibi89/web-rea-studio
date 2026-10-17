@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## P4 measured card-shadow fidelity (offline)
+
+The read-only P4 geometry probe now optionally preserves **one safe, bounded CSS box shadow** for an observed card/panel, including a visible shadow-only div where appropriate. Each value is independently sanitized and only rendered in generated **scriptless standalone HTML**. CSS `url()`, multi-layer/inset shadows, out-of-bounds offsets and source scripts are never copied. Stored geometry lacking the optional key keeps its previous exact generated output.
+
+This improves only **visual depth/edge resemblance**, not paragraphs, icons, live charts, backend functionality or real-site behavior. A required fully in-memory real Chrome fixture compares the original synthetic card against legacy and measured reconstructions; acceptance requires improved full-canvas RGB MAE. Details: [P4 card-shadow fidelity](docs/P4_CARD_SHADOW_FIDELITY.md).
+
 ## P4 observed heading layout fidelity (offline)
 
 The script-disabled static visual capture now reuses already observed **H1/H2/H3** data to preserve bounded Chrome-computed `white-space`, `line-height` and `text-align` values in standalone HTML. Values are strictly sanitized; no additional text categories, input values or external resources are collected. Old saved analyses lacking these fields retain their original generator defaults and HTML compatibility.
