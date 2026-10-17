@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## Saved P4→P5 static pipeline integrity audit (read-only)
+
+A completed `static-visual` run now offers **저장된 정적 재구현 검증 보고서 JSON** in the local Studio P4 results panel. `GET /api/runs/:id/static-pipeline-audit` reads previously saved artifacts only: it checks that the generated scriptless HTML matches the stored sanitized geometry byte-for-byte, recomputes full-canvas P5 screenshot metrics from the two locally saved PNGs, and detects inconsistent stored comparison or threshold claims. It reports `OFFLINE_ARTIFACTS_VERIFIED`, `INCOMPLETE` or `EVIDENCE_CONFLICT`.
+
+A verified artifact audit **does not prove** that the visual threshold was met (a separate stage) or that any source interactions, API data or backend have been restored. It never launches a browser, calls an outside host, rewrites saved runs or exports raw site HTML, private text, URLs or screenshot bytes. See [saved pipeline integrity audit](docs/F5_SAVED_PIPELINE_AUDIT.md).
+
 ## P4 observed two-color CSS linear gradients (offline)
 
 P4 now recognizes a visible gradient-only large panel in the existing passive Chrome geometry sweep and optionally preserves a **single bounded two-stop RGB `linear-gradient()`** in scriptless standalone HTML. Unsafe or unsupported CSS, images, layered gradients, URLs, private page text and JavaScript are not copied. Historical captures without the optional key remain byte-compatible.
