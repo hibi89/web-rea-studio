@@ -73,6 +73,15 @@
    <p id="color-review-status" role="status">아직 검토하지 않았습니다.</p>
    <a id="download-color-review" hidden>검증된 색상 개선 HTML 저장 ↓</a>
   </div>
+  <div id="independent-draft-panel" hidden>
+   <h4>F5 · 독립 정적 초안 등록</h4>
+   <p>원본 도형 JSON을 내려받아 좌표 등을 수정한 뒤 JSON 파일로 등록합니다. 서버가 스크립트 없는 독립 HTML을 생성합니다. 임의 HTML·외부 URL·스크립트 파일은 실행하지 않습니다.</p>
+   <a id="download-draft-starter" download>도형 JSON 초안 내려받기</a>
+   <input id="independent-draft-file" type="file" accept=".json,application/json" aria-label="별도 정적 도형 초안 JSON 선택"/>
+   <button id="store-independent-draft" type="button">선택한 독립 초안 로컬에 저장</button>
+   <p id="independent-draft-status" role="status">아직 별도 초안을 등록하지 않았습니다. 저장만 진행하며 브라우저 자동 실행이나 보정은 시작하지 않습니다.</p>
+   <a id="download-independent-draft" hidden download>등록한 정적 HTML 내려받기</a>
+  </div>
   <p class="p4-caveat">이는 정적 화면의 RGB 표본 비교입니다. 원본 JavaScript·데이터·버튼 동작·차트 정확성을 보증하지 않습니다.</p>
  </div><p class="p4-caveat">원본 HTML 복사본이 아닙니다. 측정한 도형·제목·색상만 재배치하며 실제 데이터나 인터랙션은 없습니다.</p></section>
       <section id="diagnosis-panel" class="diagnosis-panel" hidden aria-live="polite"><div class="diagnosis-head"><div><h3>실패 원인 진단 · Local Diagnostics</h3><p>저장된 실패 이력만 읽습니다. 분석을 다시 실행하지 않습니다.</p></div><button id="copy-diagnosis" type="button">진단 복사</button><a id="download-dependencies" hidden download>API 의존성 JSON</a><a id="download-support-packet" hidden download>안전 진단 패킷 JSON</a><a id="download-permission-preflight" hidden download>Q1 권한 사전 점검 JSON</a></div><pre id="diagnosis-details">진단 대기</pre><p id="diagnosis-copy-status" role="status"></p></section><div class="bottom-note">RAW EVIDENCE는 로컬 데이터 폴더에만 저장됩니다. Windows: <code>%LOCALAPPDATA%\WebREAStudio\runs</code>. 브라우저 화면에서는 민감한 원본 JSON을 노출하지 않습니다.</div>
