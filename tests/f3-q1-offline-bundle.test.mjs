@@ -8,6 +8,7 @@ import {createServer as tcpServer} from 'node:net';
 import {createStudioServer} from '../studio/server.mjs';
 import {reviewAnonymousLayout,ACCEPTANCE_FILENAME} from '../studio/f3-q1-acceptance.mjs';
 import {buildVerifiedOfflineBundle,encodeFixedTwoFileZip,OFFLINE_ZIP_FILES} from '../studio/f3-q1-offline-bundle.mjs';
+import {verifyOfflineBundle} from '../scripts/verify-offline-bundle.mjs';
 const mode='dynamic-passive',approved='https://owner-fixture.example.org/';
 const secret='NEVER_INCLUDE_SECRET_LABEL_983';
 const sha=v=>createHash('sha256').update(v).digest('hex');
@@ -136,6 +137,14 @@ test('accepted offline ZIP delivers exactly HTML and canonical receipt, with mat
   assert.equal(first.headers.get('cache-control'),'no-store');
   const zipped=Buffer.from(await first.arrayBuffer());
   assert.equal(sha(zipped),first.headers.get('x-rea-bundle-sha256'));
+  // Independent consumer validates the exact HTTP response from the full Studio fixture.
+  const independent=verifyOfflineBundle(zipped,{
+   expectedBundleSha256:first.headers.get('x-rea-bundle-sha256')});
+  assert.equal(independent.status,'VALID_SYNTHETIC_OFFLINE_BUNDLE');
+  assert.equal(independent.file_count,2);
+  assert.equal(independent.source_authenticity_verified,false);
+  assert.throws(()=>verifyOfflineBundle(Buffer.concat([zipped,Buffer.from([0])])),
+   /ZIP_END_RECORD/);
   const parts=unzipTwo(zipped),html=parts[0].bytes.toString('utf8'),
    receipt=JSON.parse(parts[1].bytes.toString('utf8'));
   assert.equal(receipt.status,'VERIFIED_SYNTHETIC_LAYOUT_ONLY');
