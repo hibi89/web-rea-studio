@@ -83,6 +83,40 @@ try{
   external_http_requests:0,patches:result.history.map(h=>h.patch.kind),
   baseline_mae:result.baseline.rgb_mae,final_mae:result.final.rgb_mae,
   final_static_gate:result.final.gate,product_ready:false}));
+ // Separate screenshot-driven test: the saved geometry is deliberately stale,
+ // so the old token-to-token comparison has NO candidate. Only screenshot
+ // evidence may restore the visibly wrong painted aside after Chrome replay.
+ const stale=structuredClone(reference);
+ stale.boxes.find(box=>box.tag==='aside').background='rgb(0, 0, 0)';
+ const beforeCalls=requests;
+ let pixelReplays=0;
+ const inferred=await runBoundedP4ColorRepair({
+  referenceGeometry:stale,startingGeometry:stale,referencePng:sourcePng,
+  enableScreenshotColorInference:true,maxAttempts:2,minMaeImprovement:0.5,
+  renderCandidate:async (html,{attempt})=>{
+   assert.equal(attempt,pixelReplays);
+   pixelReplays++;
+   const dir=join(root,'inferred-'+attempt);
+   const url='https://p5-pixel-inference.example.org/';
+   const rendered=await capture(dir,url,html);
+   assert.equal(rendered.report.verdict,'PASS',JSON.stringify(rendered.report.failures));
+   return {screenshot:await readFile(join(dir,'screenshot.png')),
+    geometry:rendered.inspection.page.reconstruction_blueprint};
+  }
+ });
+ assert.equal(inferred.status,'BOUNDED_STATIC_COLOR_IMPROVEMENT',JSON.stringify(inferred.history));
+ assert.equal(inferred.accepted,1);
+ assert.equal(inferred.history[0].patch.kind,'screenshot-uniform-region-color');
+ assert.ok(inferred.history[0].patch.reference_uniform_pct>=88);
+ assert.ok(inferred.final.rgb_mae<inferred.baseline.rgb_mae);
+ assert.equal(pixelReplays,2,'Original page was NOT revisited; fresh baseline plus inferred patch');
+ assert.equal(requests-beforeCalls,2,'Only synthetic generated HTML replays');
+ assert.equal(inferred.product_ready,false);
+ console.log(JSON.stringify({p5_screenshot_inferred_chrome:'PASS',
+  accepted_patches:inferred.accepted,original_revisited:false,
+  synthetic_replays:pixelReplays,external_requests:0,
+  initial_mae:inferred.baseline.rgb_mae,final_mae:inferred.final.rgb_mae,
+  product_ready:inferred.product_ready}));
 }finally{
  await rm(root,{recursive:true,force:true,maxRetries:3,retryDelay:100});
 }
