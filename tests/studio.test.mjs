@@ -199,7 +199,7 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   dynamicExecutor:async()=>{
    countRuns++;
    return {report:{verdict:'FAIL',failures:['resource_requests_unsettled'],resource_requests:2,resource_fulfilled:1,resource_blocked:0,resource_pending:1},
-    inspection:{mode:'dynamic-passive',network:[{kind:'requested',path:'/api/report',url:'https://owner.example.org/api/report?secret=HIDDEN'},{kind:'browser-failed',host:'api.owner.example.org',reason:'cors_error',query:'SECRET'}]}};
+    inspection:{mode:'dynamic-passive',network:[{kind:'requested',path:'/api/report',url:'https://owner.example.org/api/report?secret=HIDDEN'},{kind:'browser-failed',host:'api.owner.example.org',reason:'cors_error',query:'SECRET'},{kind:'fetch-attempt',scope:'other-origin',host:'api.owner.example.org'},{kind:'fetch-rejected',scope:'other-origin',host:'api.owner.example.org'}]}};
   }});
  await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
  const base='http://127.0.0.1:'+p;
