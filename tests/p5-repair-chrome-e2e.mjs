@@ -38,6 +38,11 @@ try{
  assert.ok(reference.boxes.some(b=>b.tag==='aside'),'Must have separately painted aside');
  const broken=structuredClone(reference);
  broken.background='rgb(0, 0, 0)';
+ // P4 also paints a full body region above the CSS body background.
+ // Deliberately damage both representations as one semantic paint defect.
+ const body=broken.boxes.find(b=>b.tag==='body');
+ assert.ok(body,'Source probe must identify the painted body rectangle');
+ body.background='rgb(0, 0, 0)';
  const aside=broken.boxes.find(b=>b.tag==='aside');
  aside.background='rgb(0, 0, 0)';
  let replayCount=0;
