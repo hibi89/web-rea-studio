@@ -43,8 +43,10 @@ export function proposeScreenshotRegionColor({referenceGeometry,currentGeometry,
   if(a.tag!==b.tag||a.depth!==b.depth||a.x!==b.x||a.y!==b.y||a.w!==b.w||a.h!==b.h)
    throw Error('P5_PIXEL_GEOMETRY_MISMATCH');
  }
- const a=sampleChromePng(referencePng,{stride});
- const b=sampleChromePng(baselinePng,{stride});
+ // Decode once at full resolution, then measure multiple phases per tile.
+ // Fixed 8px-grid samples alone can alias repetitive paint patterns as solid.
+ const a=sampleChromePng(referencePng,{stride:1});
+ const b=sampleChromePng(baselinePng,{stride:1});
  if(a.width!==b.width||a.height!==b.height||
     a.width!==cur.document.width||a.height!==cur.document.height||
     a.sampleWidth!==b.sampleWidth||a.sampleHeight!==b.sampleHeight)
@@ -58,16 +60,21 @@ export function proposeScreenshotRegionColor({referenceGeometry,currentGeometry,
   const originals=[],replays=[];
   const others=ref.boxes.filter((o,j)=>j!==i&&
    (o.depth>v.depth||o.w*o.h<v.w*v.h)&&o.background!=='transparent');
-  for(let sy=0;sy<a.sampleHeight;sy++){
-   const y=sy*stride;
-   if(y<v.y+inset||y>=v.y+v.h-inset)continue;
-   for(let sx=0;sx<a.sampleWidth;sx++){
-    const x=sx*stride;
-    if(x<v.x+inset||x>=v.x+v.w-inset)continue;
-    if(ref.titles.some(t=>inside(x,y,t))||others.some(o=>inside(x,y,o)))continue;
-    const at=(sy*a.sampleWidth+sx)*3;
-    originals.push([a.data[at],a.data[at+1],a.data[at+2]]);
-    replays.push([b.data[at],b.data[at+1],b.data[at+2]]);
+  for(let y0=0;y0<a.height;y0+=stride){
+   for(let x0=0;x0<a.width;x0+=stride){
+    // Two odd/even offsets in both dimensions, plus a center probe.
+    const probes=[[0,0],[1,0],[0,1],[1,1],
+     [Math.floor(stride/2),Math.floor(stride/2)]];
+    for(const [dx,dy] of probes){
+     const x=x0+dx,y=y0+dy;
+     if(x>=a.width||y>=a.height)continue;
+     if(x<v.x+inset||x>=v.x+v.w-inset||
+        y<v.y+inset||y>=v.y+v.h-inset)continue;
+     if(ref.titles.some(t=>inside(x,y,t))||others.some(o=>inside(x,y,o)))continue;
+     const at=(y*a.width+x)*3;
+     originals.push([a.data[at],a.data[at+1],a.data[at+2]]);
+     replays.push([b.data[at],b.data[at+1],b.data[at+2]]);
+    }
    }
   }
   if(originals.length<20)continue;
