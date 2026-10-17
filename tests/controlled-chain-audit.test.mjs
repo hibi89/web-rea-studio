@@ -6,6 +6,7 @@ import {createServer as netServer} from 'node:net';
 import {createStudioServer} from '../studio/server.mjs';
 
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {buildEvidenceManifest} from '../studio/evidence-manifest.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from '../studio/behavior-exploration.mjs';
 import {generateGenericBehaviorHtml} from '../studio/generic-behavior.mjs';
@@ -144,16 +145,40 @@ test('Studio exposes repeated read-only cross-stage audit, no Chrome or network,
    assert.equal(obj.replay_independently_reexecuted,false);
    assert.doesNotMatch(body,/SUPER_PRIVATE|SECRET-ORIGIN|<script|\/api\/items/);
   }
+  const origin='http://127.0.0.1:'+port;
+  const pair=origin+'/api/runs/'+meta.id;
+  const receipt=await(await fetch(pair+'/delivery-receipt')).json();
+  assert.equal(receipt.export_eligible,true,JSON.stringify(receipt));
+  assert.equal(receipt.analysis_scope,'controlled-synthetic-only');
+  assert.equal(receipt.product_ready,false);
+  assert.equal(receipt.original_api_or_backend_parity,false);
+  assert.equal(receipt.evidence.synthetic_replay,'SAVED_CLAIM_CONSISTENT_NO_FRESH_REPLAY');
+  assert.equal(receipt.artifact.sha256,createHash('sha256').update(data.html).digest('hex'));
+  const download=await fetch(pair+'/reviewed-export');
+  assert.equal(download.status,200);
+  assert.match(download.headers.get('content-disposition'),/attachment/);
+  assert.match(download.headers.get('content-security-policy'),/connect-src 'none'/);
+  const served=await download.text();
+  assert.equal(served,data.html);
+  assert.equal(createHash('sha256').update(served).digest('hex'),receipt.artifact.sha256);
+  await writeFile(join(studio.store.pathFor(meta.id),'generic-prototype.html'),data.html+'<!-- mismatch -->');
+  assert.equal((await fetch(pair+'/reviewed-export')).status,409);
+  assert.equal((await(await fetch(pair+'/delivery-receipt')).json()).export_eligible,false);
+  await writeFile(join(studio.store.pathFor(meta.id),'generic-prototype.html'),data.html);
   assert.equal(browserCalls,0);
   const fetchedHtml=await(await fetch('http://127.0.0.1:'+port+'/')).text();
   assert.match(fetchedHtml,/id="download-controlled-chain-audit"/);
+  assert.match(fetchedHtml,/id="download-reviewed-export"/);
+  assert.match(fetchedHtml,/id="download-delivery-receipt"/);
   const f4Js=await(await fetch('http://127.0.0.1:'+port+'/app.js')).text();
   assert.match(f4Js,/controlled-chain-audit/);
   const invalidMode=await studio.store.create({mode:'dynamic-passive',target_url:'https://example.invalid'});
   await studio.store.update(invalidMode.id,{status:'completed'});
   assert.equal((await fetch('http://127.0.0.1:'+port+'/api/runs/'+invalidMode.id+'/controlled-chain-audit')).status,404);
+  assert.equal((await fetch(origin+'/api/runs/'+invalidMode.id+'/reviewed-export')).status,404);
   const pending=await studio.store.create({mode:data.meta.mode,target_url:data.meta.target_url});
   assert.equal((await fetch('http://127.0.0.1:'+port+'/api/runs/'+pending.id+'/controlled-chain-audit')).status,409);
+  assert.equal((await fetch(origin+'/api/runs/'+pending.id+'/delivery-receipt')).status,409);
   assert.equal(browserCalls,0);
   assert.equal((await studio.store.get(meta.id)).status,'completed');
  }finally{
