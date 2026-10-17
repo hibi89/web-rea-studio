@@ -12,6 +12,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# One current branch test run is sufficient; cancel obsolete intermediate pushes.
+concurrency:
+  group: local-studio-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: Node 22 unit and local HTTP tests
