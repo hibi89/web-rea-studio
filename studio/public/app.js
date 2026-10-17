@@ -1,5 +1,5 @@
 const el=id=>document.getElementById(id);
-const state={id:null,timer:null,repairTimer:null};
+const state={id:null,timer:null,repairTimer:null,geometryTimer:null};
 async function api(url,options){const res=await fetch(url,{cache:'no-store',...options});const body=await res.json();if(!res.ok)throw Error(body.error||`HTTP ${res.status}`);return body;}
 function show(msg){el('error').textContent=msg||'';}
 function diagnostic(run){const area=el('run-error');if(run.status==='failed'||run.status==='interrupted'){area.hidden=false;area.textContent=`분석 실패 · ${run.error_code||'CHECK_LOG'} · ${run.error||'실행 기록을 확인하십시오'}`+(run.diagnostic_path?` · 진단 로그: ${run.diagnostic_path}`:'');}else{area.hidden=true;area.textContent='';}}
@@ -195,6 +195,58 @@ el('copy-diagnosis').addEventListener('click',async()=>{
  }catch{el('diagnosis-copy-status').textContent='자동 복사 불가. 위 텍스트를 선택해 복사하세요.';}
 });
 
+async function refreshGeometryReview(id){
+ if(state.id!==id)return;
+ clearTimeout(state.geometryTimer);
+ const status=el('geometry-review-status'),button=el('run-geometry-review'),
+ link=el('download-geometry-review');
+ link.hidden=true;link.removeAttribute('href');
+ try{
+  const outcome=await api('/api/runs/'+id+'/geometry-repair');
+  if(state.id!==id)return;
+  if(outcome.status==='running'){
+   button.disabled=true;
+   status.textContent='등록 초안만 오프라인 Chrome에서 확인 중입니다. 원본 사이트 접근은 하지 않습니다.';
+   state.geometryTimer=setTimeout(()=>refreshGeometryReview(id),1400);
+   return;
+  }
+  button.disabled=true;
+  if(outcome.downloadable_improved_html===true){
+   status.textContent='정적 위치·크기 개선 '+outcome.accepted+'건 검증 · RGB 오차 '+
+    (outcome.baseline?.rgb_mae??'—')+' → '+(outcome.final?.rgb_mae??'—')+
+    ' · 실제 앱/백엔드 동등성은 미검증';
+   link.href='/api/runs/'+id+'/geometry-repair-download';
+   link.hidden=false;
+  }else if(outcome.status==='STOPPED_ALIGNMENT_UNVERIFIED'){
+   status.textContent='도형 대응 또는 독립 초안 재현 근거 불충분: '+
+    (outcome.reason||'unknown')+' · 임의 수정하지 않았습니다.';
+  }else status.textContent='검증 종료: '+outcome.status+
+   ' · 승인된 기하 수정 없음 · 원본 자료 유지';
+ }catch{
+  if(state.id!==id)return;
+  button.disabled=false;
+  status.textContent='아직 실행하지 않았습니다. 등록된 초안을 명시적으로 승인해야 Chrome 검증이 시작됩니다.';
+ }
+}
+el('run-geometry-review').addEventListener('click',async()=>{
+ const id=state.id;
+ if(!id||el('geometry-review-actions').hidden)return;
+ const button=el('run-geometry-review');
+ button.disabled=true;
+ el('geometry-review-status').textContent='오프라인 Chrome 기하 검증을 요청 중입니다.';
+ try{
+  await api('/api/runs/'+id+'/geometry-repair',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'offline-geometry-review'})
+  });
+  if(state.id===id)await refreshGeometryReview(id);
+ }catch(err){
+  if(state.id===id){
+   el('geometry-review-status').textContent='시작하지 못했습니다: '+err.message;
+   button.disabled=false;
+  }
+ }
+});
 async function refreshIndependentDraft(id){
  if(state.id!==id)return;
  const status=el('independent-draft-status'),btn=el('store-independent-draft'),
@@ -210,9 +262,12 @@ async function refreshIndependentDraft(id){
    '… · 원본 사이트 재접속/Chrome 검증/자동 보정 0회';
   link.href='/api/runs/'+id+'/independent-draft-download';
   link.hidden=false;
+  el('geometry-review-actions').hidden=false;
+  await refreshGeometryReview(id);
  }catch{
   if(state.id!==id)return;
   btn.disabled=false;el('independent-draft-file').disabled=false;
+  el('geometry-review-actions').hidden=true;
   status.textContent='아직 별도 초안을 등록하지 않았습니다. 기존 JSON을 수정해 선택한 뒤 명시적으로 저장하십시오.';
  }
 }
@@ -317,6 +372,11 @@ function setCurrent(run){
  el('open-reconstruction').hidden=true;
  el('open-reconstruction').removeAttribute('href');
  clearTimeout(state.repairTimer);
+ clearTimeout(state.geometryTimer);
+ el('geometry-review-actions').hidden=true;
+ el('download-geometry-review').hidden=true;
+ el('download-geometry-review').removeAttribute('href');
+ el('run-geometry-review').disabled=false;
  el('p5-comparison').hidden=true;
  el('p5-color-review').hidden=true;
  el('independent-draft-panel').hidden=true;
