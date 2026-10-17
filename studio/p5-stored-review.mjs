@@ -31,6 +31,7 @@ export async function reviewSavedP5ColorRepair({store,id,browserPath,
  try{
   const result=await runBoundedP4ColorRepair({
    referenceGeometry:geometry,startingGeometry:geometry,referencePng:png,
+   enableScreenshotColorInference:true,
    renderCandidate:async(document,{attempt})=>{
     if(attempt!==calls++||attempt>2)throw Error('P5_REVIEW_BUDGET_EXCEEDED');
     const destination=join(scratch,'capture-'+attempt);
@@ -58,6 +59,7 @@ export async function reviewSavedP5ColorRepair({store,id,browserPath,
    source:'saved-geometry-and-png-with-fresh-scriptless-replay',
    status:result.status,attempts:result.attempts,accepted:result.accepted,
    renderings:result.renderings,history:result.history,
+   screenshot_inference_enabled:true,
    baseline:result.baseline??null,final:result.final??null,
    downloadable_improved_html:improved,
    original_capture_reexecuted:false,original_run_files_overwritten:false,
@@ -65,7 +67,7 @@ export async function reviewSavedP5ColorRepair({store,id,browserPath,
    functional_equivalence_verified:false,product_ready:false,
    limitations:['Only static P4 background and painted region color fixes',
     'Starting geometry is currently generated from the same saved reference',
-    'No inferred repair is invented when geometry already agrees',
+    'Pixel repair requires a large unobscured near-uniform region in both PNGs',
     'A passing screenshot does not prove API or interaction parity']
   };
   if(improved){
