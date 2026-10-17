@@ -13,9 +13,9 @@ function sample(network,{fetchRejections=1,verdict='FAIL'}={}){
 }
 test('observed external host produces bounded non-executable explicit permission checklist',()=>{
  const p=sample([
-  {kind:'fetch-attempt',scope:'other-origin',host:'api.example.org',
-   url:'https://api.example.org/secret/path?token=ABSOLUTELY_PRIVATE'},
-  {kind:'fetch-rejected',scope:'other-origin',host:'api.example.org'},
+  {kind:'fetch-attempt',scope:'other-origin',host:'api.vendor.co.kr',
+   url:'https://api.vendor.co.kr/secret/path?token=ABSOLUTELY_PRIVATE'},
+  {kind:'fetch-rejected',scope:'other-origin',host:'api.vendor.co.kr'},
  ]);
  assert.equal(p.kind,'rea-q1-offline-permission-preflight');
  assert.equal(p.network_requests_issued,0);
@@ -24,7 +24,7 @@ test('observed external host produces bounded non-executable explicit permission
  assert.equal(p.auto_allowlist_changes,0);
  assert.equal(p.decision,'BLOCK_NETWORK_EXPANSION');
  assert.equal(p.permission_status,'NOT_APPROVED');
- assert.deepEqual(p.host_candidates.map(x=>x.host),['api.example.org']);
+ assert.deepEqual(p.host_candidates.map(x=>x.host),['api.vendor.co.kr']);
  assert.equal(p.host_candidates[0].host_class,'hostname_only_unverified');
  assert.equal(p.host_candidates[0].network_permission_granted,false);
  assert.ok(p.blockers.includes('host_ownership_or_permission_not_verified'));
@@ -56,13 +56,29 @@ test('IP addresses and special-use hostname candidates remain explicit blockers'
   assert.ok(p.blockers.includes('unsafe_or_non_public_host_candidate'),host);
  }
 });
+test('DNS wildcard/IP-encoded host requires additional private-address review, no probes',()=>{
+ const p=sample([
+  {kind:'fetch-attempt',scope:'other-origin',host:'practice02.61-107-199-22.sslip.io'},
+  {kind:'fetch-rejected',scope:'other-origin',host:'practice02.61-107-199-22.sslip.io'},
+ ]);
+ assert.equal(p.host_candidates[0].host_class,'dynamic_ip_hostname_requires_dns_review');
+ assert.ok(p.blockers.includes('unsafe_or_non_public_host_candidate'));
+ assert.equal(p.network_requests_issued,0);
+ assert.equal(p.decision,'BLOCK_NETWORK_EXPANSION');
+ const reserved=sample([
+  {kind:'fetch-attempt',scope:'other-origin',host:'example.org'},
+  {kind:'fetch-rejected',scope:'other-origin',host:'example.org'},
+ ]);
+ assert.equal(reserved.host_candidates[0].host_class,'special_use_or_address');
+});
+
 test('unknown and completed reports never return runnable approval',()=>{
  const unknown=buildPassivePermissionPreflight({mode:'dynamic-passive',inspection:{mode:'dynamic-passive'}});
  assert.equal(unknown.decision,'BLOCK_NETWORK_EXPANSION');
  assert.equal(unknown.evidence.capture_verdict,'UNKNOWN');
  assert.ok(unknown.blockers.includes('failing_capture_not_confirmed'));
- const completed=sample([{kind:'fetch-attempt',scope:'other-origin',host:'api.example.org'},
-  {kind:'fetch-rejected',scope:'other-origin',host:'api.example.org'}],{verdict:'PASS'});
+ const completed=sample([{kind:'fetch-attempt',scope:'other-origin',host:'api.vendor.co.kr'},
+  {kind:'fetch-rejected',scope:'other-origin',host:'api.vendor.co.kr'}],{verdict:'PASS'});
  assert.equal(completed.permission_status,'NOT_APPROVED');
  assert.ok(completed.blockers.includes('failing_capture_not_confirmed'));
  assert.throws(()=>buildPassivePermissionPreflight({mode:'static-visual',inspection:{mode:'static-visual'}}),/PASSIVE_SUPPORT_ONLY/);
