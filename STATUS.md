@@ -1,6 +1,12 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
-**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `9d4bcf36...` passed Node and isolated Chrome CI on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38994454894). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `d96ea6df...` passed Node and isolated Chrome CI including isolated P2 cross-origin CSP/CORS proof on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38994833194). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+
+## 2026-10-17 P2 two-origin synthetic browser lab
+- Chrome CDP **in-memory** fixture tested default cross-origin API denial, CSP approval without CORS (still failure), and CSP approval with exact CORS response (synthetic JSON successfully read). Independent DNS/proxy access disabled; real external API calls = 0.
+- Exact GET/Fetch/XHR-only synthetic endpoint policy and denial cases covered. GitHub functional SHA d96ea6df; Node and Chrome P4/F2/P2-CORS/F4 CI **SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38994833194.
+- No runtime change to actual passive gateway, CSP, approved targets, credentials, user data or Vercel. This does **not** repair the old Failed to fetch screen; confirm authority before changing real network origins.
+- See docs/P2_SYNTHETIC_CORS_LAB.md; next acceptance step is inspecting the saved Windows support packet without recapturing the target.
 
 ## 2026-10-17 P2 passive capture verdict hardening
 - Added capture FAIL verdict when a client fetch is rejected or core Document/Script/XHR/Fetch resource is blocked, even if literal error text is absent. Report includes `critical_resources_blocked`; cosmetic image/favicon errors alone do not fail application verdict.
