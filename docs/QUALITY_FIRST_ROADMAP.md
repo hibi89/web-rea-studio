@@ -19,7 +19,7 @@ On at least three varied, authorized **real** sites: URL → safe observation �
 
 ## Ordered stages
 
-### Q0. Eliminate false-positive visual comparisons — current milestone
+### Q0. Eliminate false-positive visual comparisons — CI verified
 - Compare the full captured canvas. No unconditional right-bottom ignored notice area.
 - Missing/cropped image pixels count as maximum mismatch. Record full pixel grid, overlap, missing samples and coverage.
 - Static-only quality gate: equal dimensions, complete sampled coverage, pixel match >=90%, RGB MAE <=20, geometry region match >=70%, no hidden mask.
@@ -57,4 +57,4 @@ On at least three varied, authorized **real** sites: URL → safe observation �
 - User Windows local outcomes, GitHub CI, approved real targets, preview and Production have separate verification states.
 - Do not loosen real network policy, change Vercel, authorize unknown hosts, expose private evidence or alter unrelated repositories without owner approval.
 - After every bounded work unit: code + tests + private GitHub commit + HANDOFF.md update + CI/HEAD verification.
-- For Q0, code changes and CI are recorded in the current HANDOFF.md. Q1 still needs a reviewed Windows support packet.
+- Q0 functional baseline is 6ef1af91aa4c78853e64f9b384e2d93da7e89353; GitHub Node and isolated Chrome CI **SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. In the synthetic P4 Chrome experiment, full-canvas metrics were 99.37% pixel match, 100% coverage, 100% geometric region match, 0.94 RGB MAE. These do NOT establish any external site functionality or backend equivalence. Q1 still needs a reviewed Windows support packet and host authorization.
