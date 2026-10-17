@@ -20,3 +20,11 @@ Implemented: a bounded, evidence-constrained first repair loop on **static P4 la
 - Extend from safe color patches to bounded geometry correction only after controls for ambiguous matching, viewport-dependent constraints and regressions across multiple states.
 - Later evaluate one candidate at multiple viewport sizes and behavioral state sequences, keeping no-regression gates.
 - True real-site F1→F5 closure still depends on Q1 owner's Windows saved failure record and exact authorization of needed external API hosts. The production passive gateway and target allowlist remain unchanged.
+
+## Verified functional baseline — 2026-10-17
+- Exact tested code SHA: `a93947459e631f5a85c29a91ac77f2919668bc72`.
+- GitHub Actions `38996839185`: **SUCCESS**, Node **179/179**, isolated Chrome P4/F5-repair/F2/P2-CORS/F4 all green: https://github.com/hibi89/web-rea-studio/actions/runs/38996839185.
+- Actual controlled Chrome result: reference captures **1**, independent reconstruction replays **3**; synthetic in-memory HTML responses **4**, actual external network calls **0**.
+- Accepted `page-background` and `painted-region-color` patches, both measured. Full-canvas RGB MAE **197.69 → 1.32**, final gate `VISUAL_THRESHOLD_MET_STATIC_ONLY` and `product_ready:false`.
+- Test debugging found two issues, both corrected without weakening the quality gate: (1) create temp capture directories before invoking Chrome; (2) the generated P4 paint model includes a covering `body` rectangle, so page-background repair must update that visible layer alongside the CSS body background as one semantic change. A dedicated regression prevents recurrence.
+- The engine itself is reusable but is not yet wired to the Studio UI as a user-executable feature. It does not click external controls, recover backend code, access unapproved origins, or certify full behavior/functional parity.
