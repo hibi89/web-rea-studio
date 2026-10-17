@@ -25,11 +25,11 @@ function runStep(step){
     CHROME_BIN:step.chromePath,REA_BROWSER_EXECUTABLE:step.chromePath,
     npm_config_offline:'true',npm_config_audit:'false'}
   });
-  let stdout='',remaining=125000,settled=false,timedOut=false;
+  let stdout='',settled=false,timedOut=false;
   const capture=data=>{
-   if(remaining<=0)return;
-   const part=String(data).slice(0,remaining);
-   stdout+=part;remaining-=part.length;
+   // Keep only the final diagnostic evidence; Node test totals are printed
+   // at the END and a long test log must never truncate those totals.
+   stdout=(stdout+String(data)).slice(-125000);
   };
   child.stdout?.on('data',capture);
   // stderr is deliberately not persisted or copied into public receipts.
