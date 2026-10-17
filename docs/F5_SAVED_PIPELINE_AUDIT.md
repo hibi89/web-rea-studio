@@ -27,4 +27,12 @@ Two alternatives were considered: add another cosmetic reconstruction primitive 
 
 This advances product **verification usability**, not source inspection coverage or full application reconstruction. It does **not** fix an unauthorized off-origin `fetch`, recreate backend data, produce original React/Canvas/SVG functionality, or give a defensible general percentage-complete measurement. Actual three-site acceptance (see `docs/QUALITY_FIRST_ROADMAP.md`) remains unavailable until authorized target scopes are verified.
 
-CI outcome and specific commit should be appended only after actual GitHub Actions jobs are all terminal success. Historical local owner acceptance and new runner acceptance are separate.
+## Verified acceptance (2026-10-17)
+
+Latest functionality plus CI concurrency SHA `24423583c9b658cbce0fc87d2a10c4fc747ee962`, [Actions 39019184555](https://github.com/hibi89/web-rea-studio/actions/runs/39019184555): **all three required jobs SUCCESS**. Linux Node22 and Windows Node22/24 each **240/240 tests PASS, zero failures**; Linux retained all prior isolated Chrome P4/F2/F4/F5/P2-CORS tests, and both Windows runners passed launcher, P4/F5 Chrome smoke and owner-style synthetic acceptance.
+
+The new deterministic Node tests and local HTTP route test cover correct artifact report, honest visual gate failure, incomplete files, modified canonical HTML, tampered RGB values and quality gate, corrupt PNG, 404/409 conditions, no secret URLs in audit, and **three repeated GET calls without any executor invocation**. No source website or external API calls were performed.
+
+One *intermediate* workflow, [39019039972](https://github.com/hibi89/web-rea-studio/actions/runs/39019039972), had a Windows Node24 `CDP_START_TIMEOUT` while launching Chrome; all its Node regressions passed. The precise cause is unknown. The new CI workflow now cancels superseded same-branch jobs (`concurrency` with `cancel-in-progress`) to reduce unnecessary intermediate runner work; **this is not proof of the transient Chrome failure's root cause**. Final complete run 39019184555 passed all platforms.
+
+This is **CI evidence only**, not fresh user-PC Windows validation, independent second capture, or authenticated source/API parity. Stored geometry comparison provenance remains whatever the original saved comparison recorded; the new audit checks its numerical consistency with stored PNGs, not original-server authenticity.
