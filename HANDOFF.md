@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 이 문서의 코딩 기준 커밋은 `f91d434fa1ee0dc024bfa21cf27478bac2fc55fc`이며, 지침서 도입 커밋은 그 후속 문서 전용 커밋이다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
+> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 최신 검증된 직전 코드 커밋은 `e2a35b21857af781d534be57472e12b934e1e76f`이며, 이 문서가 포함되는 새 커밋의 SHA는 GitHub 반영 후 확인한다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -91,6 +91,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
+| 2026-10-17 | P2 읽기 전용 API 의존성 리포트 | 저장된 네트워크 이벤트를 내부 경로/외부 호스트별 그룹화하고 JSON 다운로드 엔드포인트 및 테스트 추가; 승인/원격 요청은 추가하지 않음 | GitHub CI 확인, Windows 저장 기록에서 검증, 외부 API 권한 검토 대기 |
 | 2026-10-17 | P2 저장된 실패 진단·호스트 권한 검토 개선 | 동일 호스트 fetch 시도+거부 증거로만 미승인 후보 표시, 핵심 리소스 차단·호스트 미확인 오류 구분, 추가 접속 없음 | 사용자의 저장된 Windows 실패 기록에서 확인하고 권한 별도 검토 필요 |
 | 2026-10-17 | P2 실제 앱 상태 판정 보강 | 화면 오류 문구 없이도 JS fetch 거부/핵심 Document·Script·XHR·Fetch 리소스 차단 시 FAIL 판정하도록 코드·테스트 추가. 기존 허용 정책 변경 없음 | 저장된 과거 보고서는 소급 변경되지 않음; 실제 Windows 캡처 검증 대기 |
 | 2026-10-17 | 제작방 2 인계 체계 구축 | 과거 기록 + 현재 GitHub 트리/HEAD/CI를 대조; `HANDOFF.md` 작성 및 AGENTS/README/STATUS 연결을 문서 변경으로 적용 | 다음 기능 작업 전 최신 HEAD 조회; 외부 사이트 `Failed to fetch` 문제 미해결 |
@@ -99,12 +100,13 @@
 
 ### 다음 세션 첫 작업 (마지막 작업 이후 갱신 필요)
 
-현재 기본 우선순위는 **저장된 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
+현재 기본 우선순위는 **로컬 GET `/api/runs/:id/dependencies`로 저장된 외부 사이트 실패 이벤트 증거 확인 → 원인별 안전한 접근 설계 → 사용자 승인 범위 안에서 최소 수정·회귀 검증**이다. 실제 사용자가 더 높은 우선순위를 지시하면 해당 지시와 최신 소스를 우선한다. 기존 정상 기능, 로컬 실행 데이터, Vercel 설정, 개인정보를 보존한다.
 
 ## 7. 중요 링크
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 코딩 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/f91d434fa1ee0dc024bfa21cf27478bac2fc55fc
-- 최신 확인된 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38991207985
+- 최신 확인된 직전 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38992514377
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
+- 신규 API 의존성 리포트: `docs/P2_DEPENDENCY_REVIEW.md`.
 - 개발 근거: `docs/F1_F2_STATE_GRAPH.md`, `docs/F1_F2_PERMISSION_PREFLIGHT.md`, `docs/F2_CONTROLLED_CHROME.md`, `docs/F4_GENERIC_STATE_ENGINE.md`, `docs/P2_DYNAMIC.md`, `docs/PUBLIC_PREVIEW.md`.

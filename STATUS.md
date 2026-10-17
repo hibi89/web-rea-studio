@@ -12,6 +12,11 @@
 - Separate diagnoses handle core Document/Script/XHR/Fetch blocks and fetch rejections without matched external host; the local diagnosis UI displays these without touching the site.
 - No new external requests, allowlist changes, credentials, or previous run data changes. CI/Windows verification remain separate gates.
 
+## 2026-10-17 P2 offline API dependency evidence
+- Added read-only saved passive network dependency report grouped by sanitized same-origin paths and external hostnames. No new network traffic or permissions; GET `/api/runs/:id/dependencies` exports bounded JSON.
+- Unit, redaction and local HTTP route tests added. New commit CI and Windows real capture must be checked separately; live data-loading problem is unresolved.
+- Detail in `docs/P2_DEPENDENCY_REVIEW.md`.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)

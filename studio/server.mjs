@@ -6,6 +6,7 @@ import {makeStore, defaultRunStorageDir,validateTarget,createScenario,browserExe
 import {parseApprovedUrls,runStaticAnalysis} from './static-analysis.mjs';
 import {runDynamicAnalysis} from './dynamic-browser.mjs';
 import {diagnoseRuns} from './diagnose.mjs';
+import {buildPassiveDependencyReview} from './passive-dependencies.mjs';
 import {generateP4Reconstruction} from './p4-reconstruction.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
 import {compareChromeScreenshots} from './p5-visual-diff.mjs';
@@ -338,7 +339,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -357,6 +358,13 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       if(!['failed','interrupted'].includes(meta.status))return respond(res,409,{error:'diagnosis_only_for_failed_run'});
       const result=await diagnoseRuns(storageDir,id);
       return result.found?respond(res,200,result):respond(res,404,{error:'diagnosis_not_found'});
+    }
+    if(what==='dependencies'){
+      if(meta.mode!=='dynamic-passive')return respond(res,404,{error:'passive_dependencies_not_available'});
+      const inspection=await store.getInspection(id);
+      if(!inspection)return respond(res,404,{error:'passive_inspection_not_ready'});
+      const body=buildPassiveDependencyReview({mode:meta.mode,inspection,report:await store.getReport(id)});
+      return respond(res,200,body,jsonContent,{'Content-Disposition':`attachment; filename="passive-dependencies-${id}.json"`});
     }
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);

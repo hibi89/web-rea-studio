@@ -214,6 +214,15 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   assert.equal(diagRes.status,200);
   const x=await diagRes.json();
   assert.equal(x.passive_browser.pending,1);
+  const dependenciesResponse=await fetch(base+'/api/runs/'+id+'/dependencies');
+  assert.equal(dependenciesResponse.status,200);
+  assert.match(dependenciesResponse.headers.get('content-disposition'),/attachment/);
+  const dependencies=await dependenciesResponse.json();
+  assert.equal(dependencies.network_requests_issued,0);
+  assert.equal(dependencies.scope,'saved-passive-evidence-only');
+  assert.equal(dependencies.dependencies.find(d=>d.path==='/api/report').requested,1);
+  assert.ok(!JSON.stringify(dependencies).includes('HIDDEN'));
+  assert.ok(!JSON.stringify(dependencies).includes('SECRET'));
   assert.equal(x.passive_browser.recent_network_events[0].path,'/api/report');
   assert.equal(JSON.stringify(x).includes('HIDDEN'),false);
   assert.equal(JSON.stringify(x).includes('SECRET'),false);
@@ -221,9 +230,12 @@ test('failed-run diagnosis API reads redacted persisted data, never retriggers e
   await fetch(base+'/api/runs/'+id+'/diagnosis');
   await fetch(base+'/api/runs/'+id+'/report');
   assert.equal(countRuns,before);
+  await fetch(base+'/api/runs/'+id+'/dependencies');
+  assert.equal(countRuns,before);
   const success=await s.store.create({target_url:expected(),mode:'rea-browser'});
   await s.store.update(success.id,{status:'completed',verdict:'PASS'});
   assert.equal((await fetch(base+'/api/runs/'+success.id+'/diagnosis')).status,409);
+  assert.equal((await fetch(base+'/api/runs/'+success.id+'/dependencies')).status,404);
  }finally{await new Promise(ok=>s.server.close(ok));}
 });
 test('actual local Studio has failure postmortem panel',async()=>{
