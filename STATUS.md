@@ -1,6 +1,13 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
-**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `6ef1af91...` passed Node and all isolated Chrome suites (P4/F2/P2-CORS/F4) on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38995644114). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). Latest functional code SHA `22045a6b...` passed Node (173/173) and all isolated Chrome suites (P4/F2/P2-CORS/F4) on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38996188937). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+
+## 2026-10-17 Q1 saved-evidence permission preflight (not a live API connection)
+- Added pure `studio/permission-preflight.mjs` from previously redacted passive support evidence, `GET /api/runs/:id/permission-preflight`, and Studio failure-panel JSON download and missing-authority summary.
+- Candidate external hostname requires matched saved fetch attempt+rejection. Local/special-use/IP-coded DNS providers (`sslip.io`, `nip.io`, `xip.io`) are flagged for heightened review. No CORS diagnosis, DNS lookup or hostname ownership proof is invented.
+- Always `NOT_APPROVED` / `BLOCK_NETWORK_EXPANSION`. All authority/scope/quota/security checklist entries remain null; no executable network policy, new origin, external request, browser action or production deployment.
+- Unit/route/UI regression checked; GitHub functional SHA `22045a6b523eaf6b4a35ae047bcab914003de940` has Node **173/173**, isolated Chrome P4/F2/P2-CORS/F4 **SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38996188937.
+- **Q1 itself not complete:** actual Windows saved report and remote API behavior/authorization not yet verified. See `docs/Q1_PERMISSION_PREFLIGHT.md` and `HANDOFF.md`.
 
 ## 2026-10-17 Q0 quality-first full-canvas P5 comparison
 - Fixed visual false-positive: previously P5 ignored bottom-right notice area and compared only screenshot overlap. Now P5 v2 scores the **entire sampled canvas**, assigns 255 RGB error to missing pixels, records sample coverage, and does not automatically mask any region.
