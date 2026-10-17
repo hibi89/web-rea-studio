@@ -77,9 +77,12 @@ jobs:
       - name: Run isolated Chrome P2 two-origin CSP and CORS proof
         timeout-minutes: 2
         run: node tests/p2-cross-origin-chrome-e2e.mjs
-      - name: Run real Chrome F4 generic two-app branching acceptance
+      - name: Run real Chrome F4 three-app branching acceptance
         timeout-minutes: 3
         run: node tests/f4-generic-chrome-e2e.mjs
+      - name: Run full real Chrome planner Studio-to-F5 reviewed export proof
+        timeout-minutes: 3
+        run: node tests/f4-planner-studio-chrome-e2e.mjs
 
   windows-acceptance:
     name: Windows Node ${{ matrix.node }} launcher and offline Chrome smoke
