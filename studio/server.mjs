@@ -15,6 +15,7 @@ import {planF3Q1Work} from './f3-q1-work-plan.mjs';
 import {buildPassiveWireframe,PASSIVE_WIREFRAME_CSP} from './f3-q1-wireframe.mjs';
 import {buildAnonymousGeometryPreview,COARSE_GEOMETRY_CSP} from './f3-q1-geometry-preview.mjs';
 import {reviewAnonymousLayout,readAcceptanceReceipt,acceptanceInputs} from './f3-q1-acceptance.mjs';
+import {buildVerifiedOfflineBundle} from './f3-q1-offline-bundle.mjs';
 import {buildPassiveSupportPacket} from './support-packet.mjs';
 import {buildPassivePermissionPreflight} from './permission-preflight.mjs';
 import {assessSavedQ1Failure} from './q1-failure-assessment.mjs';
@@ -375,7 +376,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|f3-q1-verified-offline-export|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|f3-q1-verified-offline-export|f3-q1-offline-bundle|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -746,6 +747,37 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        'X-Content-Type-Options':'nosniff',
        'X-REA-Verification-Scope':'synthetic-offline-only',
        'X-REA-HTML-SHA256':actualHash
+      });
+    }
+    if(what==='f3-q1-offline-bundle'){
+      // Read-only bundle of two fixed synthetic files, never source content or active code.
+      if(meta.mode!=='dynamic-passive')
+       return respond(res,404,{error:'offline_bundle_unsupported_mode'});
+      if(!['failed','interrupted'].includes(meta.status))
+       return respond(res,409,{error:'offline_bundle_requires_failed_passive'});
+      const inspection=await store.getInspection(id);
+      if(!inspection)return respond(res,404,{error:'passive_inspection_not_ready'});
+      if(inspection.mode!=='dynamic-passive')
+       return respond(res,409,{error:'passive_evidence_mode_mismatch'});
+      const report=await store.getReport(id),diagnosis=await diagnoseRuns(storageDir,id);
+      const args={store,id,mode:meta.mode,inspection,report,diagnosis};
+      const receipt=await readAcceptanceReceipt(args);
+      if(!receipt)return respond(res,404,{error:'offline_bundle_acceptance_not_recorded'});
+      if(receipt.status!=='VERIFIED_SYNTHETIC_LAYOUT_ONLY')
+       return respond(res,409,{error:'offline_bundle_acceptance_conflict'});
+      let bundle;
+      try{
+       const inputs=acceptanceInputs(args);
+       bundle=buildVerifiedOfflineBundle({
+        receipt,preview:inputs.preview,evidence_sha256:inputs.evidence_sha256
+       });
+      }catch{return respond(res,409,{error:'offline_bundle_integrity_failed'});}
+      return respond(res,200,bundle.bytes,'application/zip',{
+       'Content-Disposition':'attachment; filename="rea-verified-synthetic-offline-only.zip"',
+       'X-Content-Type-Options':'nosniff',
+       'X-REA-Verification-Scope':'synthetic-offline-only',
+       'X-REA-Bundle-SHA256':bundle.sha256,
+       'X-REA-HTML-SHA256':bundle.html_sha256
       });
     }
     if(what==='q1-assessment'){
