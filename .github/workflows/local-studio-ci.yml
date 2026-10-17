@@ -43,6 +43,9 @@ jobs:
       - name: Prove P4 observed card shadows improve independent Chrome rendering
         timeout-minutes: 2
         run: node tests/p4-card-shadow-chrome-e2e.mjs
+      - name: Prove P4 compact CSS chart bar fidelity in real Chrome
+        timeout-minutes: 2
+        run: node tests/p4-compact-chart-chrome-e2e.mjs
       - name: Run Chrome F5 bounded repair before-after acceptance
         timeout-minutes: 3
         run: node tests/p5-repair-chrome-e2e.mjs
