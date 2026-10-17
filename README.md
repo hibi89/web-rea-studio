@@ -8,6 +8,10 @@ Our goal is independent, runnable website reconstruction on multiple **authorize
 
 P5 comparison v2 measures the **full screenshot canvas**, penalizes missing/cropped areas and exposes a static visual-only quality gate. This does **not** certify real-site JavaScript, API behavior, server data or autonomous repairs. Existing historical P5 comparison files are not automatically upgraded or regraded.
 
+## F5 bounded observed rectangle geometry repair
+
+The new [position and size repair prototype](docs/F5_GEOMETRY_REPAIR.md) can correct one mismatched, independently observed **static P4 rectangle** field (`x`, `y`, width or height) at a time. It is fail-closed when region identity is ambiguous, the change exceeds 64px, a title/painted peer overlaps, a Chrome replay fails, visual quality does not improve or another supplied viewport regresses. This is an isolated engine with mandatory synthetic Chrome evidence, **not** automatic correction of arbitrary live responsive sites, nor currently another Studio UI action. The existing color-repair and real-site permission policies are unchanged.
+
 ## F5 independent cross-viewport guard
 
 The bounded F5 engine can now receive **separately captured reference evidence for up to two other viewport sizes**. It replays the exact same proposed scriptless HTML at each size and rejects a desktop paint fix when any observed secondary view worsens (or cannot be independently measured). A new synthetic-only Chrome viewport override is permitted only for memory-relayed, script-disabled capture; real-site capture defaults and authorization are unchanged. **The ordinary local Studio still has only a single saved source viewport and does not claim multi-viewport verification.** See [independent viewport acceptance and scope](docs/F5_MULTIVIEWPORT_GUARD.md).
