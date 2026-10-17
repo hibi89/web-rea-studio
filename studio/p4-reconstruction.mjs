@@ -45,7 +45,8 @@ export function sanitizeP4Geometry(raw){
     ...(safeBoxShadow(v.box_shadow)?{box_shadow:safeBoxShadow(v.box_shadow)}:{})}))
   .filter(v=>v.w>=80&&v.h>=36&&v.x<bounds.width&&v.y<bounds.height);
  const primitives=(Array.isArray(raw.primitives)?raw.primitives:[]).slice(0,48)
-  .filter(v=>v&&Object.keys(v).every(k=>['x','y','w','h','background','radius'].includes(k)))
+  .filter(v=>v&&!Array.isArray(v)&&['x','y','w','h'].every(k=>Number.isFinite(v[k]))&&
+   typeof v.background==='string'&&Object.keys(v).every(k=>['x','y','w','h','background','radius'].includes(k)))
   .map(v=>({x:clamp(v.x,-100,4000),y:clamp(v.y,-100,4000),
    w:clamp(v.w,0,4000),h:clamp(v.h,0,4000),
    background:palette(v.background),radius:length(v.radius)}))
