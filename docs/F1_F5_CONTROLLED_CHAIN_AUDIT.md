@@ -28,4 +28,12 @@ New `tests/controlled-chain-audit.test.mjs` covers valid catalog synthetic branc
 
 **Important limitations:** The cross-stage audit reconstructs a logical witness using **saved evidence from the same run**, not a fresh independent acquisition of the original site. A simultaneous coordinated alteration of all stored evidence could escape detection without external authenticated provenance; this is **consistency, not tamper-proof attestation**. It is not applicable to `static-visual` (use its separate saved pipeline audit), `fixture-causal`, or any real remote site. It does not prove original application functions, backend/database parity, media assets, or production readiness. The earlier Q1 off-origin data fetch remains blocked until separately approved.
 
-Final CI SHA, counts and outcomes to be appended after terminal CI, not guessed from previous runs.
+## Verified CI evidence (2026-10-17)
+
+Final functionality SHA `00ae8a82cf9d630d5af54a70361599334db85baa`, [GitHub Actions run 39020527233](https://github.com/hibi89/web-rea-studio/actions/runs/39020527233): **all 3 mandatory jobs SUCCESS**. Linux Node22 and Windows Node22/24 each **245/245 Node tests PASS, 0 failures**. Existing Linux isolated real Chrome F1/F2/F4/F5 and P4 regressions and both Windows offline Chrome plus owner-style one-command acceptance completed successfully.
+
+New tests cover a valid synthetic controlled catalog chain, tampered F3 manifest, altered F2 graph, modified F4 HTML/JS, inconsistent saved F5 counters, missing files, missing authorization evidence, unsupported modes, 404/409 route boundaries, repeated GET without executing browsers, and **one real Studio POST with a deterministic synthetic observer/replayer injection** followed by saved F1→F5 audit. That last test exercises the production Studio run/artifact writing code but intentionally uses a fake observer/replayer for deterministic offline unit testing; **it is not a fresh real Chrome proof by itself**.
+
+Separately, the **existing mandatory actual isolated Chrome** F4 test passed both synthetic fixtures: `catalog` and `analytics`, **3 observed/replayed actions, 2 branch paths, 3 verified graph edges, 4 reachable states each**, unauthorized actions rejected, real API calls 0. These results provide independent historical synthetic Chrome evidence without any original site requests.
+
+No real source site or external host accessed, no owner Windows PC test requested, and no deployment made. Saved run integrity check uses only existing local artifacts; independent remote-site parity, source data/backend recovery and external behavior authorization remain unresolved.
