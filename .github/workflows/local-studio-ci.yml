@@ -43,6 +43,9 @@ jobs:
       - name: Run Chrome F5 cross-viewport no-regression acceptance
         timeout-minutes: 3
         run: node tests/p5-multiviewport-chrome-e2e.mjs
+      - name: Run Chrome F5 measured position and size repair acceptance
+        timeout-minutes: 3
+        run: node tests/p5-geometry-repair-chrome-e2e.mjs
       - name: Run real Chrome F2 controlled action causality acceptance
         timeout-minutes: 2
         run: node tests/f2-controlled-chrome-e2e.mjs
