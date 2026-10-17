@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 최신 검증된 직전 코드 커밋은 `e2a35b21857af781d534be57472e12b934e1e76f`이며, 이 문서가 포함되는 새 커밋의 SHA는 GitHub 반영 후 확인한다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
+> **최신 관리 스냅샷: 2026-10-17 (KST)**. 이 문서가 다음 대화의 첫 진입점이다. 코드를 실행하거나 수정하기 전 반드시 실제 GitHub `main` HEAD와 이 문서의 일치 여부를 확인한다. 최신 검증된 기능 코드 커밋은 `e1063bb07c73b26356f319298ff1d1b621ce2349`이다. 그 코드의 GitHub Node·Chrome CI는 `https://github.com/hibi89/web-rea-studio/actions/runs/38992975379`에서 success로 확인됐다. 이후 문서 전용 커밋은 별도 기능 CI를 실행하지 않을 수 있으므로 최신 `main` HEAD와 기능 코드 SHA를 구분한다. 이 문서의 SHA를 자기 자신의 SHA로 덮어쓰지 않는다.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -33,7 +33,7 @@
 - **동적 실제 사이트 렌더링 문제 미해결:** 외부 앱 캡처는 되었으나 앱 화면에는 `Failed to fetch`/`보고서를 불러오지 못했습니다`가 표시되었다. 진단 코드 `PASSIVE_EXTERNAL_FETCH_REJECTED`. PNG 저장이나 `COMPLETED`만으로 화면 성공을 선언하지 않는다. 외부 리소스/CSP/중계 정책 관련 원인 후보는 있으나 실제 원격 서버/CORS 원인까지 확정된 것은 아니다.
 - **F1/F2 최근 진전:** `f91d434...` (2026-10-17)에서 관찰 상태 노드/액션 그래프, BFS 경로, 커버리지 검증, `function-graph.json` 내보내기를 추가했다. 관찰된 합성 상태 전이의 커버리지 100%는 미관찰/실제 사이트 커버리지를 뜻하지 않는다.
 - **F4 합성 검증:** 독립 HTML의 분기형 상태 머신을 `catalog`와 `analytics`라는 두 가지 메모리 내 합성 앱의 별도 Chrome 재생으로 확인. 시뮬레이션 API 카운터이며 실제 외부 네트워크 호출은 없다.
-- **GitHub CI:** 코딩 기준 커밋 `f91d434fa1ee0dc024bfa21cf27478bac2fc55fc`의 `Local Studio Node regression` 체크가 2026-10-17 성공. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
+- **GitHub CI:** 최신 검증된 기능 코드 `e1063bb07c73b26356f319298ff1d1b621ce2349`의 `Local Studio Node regression` 전체 체크가 2026-10-17 성공. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
 
 ## 3. 중요 저장소 구조
@@ -91,8 +91,8 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
-| 2026-10-17 | P2 저장된 API 의존성 화면 연동 | 실패 진단에서 허가된 경로·외부 호스트 증거를 최대 10개 표시하고 JSON 다운로드; 외부 호출이나 자동 승인 없음 | 사용자 Windows의 과거 캡처 확인과 실제 API 연결은 미검증 |
-| 2026-10-17 | P2 읽기 전용 API 의존성 리포트 | 저장된 네트워크 이벤트를 내부 경로/외부 호스트별 그룹화하고 JSON 다운로드 엔드포인트 및 테스트 추가; 승인/원격 요청은 추가하지 않음 | GitHub CI 확인, Windows 저장 기록에서 검증, 외부 API 권한 검토 대기 |
+| 2026-10-17 | P2 저장된 API 의존성 화면 연동 | 실패 진단에서 허가된 경로·외부 호스트 증거를 최대 10개 표시하고 JSON 다운로드. 코드 `e1063bb0`, GitHub Node·Chrome CI 전체 success 확인 | 사용자 Windows의 과거 캡처 확인과 실제 API 연결은 미검증 |
+| 2026-10-17 | P2 읽기 전용 API 의존성 리포트 | 저장된 네트워크 이벤트를 내부 경로/외부 호스트별 그룹화한 JSON 엔드포인트와 테스트. 코드 `45899e9b`, GitHub Node·Chrome CI success 확인 | Windows 저장 기록에서 검증, 외부 API 권한 검토 대기 |
 | 2026-10-17 | P2 저장된 실패 진단·호스트 권한 검토 개선 | 동일 호스트 fetch 시도+거부 증거로만 미승인 후보 표시, 핵심 리소스 차단·호스트 미확인 오류 구분, 추가 접속 없음 | 사용자의 저장된 Windows 실패 기록에서 확인하고 권한 별도 검토 필요 |
 | 2026-10-17 | P2 실제 앱 상태 판정 보강 | 화면 오류 문구 없이도 JS fetch 거부/핵심 Document·Script·XHR·Fetch 리소스 차단 시 FAIL 판정하도록 코드·테스트 추가. 기존 허용 정책 변경 없음 | 저장된 과거 보고서는 소급 변경되지 않음; 실제 Windows 캡처 검증 대기 |
 | 2026-10-17 | 제작방 2 인계 체계 구축 | 과거 기록 + 현재 GitHub 트리/HEAD/CI를 대조; `HANDOFF.md` 작성 및 AGENTS/README/STATUS 연결을 문서 변경으로 적용 | 다음 기능 작업 전 최신 HEAD 조회; 외부 사이트 `Failed to fetch` 문제 미해결 |
@@ -107,7 +107,7 @@
 
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 코딩 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/f91d434fa1ee0dc024bfa21cf27478bac2fc55fc
-- 최신 확인된 직전 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38992514377
+- 최신 확인된 기능 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38992975379
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
 - 신규 API 의존성 리포트: `docs/P2_DEPENDENCY_REVIEW.md`.
 - 개발 근거: `docs/F1_F2_STATE_GRAPH.md`, `docs/F1_F2_PERMISSION_PREFLIGHT.md`, `docs/F2_CONTROLLED_CHROME.md`, `docs/F4_GENERIC_STATE_ENGINE.md`, `docs/P2_DYNAMIC.md`, `docs/PUBLIC_PREVIEW.md`.

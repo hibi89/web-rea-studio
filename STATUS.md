@@ -1,6 +1,6 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
-**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). GitHub code head `f91d434...` passed Node and isolated Chrome CI. Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
+**Latest summary (2026-10-17):** The authoritative onboarding and current feature/verification boundaries are in [HANDOFF.md](HANDOFF.md). GitHub functional code SHA `e1063bb0...` passed Node and isolated Chrome CI on 2026-10-17 (https://github.com/hibi89/web-rea-studio/actions/runs/38992975379). Windows P1 fixture and P2 static HTTPS were observed working. Real-site P2 passive rendering remained failed (`PASSIVE_EXTERNAL_FETCH_REJECTED` / `Failed to fetch`); F1–F4 behavior proofs apply only to synthetic fixtures. The entries below preserve chronological history rather than claiming every old pending status remains current.
 
 ## 2026-10-17 P2 passive capture verdict hardening
 - Added capture FAIL verdict when a client fetch is rejected or core Document/Script/XHR/Fetch resource is blocked, even if literal error text is absent. Report includes `critical_resources_blocked`; cosmetic image/favicon errors alone do not fail application verdict.
@@ -19,7 +19,7 @@
 
 ## 2026-10-17 P2 local dependency review UI
 - Failed passive-run diagnosis panel now shows bounded, saved-evidence dependency summary and a local JSON download link. It uses only the already-tested read-only local API; no extra target fetch or authorization.
-- UI availability and DOM tests added. Actual Windows UI and live backend remain unverified.
+- UI availability and DOM tests added; functional SHA `e1063bb0` passed GitHub Node+Chrome CI (run 38992975379). Actual Windows UI and live backend remain unverified.
 
 ## Historical records (2026-10-16)
 
