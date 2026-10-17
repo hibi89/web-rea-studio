@@ -131,6 +131,11 @@ test('geometry POST requires same-origin confirmation; GET never launches Chrome
   assert.equal((await response.json()).original_site_refetched,false);
   assert.equal((await fetch(endpoint)).status,202);
   assert.equal((await post({confirm:'offline-geometry-review'})).status,409);
+  // The shared browser lock must also reject starting a separate fresh run.
+  const competing=await fetch(base+'/api/runs',{method:'POST',headers:{
+   Origin:base,'Content-Type':'application/json'},body:JSON.stringify({
+    target_url:'http://127.0.0.1:'+fixturePort+'/'})});
+  assert.equal(competing.status,409);
   assert.equal(launch,1);
   release();
   let result;
