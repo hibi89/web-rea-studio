@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {STEPS,validateOwnerAcceptanceEnvironment,
+import {NODE_REGRESSION_ARGS,STEPS,validateOwnerAcceptanceEnvironment,
  extractSafeAcceptanceProof,runOwnerOfflineAcceptance} from '../scripts/local-acceptance-core.mjs';
 
 const nodeLog='# tests 205\n# pass 205\n# fail 0\n';
@@ -61,6 +61,33 @@ test('preflight stops before launching if unsupported node, OS, npm invocation o
  }
  assert.equal(validateOwnerAcceptanceEnvironment({...opts,nodeVersion:'v24.11.0'}),null);
  assert.equal(validateOwnerAcceptanceEnvironment({...opts,nodeVersion:'v26.0.0'}),null);
+});
+test('node-regressions forces cross-platform TAP output and safely parses TAP or Node spec summaries',()=>{
+ assert.deepEqual([...NODE_REGRESSION_ARGS],[
+  '--test','--test-reporter=tap','scripts/*.test.mjs','tests/*.test.mjs']);
+ assert.deepEqual(extractSafeAcceptanceProof('node-regressions',
+  '# tests 209\n# pass 209\n# fail 0\n'),
+  {tests:209,passed:209,failed:0});
+ assert.deepEqual(extractSafeAcceptanceProof('node-regressions',
+  'ℹ tests 209\nℹ pass 209\nℹ fail 0\n'),
+  {tests:209,passed:209,failed:0});
+ assert.deepEqual(extractSafeAcceptanceProof('node-regressions',
+  'ℹ️ tests 209\r\nℹ️ pass 209\r\nℹ️ fail 0\r\n'),
+  {tests:209,passed:209,failed:0});
+ assert.deepEqual(extractSafeAcceptanceProof('node-regressions',
+  '\x1b[36m# tests 209\x1b[0m\n# pass 209\n# fail 0\n'),
+  {tests:209,passed:209,failed:0});
+ for(const invalid of [
+  '✔ all tests passed',
+  '# tests 209\n# pass 208\n# fail 0',
+  '# tests 209\n# pass 209',
+  '# tests 209\n# pass 209\n# fail 1',
+  '# tests 209\n# tests 210\n# pass 209\n# fail 0',
+  'ℹ tests 209\nℹ pass 209\nℹ fail 0\n# tests 3\n# pass 3\n# fail 0'
+ ]){
+  assert.equal(extractSafeAcceptanceProof('node-regressions',invalid),null,
+   'Missing, conflicting or unverified results must be rejected');
+ }
 });
 test('malformed or weak fixture results cannot claim Windows or Chrome acceptance',()=>{
  assert.equal(extractSafeAcceptanceProof('node-regressions','# tests 205\n# pass 204\n# fail 1'),null);
