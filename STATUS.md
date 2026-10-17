@@ -26,6 +26,12 @@
 - Feature code baseline 4a2031bd54a7b833efc9a26555b30df3c61eaa9c; GitHub CI and Windows real-data acceptance are separate checks.
 - Actual live dashboard Failed to fetch issue is unresolved. See docs/F1_F2_PASSIVE_BLUEPRINT.md and HANDOFF.md.
 
+## 2026-10-17 P2 offline support packet from saved failed captures
+- Added deterministic, privacy-minimized JSON support packet for failed/interrupted saved `dynamic-passive` analyses via `GET /api/runs/:id/support-packet`; UI offers `안전 진단 패킷 JSON` in failed-run diagnostics.
+- Packet contains only counts, allowlisted status/reason codes, hostnames and coarse approved-origin path categories; excludes raw input values, page labels, full URLs/queries, screenshot, external paths, response bodies and raw stderr. Warns owner to review hostnames before sharing.
+- No new external fetch, browser click, host approval, analyzer relaunch, Windows data overwrite or Vercel change. Unit/HTTP/UI tests added; actual Windows saved-run acceptance and real external backend behavior remain unverified.
+- Feature code baseline `9d4bcf36c1241080e8ef09074ce6f9de1e8a9875`; CI https://github.com/hibi89/web-rea-studio/actions/runs/38994454894. See `docs/P2_SUPPORT_PACKET.md`.
+
 ## Historical records (2026-10-16)
 
 ## P0 (controlled fixture)
