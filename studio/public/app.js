@@ -42,22 +42,22 @@ function showExploration(x){
  const inventory=x.exploration?.inventory||x.page?.interaction_inventory;
  const fixture=x.exploration?.source==='controlled-fixture-scenario'?x.exploration:null;
  if(fixture){
-  f1.textContent=(x.mode==='fixture-causal'?'실제 Chrome 합성 테스트':'통제된 REA 로컬 테스트')+' · 실행 단계 '+fixture.actions_observed+
+  f1.textContent=(x.mode==='fixture-causal'||x.mode?.startsWith('fixture-generic-')?'실제 Chrome 합성 테스트':'통제된 REA 로컬 테스트')+' · 실행 단계 '+fixture.actions_observed+
    '개 · 완료 '+fixture.successful_steps+'개 (외부 사이트 자동 탐색 아님)';
   fillList('f1-controls',(fixture.steps||[]).slice(0,28).map(s=>s.step_id+
    ' · '+s.action+' · '+s.status),'테스트 행동 없음');
   const transitions=fixture.state_transitions;
   f2.textContent='통제된 테스트의 화면 변화 '+(transitions?.observed_state_changes??0)+
    '건 · 변화 감지 단계 '+(transitions?.changed_steps??0)+'개 · '+
-   (x.mode==='fixture-causal'
-     ?'실제 Chrome에서 행동 → API 호출 검증 '+(fixture.verified_action_api_links??0)+'건 (합성 사이트에만 해당)'
+   (x.mode==='fixture-causal'||x.mode?.startsWith('fixture-generic-')
+     ?'실제 Chrome에서 행동 → API 호출 검증 '+(fixture.verified_action_api_links??0)+'건 (합성 사이트 한정)'
      :'개별 API 인과관계는 별도 증거 필요');
   const stateLines=(transitions?.steps||[]).filter(step=>step.changed?.length)
     .slice(0,30).map(step=>step.step_id+' · '+step.changed
      .map(c=>c.field+' '+c.from+' → '+c.to).join(' / '));
-  const requestLines=x.mode==='fixture-causal'?(transitions?.steps||[])
+  const requestLines=(x.mode==='fixture-causal'||x.mode?.startsWith('fixture-generic-'))?(transitions?.steps||[])
     .filter(step=>step.network_requests>0)
-    .map(step=>step.step_id+' → /api/rows · API GET '+step.network_requests+'회 · 통제 실험 검증'):[];
+    .map(step=>step.step_id+' · API GET '+step.network_requests+'회 · 통제 실험 검증'):[];
   fillList('f2-dependencies',[
    ...stateLines,...requestLines,
    ...(fixture.observed_endpoint_paths||[]).map(s=>'관찰된 네트워크 경로 · '+s)
@@ -154,7 +154,7 @@ function setCurrent(run){
  el('p4-panel').hidden=true;
  el('f3-panel').hidden=true;
  el('f4-panel').hidden=true;
- for(const linkId of ['open-behavior','download-behavior']){
+ for(const linkId of ['open-behavior','download-behavior','open-generic','download-generic']){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
  for(const linkId of ['download-manifest','download-reconstruction']){
@@ -169,7 +169,7 @@ function setCurrent(run){
  el('status').textContent=run.status.toUpperCase();
  el('time').textContent=new Date(run.created_at).toLocaleString('ko-KR');
  el('run').disabled=['queued','running'].includes(run.status);
- el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':run.mode==='static-visual'?'STATIC VISUAL':run.mode==='fixture-causal'?'F2 SYNTHETIC CHROME':'REA BROWSER'}`;
+ el('result-title').textContent=`분석 ID: ${run.id} · ${run.mode==='static-html'?'STATIC HTML':run.mode==='dynamic-passive'?'PASSIVE CHROME':run.mode==='static-visual'?'STATIC VISUAL':run.mode==='fixture-causal'?'F2 SYNTHETIC CHROME':run.mode?.startsWith('fixture-generic-')?'F4 GENERIC SYNTHETIC':'REA BROWSER'}`;
  if(run.status==='failed'||run.status==='interrupted')show(run.error);
  else show('');
 }
@@ -187,9 +187,9 @@ async function select(id){
   setCurrent(run);diagnostic(run);
   const active=['queued','running'].includes(run.status);
   if(active){el('inspector-summary').textContent='분석 중...';el('report').textContent=(run.mode==='static-html'?'HTTPS HTML 분석 중...':run.mode==='fixture-causal'?'합성 Chrome 행동/API 검증 중...':'REA 브라우저 분석 실행 중...')+' 완료 후 자동으로 결과를 표시합니다.';el('preview').replaceChildren();state.timer=setTimeout(()=>select(id),1100);return;}
-  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false;
+  let screenshotSaved=false,reconstructionAvailable=false,comparisonAvailable=false,manifestAvailable=false,behaviorAvailable=false,genericAvailable=false;
   if(run.status==='completed'||run.status==='failed'){
-   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
+   try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
   if(manifestAvailable&&!active){
@@ -207,6 +207,18 @@ async function select(id){
     download.href=`/api/runs/${id}/behavior-prototype-download`;download.hidden=false;
    }
   }
+  if(run.mode?.startsWith('fixture-generic-')&&!active){
+   el('f4-panel').hidden=false;
+   el('f4-status').textContent=genericAvailable
+    ?'두 분기 경로의 3개 행동을 Chrome에서 재생성·검증했습니다. 실제 API 요청 0건.'
+    :'범용 재생성 검증을 통과한 결과물이 없습니다.';
+   el('f4-caveat').textContent='상품 목록/분석 대시보드의 합성 행동만 재생합니다. 임의의 외부 웹사이트 복원은 아닙니다.';
+   if(genericAvailable){
+    const p=el('open-generic'),d=el('download-generic');
+    p.href=`/api/runs/${id}/generic-prototype`;p.hidden=false;
+    d.href=`/api/runs/${id}/generic-prototype-download`;d.hidden=false;
+   }
+  }else el('f4-caveat').textContent='통제된 합성 테스트에서 검증한 행동만 재생합니다. API는 로컬 시뮬레이션이며 실제 웹사이트의 기능 복제나 데이터 복원을 의미하지 않습니다.';
   if(run.mode==='static-visual'&&!active){
    el('p4-panel').hidden=false;
    el('p4-status').textContent=reconstructionAvailable
@@ -277,12 +289,12 @@ api('/api/targets').then(x=>{
  const update=()=>{
   const target=el('target').value,yes=approvedTargets.includes(target),fixture=target===x.fixture;
   const control=el('analysis-mode');
-  const acceptable=fixture?['rea-browser','fixture-causal']:['static-html','dynamic-passive','static-visual'];
+  const acceptable=fixture?['rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics']:['static-html','dynamic-passive','static-visual'];
   if((yes||fixture)&&!acceptable.includes(control.value))control.value=fixture?'rea-browser':'static-html';
   control.disabled=!(yes||fixture);
   for(const o of control.options)o.hidden=!acceptable.includes(o.value);
   el('target-mode').textContent=fixture
-   ?(control.value==='fixture-causal'?'● Isolated synthetic Chrome: 4 fixed actions':'● REA controlled browser')
+   ?(control.value==='fixture-causal'?'● Isolated synthetic Chrome: 4 fixed actions':control.value.startsWith('fixture-generic-')?'● Isolated synthetic Chrome: branching app':'● REA controlled browser')
    :yes?(control.value==='static-html'?'● Approved HTTPS · static HTML':
     control.value==='static-visual'?'● Approved HTTPS · no JS, visual only':'● Approved HTTPS · passive Chrome, no clicks'):'● Not approved';
  };

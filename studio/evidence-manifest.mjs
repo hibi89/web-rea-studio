@@ -6,11 +6,11 @@ const safeLabel=s=>typeof s==='string'?s.replace(/[\x00-\x1f\x7f<>]/g,' ')
  .replace(/\b\d{9,}\b/g,'[NUMBER]')
  .replace(/\s+/g,' ').trim().slice(0,64):'';
 const n=(x,max)=>Number.isSafeInteger(x)&&x>=0?Math.min(x,max):0;
-const trustedMode=new Set(['static-html','static-visual','dynamic-passive','rea-browser','fixture-causal']);
+const trustedMode=new Set(['static-html','static-visual','dynamic-passive','rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics']);
 const safeHost=s=>typeof s==='string'&&s.length<254&&/^[a-z0-9.-]+$/.test(s)?s:null;
 const safeStateValue=v=>typeof v==='boolean'?v:
  Number.isSafeInteger(v)&&v>=0&&v<=1000?v:
- ['dashboard','help','loading','ready','error','previous','changed','asc','desc','table'].includes(v)?v:null;
+ ['dashboard','help','loading','ready','error','previous','changed','asc','desc','table','all','summer','grid','list','bar','line','week','month'].includes(v)?v:null;
 export function buildEvidenceManifest(inspection,report){
  if(!inspection||typeof inspection!=='object')throw Error('F3_INSPECTION_REQUIRED');
  const mode=trustedMode.has(inspection.mode)?inspection.mode:
@@ -51,14 +51,14 @@ export function buildEvidenceManifest(inspection,report){
  const fixture=inspection.exploration?.source==='controlled-fixture-scenario'?
   {executed_steps:n(inspection.exploration.actions_observed,40),
    successful_steps:n(inspection.exploration.successful_steps,40),
-   verified_action_api_links:mode==='fixture-causal'?
+   verified_action_api_links:mode==='fixture-causal'||mode.startsWith('fixture-generic-')?
     n(inspection.exploration.verified_action_api_links,10):0,
    observed_state_changes:n(inspection.exploration.state_transitions?.observed_state_changes,100),
    state_transitions:(Array.isArray(inspection.exploration.state_transitions?.steps)?
     inspection.exploration.state_transitions.steps:[]).slice(0,40).map(t=>({
     step_id:typeof t.step_id==='string'?t.step_id.slice(0,64):'',
     changes:(Array.isArray(t.changed)?t.changed:[]).slice(0,5)
-     .filter(c=>['panel','notes_expanded','result_state','table_rows','table_row_order','period','order','view','rows'].includes(c.field))
+     .filter(c=>['panel','notes_expanded','result_state','table_rows','table_row_order','period','order','view','rows','category','count','layout','chart','range','total'].includes(c.field))
      .map(c=>({field:c.field,from:safeStateValue(c.from),to:safeStateValue(c.to)}))
    })),
    endpoints:(Array.isArray(inspection.exploration.observed_endpoint_paths)?
@@ -77,6 +77,9 @@ export function buildEvidenceManifest(inspection,report){
   {id:'behavioral-prototype',status:report?.behavior_reconstruction_available===true?
     'verified-synthetic-only':'not-generated',
     description:'Standalone fixed synthetic 4-action replay; not a third-party website clone'},
+  {id:'generic-branching-prototype',status:report?.generic_prototype_available===true?
+    'verified-synthetic-only':'not-generated',
+   description:'Generalized state machine tested on controlled synthetic apps only'},
   {id:'generated-ui',status:report?.reconstruction_available===true?'generated':'not-generated',
     description:'Static geometry reconstruction only; not working original application'}
  ];
@@ -85,19 +88,21 @@ export function buildEvidenceManifest(inspection,report){
   observation_not_equivalence:true,
   controls:{total:controls.length,items:controls},
   visual:geometry,
-  network:{dependencies,causal_links_verified:mode==='fixture-causal'?
+  network:{dependencies,causal_links_verified:mode==='fixture-causal'||mode.startsWith('fixture-generic-')?
    n(inspection.exploration?.verified_action_api_links,10):0,
-   attribution_scope:mode==='fixture-causal'?'controlled-synthetic-only':'unverified'},
+   attribution_scope:mode==='fixture-causal'||mode.startsWith('fixture-generic-')?'controlled-synthetic-only':'unverified'},
   controlled_scenario:fixture,
   generated_artifacts:{standalone_html:report?.reconstruction_available===true,
-   interactive_prototype:report?.behavior_reconstruction_available===true&&mode==='fixture-causal',
-   interaction_verification_scope:report?.behavior_reconstruction_available===true&&mode==='fixture-causal'?
+   interactive_prototype:(report?.behavior_reconstruction_available===true&&mode==='fixture-causal')||
+    (report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-')),
+   generic_branching_prototype:report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-'),
+   interaction_verification_scope:(report?.behavior_reconstruction_available===true&&mode==='fixture-causal')||(report?.generic_prototype_available===true&&mode.startsWith('fixture-generic-'))?
     'synthetic-only':'not-verified',
    screenshot:report?.screenshot_saved===true,
    pixel_comparison:report?.visual_comparison_available===true},
   findings,errors,
   limitations:['No recovered private source, credentials or server logic',
-    'Button/API causality is verified only for fixed synthetic fixture, never external sites',
+    'Button/API causality is verified only in synthetic controlled fixtures, never external sites',
     'Only measured static geometry can be regenerated',
     'Interactive prototype replays ONLY synthetic fixture; external interaction correctness never implied']};
 }
