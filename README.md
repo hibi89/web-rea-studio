@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 verified anonymous offline ZIP bundle
+
+Studio now provides a separate **2-file ZIP download** only after the persisted explicit two-viewport Chrome acceptance receipt still matches the current saved passive evidence and synthetic HTML SHA-256. The ZIP contains exactly `rea-verified-synthetic-offline-only.html` and `rea-two-viewport-acceptance.json`; it is deterministic ZIP32 STORE with bounded entry sizes, a fixed file list, CRC32 and an allowlisted receipt (no original source labels, hosts, credentials, actions or API responses). `GET /api/runs/:id/f3-q1-offline-bundle` is read-only and returns a ZIP SHA-256 and HTML SHA-256 in headers; missing/changed acceptance refuses ZIP. **Original-site appearance, behavior and backend parity remain unverified.** See [verified two-file offline ZIP contract](docs/F3_Q1_VERIFIED_OFFLINE_ZIP_BUNDLE.md).
+
 ## F3/Q1 verified-only anonymous offline HTML download
 
 The **separate** `GET /api/runs/:id/f3-q1-verified-offline-export` returns a fixed synthetic-only HTML attachment **only** when the previous explicit two-view Chrome acceptance receipt remains valid against the *current* saved passive evidence and regenerated anonymous HTML SHA-256 and byte count. It sets strong script/network/form/navigation-denying CSP and includes verification-scope and HTML digest headers. A missing/modified/failed acceptance returns no HTML; GET triggers **zero new Chrome/source access**. Studio offers the link after validated saved acceptance and hides it when switching runs. Legacy anonymous previews remain distinct. This verifies **synthetic generated HTML only**, not the original site. Details: [F3/Q1 verified offline HTML export](docs/F3_Q1_VERIFIED_OFFLINE_HTML_EXPORT.md).
