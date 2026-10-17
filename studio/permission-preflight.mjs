@@ -13,8 +13,13 @@ function classifyHost(host){
     h.includes(':')||h==='localhost'||h.endsWith('.localhost')||
     h.endsWith('.local')||h.endsWith('.internal')||h.endsWith('.onion')||
     h.endsWith('.test')||h.endsWith('.invalid')||h.endsWith('.example')||
-    h.endsWith('.arpa')||h.endsWith('.home'))
+    h.endsWith('.arpa')||h.endsWith('.home')||
+    ['example.com','example.net','example.org'].some(x=>h===x||h.endsWith('.'+x)))
   return 'special_use_or_address';
+ // DNS wildcard-to-IP naming services can point a public-looking hostname
+ // at an internal/private address. This is an offline warning, not a DNS check.
+ if(['sslip.io','nip.io','xip.io'].some(x=>h===x||h.endsWith('.'+x)))
+  return 'dynamic_ip_hostname_requires_dns_review';
  return 'hostname_only_unverified';
 }
 const FIELDS=['host_ownership_or_permission','exact_https_origin',
