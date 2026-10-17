@@ -10,7 +10,7 @@ import {buildPassiveDependencyReview} from './passive-dependencies.mjs';
 import {buildPassiveSiteBlueprint} from './passive-blueprint.mjs';
 import {buildPassiveSupportPacket} from './support-packet.mjs';
 import {buildPassivePermissionPreflight} from './permission-preflight.mjs';
-import {generateP4Reconstruction} from './p4-reconstruction.mjs';
+import {generateP4Reconstruction,sanitizeP4Geometry} from './p4-reconstruction.mjs';
 import {buildObservedControlContract,generateObservedControlMapHtml} from './observed-controls.mjs';
 import {compareChromeScreenshots,evaluateStaticVisualGate} from './p5-visual-diff.mjs';
 import {compareP4Geometry} from './p5-geometry-diff.mjs';
@@ -351,12 +351,23 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
     const meta=await store.get(id);
     if(!meta)return respond(res,404,{error:'not_found'});
+    if(what==='independent-draft-starter'){
+     if(meta.mode!=='static-visual'||meta.status!=='completed')
+      return respond(res,404,{error:'draft_starter_unavailable'});
+     const inspection=await store.getInspection(id);
+     const geometry=sanitizeP4Geometry(inspection?.page?.reconstruction_blueprint);
+     if(inspection?.mode!=='static-visual'||!geometry?.boxes?.length)
+      return respond(res,404,{error:'draft_starter_unavailable'});
+     return respond(res,200,{geometry},jsonContent,{
+      'Content-Disposition':'attachment; filename="rea-editable-p4-geometry.json"'
+     });
+    }
     if(what==='independent-draft'||what==='independent-draft-download'){
      if(meta.mode!=='static-visual')return respond(res,404,{error:'independent_draft_unavailable'});
      const receipt=await readIndependentDraftReceipt(store,id);
