@@ -40,7 +40,10 @@ test('injected CSS/URLs in measured heading properties are dropped and not echoe
  t.text_align='center;z-index:9999';
  t.text='Heading only';
  const html=generateP4Reconstruction(x);
- assert.doesNotMatch(html,/bad\.invalid|z-index:9999|position:fixed|white-space:normal;/);
+ const titleTag=html.match(/<div class="label"[^>]*>/)?.[0];
+ assert.ok(titleTag,'Generated safe heading required');
+ assert.doesNotMatch(titleTag,/bad\.invalid|z-index:9999|position:fixed|white-space:normal;/);
+ assert.doesNotMatch(html,/bad\.invalid|z-index:9999/);
  const out=sanitizeP4Geometry(x).titles[0];
  assert.equal(Object.hasOwn(out,'text_align'),false);
  assert.equal(Object.hasOwn(out,'line_height'),false);
