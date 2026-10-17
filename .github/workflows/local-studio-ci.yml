@@ -86,6 +86,9 @@ jobs:
       - name: Run real Chrome two-viewport F3/Q1 anonymous geometry acceptance
         timeout-minutes: 4
         run: node tests/f3-q1-geometry-preview-chrome-e2e.mjs
+      - name: Verify explicit saved F3/Q1 two-viewport Chrome receipt end-to-end
+        timeout-minutes: 4
+        run: node tests/f3-q1-acceptance-chrome-e2e.mjs
       - name: Run full real Chrome planner Studio-to-F5 reviewed export proof
         timeout-minutes: 3
         run: node tests/f4-planner-studio-chrome-e2e.mjs

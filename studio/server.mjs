@@ -13,6 +13,7 @@ import {assessF3Q1Readiness} from './f3-q1-readiness.mjs';
 import {planF3Q1Work} from './f3-q1-work-plan.mjs';
 import {buildPassiveWireframe,PASSIVE_WIREFRAME_CSP} from './f3-q1-wireframe.mjs';
 import {buildAnonymousGeometryPreview,COARSE_GEOMETRY_CSP} from './f3-q1-geometry-preview.mjs';
+import {reviewAnonymousLayout,readAcceptanceReceipt,acceptanceInputs} from './f3-q1-acceptance.mjs';
 import {buildPassiveSupportPacket} from './support-packet.mjs';
 import {buildPassivePermissionPreflight} from './permission-preflight.mjs';
 import {assessSavedQ1Failure} from './q1-failure-assessment.mjs';
@@ -45,7 +46,7 @@ const headers={
 };
 const isActive=m=>['queued','running'].includes(m.status);
 const safeDetail=x=>typeof x==='string'?x.slice(0,250):'Unknown error';
-export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable(),colorRepairExecutor=reviewSavedP5ColorRepair,geometryRepairExecutor=reviewSavedP5GeometryRepair}={}){
+export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=defaultRunStorageDir(),executor=runActualCapture,staticExecutor=runStaticAnalysis,dynamicExecutor=runDynamicAnalysis,replayExecutor=runDynamicAnalysis,controlledExecutor=verifyControlledF2Actions,prototypeExecutor=verifyControlledF4Replay,genericObserver=observeGenericControlledApp,genericVerifier=verifyGenericControlledReplay,approvedUrls=parseApprovedUrls(process.env.WEB_REA_ALLOWED_URLS),browserPath=browserExecutable(),colorRepairExecutor=reviewSavedP5ColorRepair,geometryRepairExecutor=reviewSavedP5GeometryRepair,anonymousAcceptanceExecutor=reviewAnonymousLayout}={}){
  const allowed=new Set(approvedUrls.map(url=>parseApprovedUrls(url)[0]));
  const fixtureUrl=`http://127.0.0.1:${fixturePort}/`;
  function classifyTarget(input){
@@ -63,9 +64,10 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
  let active=null;
  const colorRepairActive=new Set(),colorRepairFailures=new Map();
  const geometryRepairActive=new Set(),geometryRepairFailures=new Map();
+ const anonymousAcceptanceActive=new Set(),anonymousAcceptanceFailures=new Map();
  async function begin(input){
   const {url,mode}=classifyTarget(input);
-  if(active||colorRepairActive.size||geometryRepairActive.size) return {conflict:true};
+  if(active||colorRepairActive.size||geometryRepairActive.size||anonymousAcceptanceActive.size) return {conflict:true};
   // Reservation happens before the first await; overlapping submissions cannot both start.
   active='reserved';
   try {
@@ -372,7 +374,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -689,6 +691,30 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        'X-Content-Type-Options':'nosniff'
       });
     }
+    if(what==='f3-q1-layout-acceptance'){
+      if(meta.mode!=='dynamic-passive')return respond(res,404,{error:'anonymous_acceptance_unavailable'});
+      if(!['failed','interrupted'].includes(meta.status))
+       return respond(res,409,{error:'anonymous_acceptance_requires_failed_run'});
+      const inspection=await store.getInspection(id);
+      if(!inspection)return respond(res,404,{error:'passive_inspection_not_ready'});
+      const report=await store.getReport(id),diagnosis=await diagnoseRuns(storageDir,id);
+      const saved=await readAcceptanceReceipt({
+       store,id,mode:meta.mode,inspection,report,diagnosis
+      });
+      if(saved?.status==='VERIFIED_SYNTHETIC_LAYOUT_ONLY')
+       return respond(res,200,saved,jsonContent,{
+        'Content-Disposition':`attachment; filename="rea-f3-q1-chrome-acceptance-${id}.json"`
+       });
+      if(saved?.status==='EVIDENCE_CONFLICT')
+       return respond(res,409,{error:'saved_acceptance_evidence_conflict'});
+      if(anonymousAcceptanceActive.has(id))return respond(res,202,{
+       status:'running',scope:'in-memory-synthetic-only'
+      });
+      if(anonymousAcceptanceFailures.has(id))return respond(res,409,{
+       error:'offline_chrome_verification_failed',status:'NOT_VERIFIED'
+      });
+      return respond(res,404,{error:'anonymous_acceptance_not_started'});
+    }
     if(what==='q1-assessment'){
       if(meta.mode!=='dynamic-passive')return respond(res,404,{error:'q1_assessment_not_available'});
       if(!['failed','interrupted'].includes(meta.status))return respond(res,409,{error:'q1_assessment_only_for_failed_run'});
@@ -825,6 +851,48 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     }
     return respond(res,200,meta);
    }
+   const anonymousPost=/^\/api\/runs\/([a-f0-9-]+)\/f3-q1-layout-acceptance$/.exec(path);
+   if(req.method==='POST'&&anonymousPost){
+    if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
+    if(req.headers['content-type']!=='application/json')
+     return respond(res,415,{error:'json_required'});
+    const chunks=[];let size=0;
+    for await(const chunk of req){
+     size+=chunk.length;if(size>256)return respond(res,413,{error:'request_too_large'});
+     chunks.push(chunk);
+    }
+    let body;
+    try{body=JSON.parse(Buffer.concat(chunks,size).toString('utf8'));}
+    catch{return respond(res,400,{error:'invalid_json'});}
+    if(!body||typeof body!=='object'||Array.isArray(body)||
+     Object.keys(body).length!==1||body.confirm!=='offline-anonymous-layout-review')
+     return respond(res,400,{error:'explicit_offline_layout_confirmation_required'});
+    const id=anonymousPost[1];
+    if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
+    const meta=await store.get(id);
+    if(!meta)return respond(res,404,{error:'not_found'});
+    if(meta.mode!=='dynamic-passive'||!['failed','interrupted'].includes(meta.status))
+     return respond(res,409,{error:'saved_failed_passive_run_required'});
+    if(active||colorRepairActive.size||geometryRepairActive.size||anonymousAcceptanceActive.size)
+     return respond(res,409,{error:'local_chrome_already_busy'});
+    const inspection=await store.getInspection(id),report=await store.getReport(id);
+    if(!inspection)return respond(res,409,{error:'passive_inspection_missing'});
+    const diagnosis=await diagnoseRuns(storageDir,id);
+    try{acceptanceInputs({mode:meta.mode,inspection,report,diagnosis});}
+    catch{return respond(res,409,{error:'anonymous_geometry_evidence_blocked'});}
+    const already=await readAcceptanceReceipt({store,id,mode:meta.mode,inspection,report,diagnosis});
+    if(already)return respond(res,409,{error:'anonymous_acceptance_already_recorded_or_conflicted'});
+    anonymousAcceptanceActive.add(id);anonymousAcceptanceFailures.delete(id);
+    void(async()=>{
+     try{await anonymousAcceptanceExecutor({
+      store,id,mode:meta.mode,inspection,report,diagnosis,browserPath,replayExecutor
+     });}
+     catch{anonymousAcceptanceFailures.set(id,true);}
+     finally{anonymousAcceptanceActive.delete(id);}
+    })();
+    return respond(res,202,{status:'running',scope:'in-memory-anonymous-only',
+     source_site_refetched:false,permissions_added:0});
+   }
    const draftPost=/^\/api\/runs\/([a-f0-9-]+)\/independent-draft$/.exec(path);
    if(req.method==='POST'&&draftPost){
     if(req.headers.origin!==`http://${allowedHost}`)return respond(res,403,{error:'origin_not_allowed'});
@@ -842,7 +910,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        inspection?.mode!=='static-visual'||
        inspection?.page?.reconstruction_blueprint?.source!=='p4-geometry')
      return respond(res,409,{error:'static_geometry_evidence_missing'});
-    if(active||colorRepairActive.size||geometryRepairActive.size)return respond(res,409,{error:'local_analysis_busy'});
+    if(active||colorRepairActive.size||geometryRepairActive.size||anonymousAcceptanceActive.size)return respond(res,409,{error:'local_analysis_busy'});
     if(await readIndependentDraftReceipt(store,id))
      return respond(res,409,{error:'draft_already_stored'});
     const incoming=[];let size=0,tooLarge=false;
@@ -902,7 +970,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     try{await readFile(join(store.pathFor(id),'geometry-repair.json'),'utf8');
      return respond(res,409,{error:'geometry_review_already_finished'});
     }catch(e){if(e.code!=='ENOENT')throw e;}
-    if(active||colorRepairActive.size||geometryRepairActive.size)
+    if(active||colorRepairActive.size||geometryRepairActive.size||anonymousAcceptanceActive.size)
      return respond(res,409,{error:'local_chrome_already_busy'});
     geometryRepairActive.add(id);geometryRepairFailures.delete(id);
     void(async()=>{
@@ -943,7 +1011,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     try{await readFile(join(store.pathFor(id),'color-repair.json'),'utf8');
      return respond(res,409,{error:'color_review_already_finished'});
     }catch(e){if(e.code!=='ENOENT')throw e;}
-    if(active||colorRepairActive.size||geometryRepairActive.size)return respond(res,409,{error:'local_chrome_already_busy'});
+    if(active||colorRepairActive.size||geometryRepairActive.size||anonymousAcceptanceActive.size)return respond(res,409,{error:'local_chrome_already_busy'});
     colorRepairActive.add(id);
     colorRepairFailures.delete(id);
     void (async()=>{

@@ -1,5 +1,5 @@
 const el=id=>document.getElementById(id);
-const state={id:null,timer:null,repairTimer:null,geometryTimer:null};
+const state={id:null,timer:null,repairTimer:null,geometryTimer:null,anonymousTimer:null};
 async function api(url,options){const res=await fetch(url,{cache:'no-store',...options});const body=await res.json();if(!res.ok)throw Error(body.error||`HTTP ${res.status}`);return body;}
 function show(msg){el('error').textContent=msg||'';}
 function diagnostic(run){const area=el('run-error');if(run.status==='failed'||run.status==='interrupted'){area.hidden=false;area.textContent=`분석 실패 · ${run.error_code||'CHECK_LOG'} · ${run.error||'실행 기록을 확인하십시오'}`+(run.diagnostic_path?` · 진단 로그: ${run.diagnostic_path}`:'');}else{area.hidden=true;area.textContent='';}}
@@ -240,6 +240,9 @@ async function loadDiagnosis(id){
       const a=el(key);a.href='/api/runs/'+id+'/'+suffix;a.hidden=false;
      }
      lines.push('F3/Q1 기하 근거 익명 UI: 3×3 구역 단위 미리보기 가능 · 실제 모바일 원본 배치 미검증');
+     el('run-f3-q1-layout-acceptance').hidden=false;
+     el('f3-q1-layout-acceptance-status').hidden=false;
+     void refreshAnonymousAcceptance(id);
     }
    }catch{lines.push('F3/Q1 기하 근거 익명 UI: viewport/좌표 증거가 부족하거나 충돌해 생성 차단');}
   }
@@ -263,6 +266,50 @@ el('copy-diagnosis').addEventListener('click',async()=>{
  }catch{el('diagnosis-copy-status').textContent='자동 복사 불가. 위 텍스트를 선택해 복사하세요.';}
 });
 
+async function refreshAnonymousAcceptance(id){
+ if(state.id!==id)return;
+ clearTimeout(state.anonymousTimer);
+ const status=el('f3-q1-layout-acceptance-status');
+ const button=el('run-f3-q1-layout-acceptance');
+ const link=el('download-f3-q1-layout-acceptance');
+ link.hidden=true;link.removeAttribute('href');
+ try{
+  const receipt=await api('/api/runs/'+id+'/f3-q1-layout-acceptance');
+  if(state.id!==id)return;
+  if(receipt.status==='VERIFIED_SYNTHETIC_LAYOUT_ONLY'){
+   status.textContent='익명 HTML Chrome 2화면 저장 검증 완료 · 원본 사이트 동등성 미검증';
+   button.disabled=true;link.hidden=false;
+   link.href='/api/runs/'+id+'/f3-q1-layout-acceptance';return;
+  }
+  if(receipt.status==='running'){
+   status.textContent='명시적으로 승인한 익명 HTML만 격리 Chrome에서 검증 중';
+   button.disabled=true;
+   state.anonymousTimer=setTimeout(()=>refreshAnonymousAcceptance(id),1400);
+  }
+ }catch{
+  if(state.id!==id)return;
+  status.textContent='미검증 또는 증거 불일치 · 원본 사이트 검증/승인 아님';
+  button.disabled=false;
+ }
+}
+el('run-f3-q1-layout-acceptance').addEventListener('click',async()=>{
+ const id=state.id,button=el('run-f3-q1-layout-acceptance');
+ if(!id||button.hidden||button.disabled)return;
+ button.disabled=true;
+ el('f3-q1-layout-acceptance-status').textContent='명시적 오프라인 검증 요청 중';
+ try{
+  await api('/api/runs/'+id+'/f3-q1-layout-acceptance',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({confirm:'offline-anonymous-layout-review'})
+  });
+  if(state.id===id)await refreshAnonymousAcceptance(id);
+ }catch(e){
+  if(state.id===id){
+   el('f3-q1-layout-acceptance-status').textContent='검증 시작 실패: '+e.message;
+   button.disabled=false;
+  }
+ }
+});
 async function refreshGeometryReview(id){
  if(state.id!==id)return;
  clearTimeout(state.geometryTimer);
@@ -488,6 +535,12 @@ function setCurrent(run){
   'download-f3-q1-wireframe-receipt']){
   el(key).hidden=true;el(key).removeAttribute('href');
  }
+ clearTimeout(state.anonymousTimer);
+ el('run-f3-q1-layout-acceptance').hidden=true;
+ el('run-f3-q1-layout-acceptance').disabled=false;
+ el('download-f3-q1-layout-acceptance').hidden=true;
+ el('download-f3-q1-layout-acceptance').removeAttribute('href');
+ el('f3-q1-layout-acceptance-status').hidden=true;
  for(const key of ['open-f3-q1-geometry-preview','download-f3-q1-geometry-preview',
   'download-f3-q1-geometry-receipt']){
   el(key).hidden=true;el(key).removeAttribute('href');
