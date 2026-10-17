@@ -24,6 +24,7 @@ import {generateControlledInteractiveHtml} from './behavior-reconstruction.mjs';
 import {observeGenericControlledApp,verifyGenericControlledReplay} from './generic-fixture-browser.mjs';
 import {normalizeGenericBehaviorEvidence,generateGenericBehaviorHtml} from './generic-behavior.mjs';
 import {buildObservedFeatureGraph,markObservedFeatureGraphVerified} from './behavior-exploration.mjs';
+import {compileF3LinkedReconstructionContract,matchesStoredReconstructionContract} from './reconstruction-contract.mjs';
 import {reviewSavedP5ColorRepair} from './p5-stored-review.mjs';
 import {reviewSavedP5GeometryRepair} from './p5-saved-geometry-repair.mjs';
 import {MAX_INDEPENDENT_DRAFT_BODY,saveIndependentDraftBundle,readIndependentDraftReceipt} from './independent-draft.mjs';
@@ -68,7 +69,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    void (async()=>{
     try {
      await store.update(meta.id,{status:'running'});
-     let execution,controlledEvidence=null;
+     let execution,controlledEvidence=null,genericArtifacts=null;
      if(mode==='fixture-generic-catalog'||mode==='fixture-generic-analytics'){
       const appId=mode==='fixture-generic-catalog'?'catalog':'analytics';
       await store.saveInput(meta.id,{kind:mode,scope:'controlled-synthetic-only',
@@ -100,6 +101,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        replay.simulated_api_calls!==plannedCalls||replay.branching!==true)
        throw Error('F4G_REPLAY_NOT_VERIFIED');
       const verifiedGraph=markObservedFeatureGraphVerified(planned,replay);
+      genericArtifacts={evidence,verifiedGraph,replay,html:document};
       await writeFile(join(store.pathFor(meta.id),'generic-prototype.html'),
        document,{flag:'wx',mode:0o600});
       await writeFile(join(store.pathFor(meta.id),'function-graph.json'),
@@ -314,9 +316,17 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
      if(execution.inspection){
       try{
        const manifest=buildEvidenceManifest(execution.inspection,report);
+       if(genericArtifacts){
+        const contract=compileF3LinkedReconstructionContract({...genericArtifacts,manifest});
+        await writeFile(join(store.pathFor(meta.id),'reconstruction-contract.json'),
+         JSON.stringify(contract),{flag:'wx',mode:0o600});
+        report.reconstruction_contract_available=true;
+       }
        await store.saveManifest(meta.id,manifest);
        report.evidence_manifest_available=true;
-      }catch{}
+      }catch{
+       if(genericArtifacts)throw Error('F4_CONTRACT_GENERATION_FAILED');
+      }
      }
      await store.saveReport(meta.id,report);
      await store.update(meta.id,{status:report.verdict==='PASS'?'completed':'failed',verdict:report.verdict,error:report.failures?.join(', ')||null});
@@ -357,7 +367,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
-   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
+   const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download))?$/.exec(path);
    if(req.method==='GET'&&match){
     const [,id,what]=match;
     if(!ID_PATTERN.test(id))return respond(res,400,{error:'invalid_id'});
@@ -594,6 +604,26 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     if(what==='screenshot'){
       const png=await store.getScreenshot(id);
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
+    }
+    if(what==='reconstruction-contract'){
+      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode)||
+         meta.status!=='completed')return respond(res,404,{error:'reconstruction_contract_not_available'});
+      const report=await store.getReport(id);
+      if(report?.reconstruction_contract_available!==true)
+       return respond(res,404,{error:'reconstruction_contract_not_available'});
+      let contract,graph,manifest,html;
+      try{
+       const base=store.pathFor(id);
+       [contract,graph,manifest,html]=await Promise.all([
+        readFile(join(base,'reconstruction-contract.json'),'utf8').then(JSON.parse),
+        readFile(join(base,'function-graph.json'),'utf8').then(JSON.parse),
+        store.getManifest(id),readFile(join(base,'generic-prototype.html'),'utf8')
+       ]);
+      }catch(e){if(e.code==='ENOENT')return respond(res,404,{error:'reconstruction_contract_not_available'});throw e;}
+      if(!matchesStoredReconstructionContract(contract,{verifiedGraph:graph,manifest,html}))
+       return respond(res,409,{error:'reconstruction_contract_evidence_conflict'});
+      return respond(res,200,contract,jsonContent,{
+       'Content-Disposition':'attachment; filename="rea-synthetic-reconstruction-contract.json"'});
     }
     if(what==='feature-graph'){
       if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
