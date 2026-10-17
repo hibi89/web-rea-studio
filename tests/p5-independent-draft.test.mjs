@@ -78,7 +78,7 @@ test('local-only immutable bundle stores sanitized geometry and never edits orig
   const geometry=JSON.parse(await readFile(join(store.pathFor(meta.id),
    'independent-draft-geometry.json'),'utf8'));
   assert.equal(geometry.boxes[1].x,68);
-  assert.deepEqual(await readFile(join(store.pathFor(meta.id),'inspection.json'),inspectionBefore);
+  assert.deepEqual(await readFile(join(store.pathFor(meta.id),'inspection.json')),inspectionBefore);
   await assert.rejects(()=>saveIndependentDraftBundle({store,id:meta.id,
    originalGeometry:sourceGeometry(),bundle:{
     confirm:'store-scriptless-p4-draft',geometry:changed()}}),{code:'EEXIST'});
