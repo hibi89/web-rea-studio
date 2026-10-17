@@ -49,6 +49,12 @@ For an already failed/interrupted passive analysis, the local Studio failure ins
 
 **Limitations:** The tool does **not** reconstruct private server source, analyze unauthorised domains, bypass authentication or make unrestricted external browser requests. Static external analysis does not execute JavaScript or take screenshots.
 
+## Verified GitHub Windows offline compatibility (2026-10-17)
+
+Beyond Linux, [both Windows and Linux CI jobs now pass](https://github.com/hibi89/web-rea-studio/actions/runs/39004521346) at code SHA `ee839bf2`: real Windows Node **205/205**, no-download npx launcher preflight, actual local Studio startup with a path containing spaces and loopback Host protection, real Windows Chrome P4 capture, and stored user P4 draft → Chrome F5 x/width correction (RGB MAE **2.41 → 1.61**, two accepted edits). No real third-party website or API is contacted.
+
+This verifies the **GitHub Windows runner**, **not** the owner's individual Windows laptop, real REA-provider capture, or the previously failed external dashboard. [Windows test scope and local steps](docs/WINDOWS_OFFLINE_ACCEPTANCE.md).
+
 ## Windows quick start
 
 In the checked-out `hibi89/web-rea-studio` directory:
