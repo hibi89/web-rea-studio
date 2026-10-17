@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {mkdtemp,writeFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {encodeFixedTwoFileZip,OFFLINE_ZIP_FILES} from '../studio/f3-q1-offline-bundle.mjs';
@@ -85,5 +85,28 @@ test('CLI reads on disk without source contact, reports valid JSON, exits nonzer
   assert.equal(good.status,'VALID_SYNTHETIC_OFFLINE_BUNDLE');
   await writeFile(path,Buffer.concat([b,Buffer.from('tamper')]));
   assert.throws(()=>execFileSync(process.execPath,[cli,path],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('CLI rejects oversized input, directories and symlinks before reading ZIP bytes',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'rea-zip-preflight-'));
+ const cli=resolve('scripts/verify-offline-bundle.mjs');
+ const failure=path=>{
+  try{execFileSync(process.execPath,[cli,path],{encoding:'utf8',stdio:['ignore','pipe','pipe']});}
+  catch(e){assert.equal(e.status,1);return JSON.parse(String(e.stderr));}
+  assert.fail('CLI should reject non-file or over-limit input');
+ };
+ try{
+  const oversized=join(dir,'oversized.zip');
+  await writeFile(oversized,Buffer.alloc(2*256*1024+4097));
+  assert.deepEqual(failure(oversized),{status:'REJECTED',reason:'BUNDLE_SIZE_OR_TYPE'});
+  const folder=join(dir,'folder.zip');
+  await mkdir(folder);
+  assert.deepEqual(failure(folder),{status:'REJECTED',reason:'BUNDLE_NOT_REGULAR_FILE'});
+  if(process.platform!=='win32'){
+   const allowed=join(dir,'regular.zip'),link=join(dir,'link.zip');
+   await writeFile(allowed,bundle());await symlink(allowed,link);
+   assert.deepEqual(failure(link),{status:'REJECTED',reason:'BUNDLE_NOT_REGULAR_FILE'});
+  }
  }finally{await rm(dir,{recursive:true,force:true});}
 });

@@ -1,7 +1,7 @@
 // Offline-only, independent verifier for the fixed REA two-entry ZIP32 bundle.
 // No imports from the ZIP writer, no browser, external network or file extraction.
 import {createHash} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {open,lstat} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -108,12 +108,38 @@ export function verifyOfflineBundle(input,{expectedBundleSha256}={}){
   source_authenticity_verified:false,original_site_parity_verified:false,
   original_mobile_layout_verified:false,product_ready:false};
 }
+// Bound disk input before allocation and read only the inspected file descriptor.
+// Reject directories, special files and symlinks; never follow untrusted ZIP paths.
+async function readBoundedFile(path){
+ const initial=await lstat(path);
+ if(!initial.isFile())reject('BUNDLE_NOT_REGULAR_FILE');
+ if(!Number.isSafeInteger(initial.size)||initial.size<22||initial.size>MAX)
+  reject('BUNDLE_SIZE_OR_TYPE');
+ const handle=await open(path,'r');
+ try{
+  const st=await handle.stat();
+  if(!st.isFile())reject('BUNDLE_NOT_REGULAR_FILE');
+  if(!Number.isSafeInteger(st.size)||st.size<22||st.size>MAX)
+   reject('BUNDLE_SIZE_OR_TYPE');
+  const bytes=Buffer.alloc(st.size);
+  let offset=0;
+  while(offset<bytes.length){
+   const {bytesRead}=await handle.read(bytes,offset,bytes.length-offset,offset);
+   if(bytesRead===0)reject('BUNDLE_CHANGED_WHILE_READING');
+   offset+=bytesRead;
+  }
+  // Detect concurrent growth after the size check without allocating further.
+  const extra=await handle.read(Buffer.alloc(1),0,1,offset);
+  if(extra.bytesRead!==0)reject('BUNDLE_CHANGED_WHILE_READING');
+  return bytes;
+ }finally{await handle.close();}
+}
 async function main(args){
  const usage='Usage: node scripts/verify-offline-bundle.mjs <zip-path> [--expected-zip-sha256 <64-lowercase-hex>]';
  if(args.length!==1&&args.length!==3)throw Error(usage);
  if(args.length===3&&args[1]!=='--expected-zip-sha256')throw Error(usage);
  const options=args.length===3?{expectedBundleSha256:args[2]}:{};
- const bytes=await readFile(args[0]);
+ const bytes=await readBoundedFile(args[0]);
  return verifyOfflineBundle(bytes,options);
 }
 const invoked=process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url);
