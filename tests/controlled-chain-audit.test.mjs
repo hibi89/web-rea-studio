@@ -68,7 +68,7 @@ export function syntheticChainFixture(){
   target_url:'https://SECRET-ORIGIN.example.org/?key=SUPER_PRIVATE'};
  const manifest=buildEvidenceManifest(inspection,report);
  const html=generateGenericBehaviorHtml(evidence);
- return {meta,report,inspection,manifest,graph,html};
+ return {meta,report,inspection,manifest,graph,html,evidence};
 }
 
 test('saved F1/F2/F3/F4/F5 synthetic records are cross-checked without new replay',()=>{
@@ -156,6 +156,60 @@ test('Studio exposes repeated read-only cross-stage audit, no Chrome or network,
   assert.equal((await fetch('http://127.0.0.1:'+port+'/api/runs/'+pending.id+'/controlled-chain-audit')).status,409);
   assert.equal(browserCalls,0);
   assert.equal((await studio.store.get(meta.id)).status,'completed');
+ }finally{
+  if(studio.server.listening)await new Promise(ok=>studio.server.close(ok));
+  await rm(root,{recursive:true,force:true});
+ }
+});
+
+test('normal Studio POST builds F1/F2 graph, F3 manifest and F4 HTML, then offline GET cross-checks actual saved artifacts',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'rea-chain-real-pipeline-'));
+ const node=netServer();await new Promise((ok,bad)=>node.once('error',bad).listen(0,'127.0.0.1',ok));
+ const port=node.address().port;await new Promise(ok=>node.close(ok));
+ const fixture=syntheticChainFixture();
+ let observations=0,replays=0;
+ const studio=createStudioServer({studioPort:port,fixturePort:4317,storageDir:root,
+  genericObserver:async({appId})=>{
+   assert.equal(appId,'catalog');observations++;
+   return {...fixture.evidence,execution_policy:{
+    source:'controlled-action-audit',scope:'in-memory-synthetic-only',
+    authorized_controls:3,denied_controls:4,
+    unauthorized_actions_executed:0,external_navigation_performed:false,
+    form_submissions_performed:0,approved_action_ids:['reset','filter','layout']}};
+  },
+  genericVerifier:async({evidence,html})=>{
+   replays++;
+   assert.equal(evidence.app_id,'catalog');
+   assert.equal(html,fixture.html);
+   return {source:'controlled-generic-replay',scope:'synthetic-only',
+    verified_steps:3,actual_api_calls:0,simulated_api_calls:1,branching:true,
+    observed_edge_coverage:3,verified_route_ids:['route0','route1']};
+  }});
+ try{
+  await studio.init();
+  await new Promise((ok,bad)=>studio.server.once('error',bad).listen(port,'127.0.0.1',ok));
+  const origin='http://127.0.0.1:'+port;
+  const submitted=await fetch(origin+'/api/runs',{method:'POST',
+   headers:{Origin:origin,'Content-Type':'application/json'},
+   body:JSON.stringify({target_url:'http://127.0.0.1:4317/',analysis_mode:'fixture-generic-catalog'})});
+  assert.equal(submitted.status,202);
+  const {id}=await submitted.json();
+  let saved=null;
+  for(let i=0;i<130;i++){
+   saved=await studio.store.get(id);
+   if(['completed','failed'].includes(saved?.status))break;
+   await new Promise(ok=>setTimeout(ok,20));
+  }
+  assert.equal(saved?.status,'completed',JSON.stringify(saved));
+  assert.equal(observations,1);assert.equal(replays,1);
+  const response=await fetch(origin+'/api/runs/'+id+'/controlled-chain-audit');
+  assert.equal(response.status,200);
+  const audit=await response.json();
+  assert.equal(audit.status,'SYNTHETIC_SAVED_CHAIN_CONSISTENT',JSON.stringify(audit));
+  assert.equal(audit.stages.f4_independent_app.status,'VERIFIED');
+  assert.equal(audit.replay_independently_reexecuted,false);
+  assert.equal(observations,1,'GET audit must never repeat observations');
+  assert.equal(replays,1,'GET audit must never repeat Chrome replay');
  }finally{
   if(studio.server.listening)await new Promise(ok=>studio.server.close(ok));
   await rm(root,{recursive:true,force:true});
