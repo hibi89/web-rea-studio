@@ -94,7 +94,7 @@ export function compareChromeScreenshots(reference,replica,{stride=8}={}){
   missing_area_rgb_penalty:255,
   match_rgb_threshold:18,downsample_stride:stride,
   ignored_notice_area:false,
-  interpretation:'Full canvas static pixel comparison. Missing/cropped areas incur maximum mismatch. No chart data, JS interactions, API functionality or full reconstruction verified'
+  interpretation:'Full canvas static pixel comparison. Missing/cropped areas incur maximum mismatch; no chart data, JS interactions, API functionality or full reconstruction verified'
  };
 }
 
