@@ -27,7 +27,7 @@ function data(){
 async function setup(){
  const root=await mkdtemp(join(tmpdir(),'rea-acceptance-test-'));
  const store=makeStore(root);await store.init();
- const meta=await store.create({target_url:'https://owner.test.example/',mode});
+ const meta=await store.create({target_url:'https://owner-fixture.example.org/',mode});
  const {inspection,report}=data();await store.saveInspection(meta.id,inspection);
  await store.saveReport(meta.id,report);await store.update(meta.id,{status:'failed'});
  return {root,store,id:meta.id};
@@ -97,14 +97,14 @@ test('Studio POST confirmation is mandatory; GET repeated never runs Chrome',asy
  const p=await port(),base='http://127.0.0.1:'+p;
  let calls=0,release;const holding=new Promise(ok=>{release=ok});
  const app=createStudioServer({studioPort:p,fixturePort:4317,storageDir:root,
-  approvedUrls:['https://owner.test.example/'],
+  approvedUrls:['https://owner-fixture.example.org/'],
   anonymousAcceptanceExecutor:async args=>{
    calls++;await holding;return reviewAnonymousLayout({...args,browserPath:'fake',
     replayExecutor:fake().run});
   }});
  try{
   await app.init();
-  const meta=await app.store.create({target_url:'https://owner.test.example/',mode});
+  const meta=await app.store.create({target_url:'https://owner-fixture.example.org/',mode});
   const d=data();await app.store.saveInspection(meta.id,d.inspection);
   await app.store.saveReport(meta.id,d.report);await app.store.update(meta.id,{status:'failed'});
   await new Promise(ok=>app.server.listen(p,'127.0.0.1',ok));
