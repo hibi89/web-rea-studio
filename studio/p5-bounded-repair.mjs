@@ -21,8 +21,13 @@ function safeEvidence(reference,draft){
 export function proposeSafeP4ColorRepair(reference,draft){
  const {ref,cur}=safeEvidence(reference,draft);
  if(ref.background!==cur.background){
+  // In P4 a separate painted body rectangle may cover the CSS page color.
+  // Treat these two representations of the same page background as one
+  // semantic edit, otherwise a valid CSS-only patch can change zero pixels.
+  const boxes=cur.boxes.map((box,i)=>box.tag==='body'&&ref.boxes[i].tag==='body'?
+   {...box,background:ref.boxes[i].background}:box);
   return {patch:{kind:'page-background',region_index:null},
-   geometry:{...cur,background:ref.background}};
+   geometry:{...cur,background:ref.background,boxes}};
  }
  for(let i=0;i<ref.boxes.length;i++){
   if(ref.boxes[i].background===cur.boxes[i].background)continue;
