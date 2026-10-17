@@ -163,8 +163,9 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     "Number(document.getElementById('api-simulated')?.textContent)",returnByValue:true},sid)).result?.value;
    return Number.isSafeInteger(r)?r:null;
   };
-  // Dispatch synthetic events on disabled buttons to prove unobserved
-  // state transitions cannot mutate the isolated independent F4 replay.
+  // Temporarily bypass the DOM disabled flag, dispatch a synthetic event,
+  // then restore it. This verifies the JavaScript transition guard itself,
+  // not merely the browser's native suppression of disabled button clicks.
   let rejectedTransitionsVerified=0;
   const verifyUnobservedTransitions=async()=>{
    if(!replay)return;
@@ -179,7 +180,8 @@ async function runChrome({browserPath,appId,replayHtml=null,evidence=null,launch
     const dispatched=(await cdp.send('Runtime.evaluate',{expression:
      '(()=>{const b=document.getElementById('+JSON.stringify(id)+');'+
      'if(!b||!b.disabled)return false;'+
-     'b.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));return true})()',
+     'b.disabled=false;try{b.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));}'+
+     'finally{b.disabled=true;}return b.disabled===true})()',
      returnByValue:true},sid)).result?.value;
     if(dispatched!==true)throw Error('F4G_NEGATIVE_EVENT_MISSING');
     await DELAY(35);
