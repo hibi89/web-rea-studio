@@ -6,6 +6,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {runDynamicAnalysis} from '../studio/dynamic-browser.mjs';
 import {runBoundedP4ColorRepair} from '../studio/p5-bounded-repair.mjs';
+import {reviewSavedP5ColorRepair} from '../studio/p5-stored-review.mjs';
+import {makeStore} from '../studio/core.mjs';
+import {writeFile} from 'node:fs/promises';
 
 const chrome=process.env.CHROME_BIN;
 if(!chrome)throw Error('CHROME_BIN required for actual Chrome repair acceptance');
@@ -117,6 +120,39 @@ try{
   synthetic_replays:pixelReplays,external_requests:0,
   initial_mae:inferred.baseline.rgb_mae,final_mae:inferred.final.rgb_mae,
   product_ready:inferred.product_ready}));
+ // Final vertical acceptance: saved local run -> opt-in offline reviewer ->
+ // fixed synthetic Chrome address -> improved HTML and disk receipt. This
+ // copies only synthetic fixture evidence; no owner data is included in CI.
+ const savedRoot=join(root,'saved');
+ const store=makeStore(savedRoot);await store.init();
+ const meta=await store.create({target_url:target,mode:'static-visual'});
+ await store.saveReport(meta.id,{verdict:'PASS',screenshot_saved:true,
+  reconstruction_available:true});
+ await store.saveInspection(meta.id,{mode:'static-visual',
+  page:{reconstruction_blueprint:stale}});
+ await store.saveComparison(meta.id,{schema_version:2,ignored_notice_area:false});
+ await writeFile(join(store.pathFor(meta.id),'screenshot.png'),sourcePng);
+ await store.update(meta.id,{status:'completed',verdict:'PASS'});
+ const callsBeforeSaved=requests;
+ const stored=await reviewSavedP5ColorRepair({store,id:meta.id,browserPath:chrome});
+ assert.equal(stored.status,'BOUNDED_STATIC_COLOR_IMPROVEMENT');
+ assert.equal(stored.accepted,1);
+ assert.equal(stored.renderings,2);
+ assert.equal(stored.downloadable_improved_html,true);
+ assert.equal(stored.external_requests_issued,0);
+ assert.equal(stored.original_capture_reexecuted,false);
+ assert.equal(requests,callsBeforeSaved,'Independent saved replay does not hit source relay');
+ assert.deepEqual(await readFile(join(store.pathFor(meta.id),'screenshot.png')),sourcePng);
+ const receipt=JSON.parse(await readFile(join(store.pathFor(meta.id),'color-repair.json'),'utf8'));
+ assert.equal(receipt.status,stored.status);
+ const delivered=await readFile(join(store.pathFor(meta.id),'color-repair.html'),'utf8');
+ assert.match(delivered,/script-src &#39;none&#39;/);
+ assert.doesNotMatch(delivered,/<script\b|https?:\/\//i);
+ assert.equal((await store.get(meta.id)).status,'completed');
+ console.log(JSON.stringify({p5_saved_screenshot_repair_chrome:'PASS',
+  accepted_patch:receipt.history[0].patch.kind,
+  replay_count:receipt.renderings,original_site_refetched:false,
+  original_files_overwritten:false,product_ready:false}));
 }finally{
  await rm(root,{recursive:true,force:true,maxRetries:3,retryDelay:100});
 }
