@@ -2,6 +2,12 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## P4 compact CSS chart-bar geometry (offline)
+
+The existing script-disabled P4 observer now optionally captures up to 48 **small solid-color `div` rectangles** (e.g. basic CSS chart bars) as inert geometry: coordinates, dimensions, background color and radius only. The independent static HTML paints the observed rectangles without copying scripts, chart values, labels, SVG/canvas data, private text or any external resource. Input geometry is bounded and validated, and old captures with no `primitives` continue to generate exactly the same legacy HTML.
+
+This is a **static chart-shape approximation**, not Chart.js/D3/Recharts/ECharts reverse engineering, functional graph reconstruction, or live backend data retrieval. An offline real Chrome CI fixture with six visible bars measures independent screenshot improvement. See [P4 compact chart primitives](docs/P4_COMPACT_CHART_PRIMITIVES.md).
+
 ## P4 measured card-shadow fidelity (offline)
 
 The read-only P4 geometry probe now optionally preserves **one safe, bounded CSS box shadow** for an observed card/panel, including a visible shadow-only div where appropriate. Each value is independently sanitized and only rendered in generated **scriptless standalone HTML**. CSS `url()`, multi-layer/inset shadows, out-of-bounds offsets and source scripts are never copied. Stored geometry lacking the optional key keeps its previous exact generated output.
