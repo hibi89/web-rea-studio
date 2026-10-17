@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## Saved-run recovery guidance (read-only)
+
+For a saved failed/interrupted run, `GET /api/runs/:id/recovery-plan` returns a **redacted offline-only recovery assessment**. The diagnostic panel also displays evidence availability and offers a JSON download. It checks report/inspection/manifest presence and conflicting modes/validation but does **not** verify action-level checkpoints, retry captures, grant permissions, expose stored target URLs or automatically reuse partial evidence. A new run still requires a fresh explicit POST and authorized exact target. Completed/running runs receive HTTP 409; nonexistent IDs return 404. The pure classifier's 4 focused tests passed locally; full integration and GitHub CI for this revision remain unverified. See [recovery plan scope](docs/LOCAL_RUN_RECOVERY_PLAN.md).
+
 ## F3/Q1 independent offline ZIP verification (CLI)
 
 The CLI now preflights input files **before reading**: it rejects non-regular files, symlinks and input larger than 528,384 bytes, then reads only the bounded number of bytes and detects mid-read truncation/growth. A focused regression was added; official CI for this **new** change remains unverified. Previous GitHub Actions [#234](https://github.com/hibi89/web-rea-studio/actions/runs/39043665707) did pass Linux Node 22 and Windows Node 22/24 at 291/291 each, **before** this input hardening. See the [verifier documentation](docs/F3_Q1_OFFLINE_ZIP_INDEPENDENT_VERIFIER.md).

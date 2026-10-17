@@ -712,3 +712,38 @@ test('F4 cannot serve a synthetic interactive prototype from any HTTPS target or
   assert.equal((await fetch(base+'/api/runs/'+id+'/behavior-prototype-download')).status,404);
  }finally{await new Promise(ok=>app.server.close(ok));}
 });
+
+test('failed or interrupted runs expose read-only, redacted recovery plan without automatic retry',async()=>{
+ const p=await freePort(),root=join(home,'read-only-recovery');
+ let analyzerCalls=0;
+ const s=createStudioServer({studioPort:p,fixturePort,storageDir:root,browserPath:'/test/chrome',
+  executor:async()=>{analyzerCalls++;throw Error('NOT_EXPECTED');}});
+ await s.init();await new Promise(ok=>s.server.listen(p,'127.0.0.1',ok));
+ const base='http://127.0.0.1:'+p;
+ try{
+  const saved=await s.store.create({target_url:'https://private.example/path?secret=a',mode:'dynamic-passive'});
+  await s.store.saveReport(saved.id,{verdict:'FAIL'});
+  await s.store.saveInspection(saved.id,{mode:'dynamic-passive',scope:'saved'});
+  await s.store.update(saved.id,{status:'failed',error:'sensitive-local-error'});
+  const version=(await s.store.get(saved.id))._revision;
+  const result=await fetch(base+'/api/runs/'+saved.id+'/recovery-plan');
+  assert.equal(result.status,200);
+  assert.match(result.headers.get('content-disposition'),/attachment/);
+  assert.equal(result.headers.get('cache-control'),'no-store');
+  const raw=await result.text(),body=JSON.parse(raw);
+  assert.equal(body.evidence_status,'PARTIAL_SAVED_EVIDENCE');
+  assert.equal(body.auto_resume_allowed,false);
+  assert.equal(body.new_run_requires_explicit_post,true);
+  assert.doesNotMatch(raw,/private\.example|sensitive-local-error|secret=a/);
+  assert.equal((await s.store.get(saved.id))._revision,version);
+  assert.equal(analyzerCalls,0);
+  await s.store.update(saved.id,{status:'interrupted'});
+  const stopped=await(await fetch(base+'/api/runs/'+saved.id+'/recovery-plan')).json();
+  assert.equal(stopped.run_status,'interrupted');
+  await s.store.update(saved.id,{status:'completed'});
+  assert.equal((await fetch(base+'/api/runs/'+saved.id+'/recovery-plan')).status,409);
+  assert.equal((await fetch(base+'/api/runs/00000000-0000-4000-8000-000000000000/recovery-plan')).status,404);
+  assert.equal(analyzerCalls,0);
+  assert.match(await(await fetch(base+'/')).text(),/download-recovery-plan/);
+ }finally{await new Promise(ok=>s.server.close(ok));}
+});

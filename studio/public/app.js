@@ -132,6 +132,14 @@ async function loadDiagnosis(id){
   if(p)link.href='/api/runs/'+id+'/dependencies';
   else link.removeAttribute('href');
   const lines=['진단 코드: '+(x.diagnosis||'UNKNOWN'), '상태: '+x.status+' / 방식: '+(x.mode||'—')];
+  try{
+   const recovery=await api('/api/runs/'+id+'/recovery-plan');
+   if(state.id!==id)return;
+   const a=el('download-recovery-plan');
+   a.href='/api/runs/'+id+'/recovery-plan';a.hidden=false;
+   lines.push('저장된 실행 복구 판단: '+recovery.evidence_status+
+    ' · 자동 재개 불가 · 새 분석은 사용자 승인·명시적 실행 필요');
+  }catch{lines.push('복구 판단 정보를 읽지 못했습니다. 자동 재개는 하지 않습니다.');}
   if(p){
    lines.push('브라우저 판정: '+(p.verdict||'UNKNOWN'));
    lines.push('요청 '+(p.requested??'—')+' · 성공 '+(p.fulfilled??'—')+' · 차단 '+(p.blocked??'—')+' · 미완료 '+(p.pending??'—')+' · 네트워크 오류 '+(p.browser_failures??'—'));
@@ -527,6 +535,8 @@ function setCurrent(run){
  el('run-color-review').disabled=false;
  for(const key of ['p5-original','p5-replica'])el(key).removeAttribute('src');
  el('diagnosis-panel').hidden=true;
+ el('download-recovery-plan').hidden=true;
+ el('download-recovery-plan').removeAttribute('href');
  el('download-dependencies').hidden=true;
  el('download-dependencies').removeAttribute('href');
  el('download-passive-gap-contract').hidden=true;
