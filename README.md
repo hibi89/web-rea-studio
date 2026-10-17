@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3/Q1 verified-only anonymous offline HTML download
+
+The **separate** `GET /api/runs/:id/f3-q1-verified-offline-export` returns a fixed synthetic-only HTML attachment **only** when the previous explicit two-view Chrome acceptance receipt remains valid against the *current* saved passive evidence and regenerated anonymous HTML SHA-256 and byte count. It sets strong script/network/form/navigation-denying CSP and includes verification-scope and HTML digest headers. A missing/modified/failed acceptance returns no HTML; GET triggers **zero new Chrome/source access**. Studio offers the link after validated saved acceptance and hides it when switching runs. Legacy anonymous previews remain distinct. This verifies **synthetic generated HTML only**, not the original site. Details: [F3/Q1 verified offline HTML export](docs/F3_Q1_VERIFIED_OFFLINE_HTML_EXPORT.md).
+
 ## F3/Q1 explicit saved two-view Chrome acceptance receipt
 
 The existing anonymous 3×3 HTML can now be **separately accepted** by a user-triggered local `POST /api/runs/:id/f3-q1-layout-acceptance`. It runs only isolated **in-memory generated HTML** in Chrome at 1440×900 and 390×844, checks computed CSS with zero active controls/source requests, then stores a write-once positive receipt bound to **both the HTML SHA-256 and saved evidence SHA-256**, only after both views pass. Its corresponding GET/download is **read-only** and rejects changed evidence, missing verification and tampered receipts. This is not an original-site fidelity certificate and makes no new network approval. Details: [F3/Q1 saved two-view acceptance](docs/F3_Q1_SAVED_TWO_VIEW_ACCEPTANCE.md).
