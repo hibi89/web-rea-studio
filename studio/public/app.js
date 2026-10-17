@@ -450,7 +450,7 @@ async function select(id){
    try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;featureGraphAvailable=report.feature_graph_available===true;featureGraphStates=report.feature_graph_states??0;featureGraphRoutes=report.feature_graph_routes??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
-  if(run.status==='completed'&&['static-visual','fixture-generic-catalog','fixture-generic-analytics'].includes(run.mode)){
+  if(run.status==='completed'&&['static-visual','fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(run.mode)){
    el('delivery-panel').hidden=false;
    try{
     const receipt=await api('/api/runs/'+id+'/delivery-receipt');
@@ -500,7 +500,7 @@ async function select(id){
    el('f4-status').textContent=genericAvailable
     ?'두 분기 경로의 3개 행동을 Chrome에서 재생성·검증했습니다. 실제 API 요청 0건.'
     :'범용 재생성 검증을 통과한 결과물이 없습니다.';
-   el('f4-caveat').textContent='상품 목록/분석 대시보드의 합성 행동만 재생합니다. 임의의 외부 웹사이트 복원은 아닙니다.';
+   el('f4-caveat').textContent='상품 목록/분석 대시보드/일정 관리의 합성 행동만 재생합니다. 임의의 외부 웹사이트 복원은 아닙니다.';
    if(run.status==='completed'){
     try{
      const audit=await api('/api/runs/'+id+'/controlled-chain-audit');
@@ -630,7 +630,7 @@ api('/api/targets').then(x=>{
  const update=()=>{
   const target=el('target').value,yes=approvedTargets.includes(target),fixture=target===x.fixture;
   const control=el('analysis-mode');
-  const acceptable=fixture?['rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics']:['static-html','dynamic-passive','static-visual'];
+  const acceptable=fixture?['rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner']:['static-html','dynamic-passive','static-visual'];
   if((yes||fixture)&&!acceptable.includes(control.value))control.value=fixture?'rea-browser':'static-html';
   control.disabled=!(yes||fixture);
   for(const o of control.options)o.hidden=!acceptable.includes(o.value);

@@ -5,7 +5,8 @@ import {createHash} from 'node:crypto';
 const names={
  'static-visual':'rea-reviewed-static-preview.html',
  'fixture-generic-catalog':'rea-reviewed-synthetic-catalog.html',
- 'fixture-generic-analytics':'rea-reviewed-synthetic-analytics.html'
+ 'fixture-generic-analytics':'rea-reviewed-synthetic-analytics.html',
+ 'fixture-generic-planner':'rea-reviewed-synthetic-planner.html'
 };
 export function buildReviewedDelivery({meta,audit,html}={}){
  const mode=Object.hasOwn(names,meta?.mode||'')?meta.mode:null;

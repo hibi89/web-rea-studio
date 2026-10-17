@@ -60,9 +60,9 @@ test('third unseen synthetic schema compiles to the exact same generic F4 engine
  assert.match(input.html,/id="state-slots"/);
  assert.match(input.html,/id="action-next"/);
  assert.doesNotMatch(input.html,/fetch\s*\(|XMLHttpRequest|<iframe/);
- assert.throws(()=>compileF3LinkedReconstructionContract(input),/F4_CONTRACT_EVIDENCE_MISMATCH/);
+ assert.equal(compileF3LinkedReconstructionContract(input).app_id,'planner');
 });
-for(const id of ['catalog','analytics']){
+for(const id of ['catalog','analytics','planner']){
  test(`F1/F2→F3→F4 contract binds verified ${id} chain`,()=>{
   const input=caseData(id),c=compileF3LinkedReconstructionContract(input);
   assert.equal(c.f3.verification,'cross-stage-consistent-synthetic-only');

@@ -7,7 +7,7 @@ import {generateGenericBehaviorHtml} from './generic-behavior.mjs';
 
 const consistent=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const valid=n=>Number.isSafeInteger(n)&&n>=0;
-const modes=new Set(['fixture-generic-catalog','fixture-generic-analytics']);
+const modes=new Set(['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner']);
 const stage=(status,reason)=>({status,reason});
 export function auditSavedControlledChain({meta,report,inspection,manifest,graph,html}={}){
  const stages={
@@ -56,7 +56,7 @@ export function auditSavedControlledChain({meta,report,inspection,manifest,graph
       report.feature_graph_source!=='observed-controlled-synthetic-only'||
       graph.scope!=='controlled-synthetic-only'||
       graph.kind!=='observed-function-graph'||
-      graph.app_id!==(meta.mode==='fixture-generic-catalog'?'catalog':'analytics')||
+      graph.app_id!==meta.mode.slice('fixture-generic-'.length)||
       graph.verification?.status!=='verified-replayed-synthetic-only'||
       !Array.isArray(graph.states)||graph.states.length>20||
       !Array.isArray(graph.edges)||graph.edges.length<1||graph.edges.length>12)

@@ -29,10 +29,11 @@ test('static reviewed export requires saved consistency AND separate visual thre
 });
 
 test('synthetic reviewed export is explicit about only saved replay consistency',()=>{
- for(const mode of ['fixture-generic-catalog','fixture-generic-analytics']){
+ for(const mode of ['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner']){
   const r=buildReviewedDelivery({meta:meta(mode),audit:synthetic(),html});
   assert.equal(r.export_eligible,true);
   assert.equal(r.analysis_scope,'controlled-synthetic-only');
+  if(mode==='fixture-generic-planner')assert.equal(r.artifact.filename,'rea-reviewed-synthetic-planner.html');
   assert.equal(r.evidence.synthetic_replay,'SAVED_CLAIM_CONSISTENT_NO_FRESH_REPLAY');
   assert.equal(r.original_api_or_backend_parity,false);
   assert.equal(r.source_authenticity_verified,false);

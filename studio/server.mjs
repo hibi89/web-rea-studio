@@ -47,7 +47,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
   if(input===null||typeof input!=='object'||Array.isArray(input)||typeof input.target_url!=='string'||Object.keys(input).some(k=>!['target_url','analysis_mode'].includes(k)))throw Error('Only target_url and analysis_mode are accepted');
   if(input.target_url===fixtureUrl){
    const mode=input.analysis_mode??'rea-browser';
-   if(!['rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics'].includes(mode))throw Error('Fixture only supports controlled local test modes');
+   if(!['rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(mode))throw Error('Fixture only supports controlled local test modes');
    validateTarget({target_url:input.target_url},fixturePort);
    return {mode,url:fixtureUrl};
   }
@@ -70,8 +70,8 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     try {
      await store.update(meta.id,{status:'running'});
      let execution,controlledEvidence=null,genericArtifacts=null;
-     if(mode==='fixture-generic-catalog'||mode==='fixture-generic-analytics'){
-      const appId=mode==='fixture-generic-catalog'?'catalog':'analytics';
+     if(['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(mode)){
+      const appId=mode.slice('fixture-generic-'.length);
       await store.saveInput(meta.id,{kind:mode,scope:'controlled-synthetic-only',
        app_id:appId,network:'in-memory-only',external_actions:false});
       const evidence=await genericObserver({browserPath,appId});
@@ -85,7 +85,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
          permission.form_submissions_performed!==0||
          !Array.isArray(permission.approved_action_ids)||
          permission.approved_action_ids.length!==3||
-         !['reset',...(appId==='catalog'?['filter','layout']:['range','chart'])]
+         !['reset',...(appId==='catalog'?['filter','layout']:appId==='analytics'?['range','chart']:['day','view'])]
            .every(action=>permission.approved_action_ids.includes(action)))
         throw Error('F2_PERMISSION_PROOF_MISSING');
       // Reject all unverified shape/transition evidence before creating code.
@@ -152,7 +152,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
          network_requests:e.simulated_api_delta,changed_fields:e.changed_fields})),
         network:evidence.steps.flatMap(step=>step.endpoint_paths.map(path=>({
          kind:'controlled-api',path,status:200,step_id:step.id}))),
-        limitations:['Two in-memory synthetic fixtures only','No interactions on external sites',
+        limitations:['Three in-memory synthetic fixtures only','No interactions on external sites',
          'Standalone generated app simulates, but does not reproduce, real backend requests']}
       };
      }else if(mode==='fixture-causal'){
@@ -400,7 +400,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     }
     if(what==='delivery-receipt'||what==='reviewed-export'){
       // Both outputs come from one local snapshot: no browser or original URL.
-      if(!['static-visual','fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+      if(!['static-visual','fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(meta.mode))
        return respond(res,404,{error:'reviewed_delivery_not_supported'});
       if(meta.status!=='completed')
        return respond(res,409,{error:'reviewed_delivery_requires_completed_run'});
@@ -447,7 +447,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       });
     }
     if(what==='controlled-chain-audit'){
-      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+      if(!['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(meta.mode))
        return respond(res,404,{error:'controlled_chain_audit_not_available'});
       if(meta.status!=='completed')
        return respond(res,409,{error:'controlled_chain_audit_requires_completed_run'});
@@ -606,7 +606,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
       return png?respond(res,200,png,'image/png'):respond(res,404,{error:'screenshot_not_ready'});
     }
     if(what==='reconstruction-contract'){
-      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode)||
+      if(!['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(meta.mode)||
          meta.status!=='completed')return respond(res,404,{error:'reconstruction_contract_not_available'});
       const report=await store.getReport(id);
       if(report?.reconstruction_contract_available!==true)
@@ -626,7 +626,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        'Content-Disposition':'attachment; filename="rea-synthetic-reconstruction-contract.json"'});
     }
     if(what==='feature-graph'){
-      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+      if(!['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(meta.mode))
        return respond(res,404,{error:'feature_graph_not_available'});
       const report=await store.getReport(id);
       if(report?.feature_graph_available!==true||
@@ -641,7 +641,7 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
        {'Content-Disposition':'attachment; filename="rea-observed-function-graph.json"'});
     }
     if(what==='generic-prototype'||what==='generic-prototype-download'){
-      if(!['fixture-generic-catalog','fixture-generic-analytics'].includes(meta.mode))
+      if(!['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner'].includes(meta.mode))
        return respond(res,404,{error:'generic_prototype_not_available'});
       const report=await store.getReport(id);
       if(report?.generic_prototype_available!==true||

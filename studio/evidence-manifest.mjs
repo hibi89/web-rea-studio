@@ -6,11 +6,11 @@ const safeLabel=s=>typeof s==='string'?s.replace(/[\x00-\x1f\x7f<>]/g,' ')
  .replace(/\b\d{9,}\b/g,'[NUMBER]')
  .replace(/\s+/g,' ').trim().slice(0,64):'';
 const n=(x,max)=>Number.isSafeInteger(x)&&x>=0?Math.min(x,max):0;
-const trustedMode=new Set(['static-html','static-visual','dynamic-passive','rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics']);
+const trustedMode=new Set(['static-html','static-visual','dynamic-passive','rea-browser','fixture-causal','fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner']);
 const safeHost=s=>typeof s==='string'&&s.length<254&&/^[a-z0-9.-]+$/.test(s)?s:null;
 const safeStateValue=v=>typeof v==='boolean'?v:
  Number.isSafeInteger(v)&&v>=0&&v<=1000?v:
- ['dashboard','help','loading','ready','error','previous','changed','asc','desc','table','all','summer','grid','list','bar','line','week','month'].includes(v)?v:null;
+ ['dashboard','help','loading','ready','error','previous','changed','asc','desc','table','all','summer','grid','list','bar','line','week','month','monday','tuesday'].includes(v)?v:null;
 export function buildEvidenceManifest(inspection,report){
  if(!inspection||typeof inspection!=='object')throw Error('F3_INSPECTION_REQUIRED');
  const mode=trustedMode.has(inspection.mode)?inspection.mode:
@@ -81,7 +81,7 @@ export function buildEvidenceManifest(inspection,report){
     inspection.exploration.state_transitions.steps:[]).slice(0,40).map(t=>({
     step_id:typeof t.step_id==='string'?t.step_id.slice(0,64):'',
     changes:(Array.isArray(t.changed)?t.changed:[]).slice(0,5)
-     .filter(c=>['panel','notes_expanded','result_state','table_rows','table_row_order','period','order','view','rows','category','count','layout','chart','range','total'].includes(c.field))
+     .filter(c=>['panel','notes_expanded','result_state','table_rows','table_row_order','period','order','view','rows','category','count','layout','chart','range','total','day','slots'].includes(c.field))
      .map(c=>({field:c.field,from:safeStateValue(c.from),to:safeStateValue(c.to)}))
    })),
    endpoints:(Array.isArray(inspection.exploration.observed_endpoint_paths)?

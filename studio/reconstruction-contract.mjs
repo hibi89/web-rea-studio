@@ -50,10 +50,10 @@ export function compileObservedStateContract({evidence,verifiedGraph,replay,html
  };
 }
 
-/** F3 join only for existing two audited Studio fixture modes. */
+/** F3 join restricted to three audited controlled Studio fixtures. */
 export function compileF3LinkedReconstructionContract({evidence,verifiedGraph,replay,html,manifest}={}){
  const contract=compileObservedStateContract({evidence,verifiedGraph,replay,html});
- if(!['catalog','analytics'].includes(contract.app_id)||
+ if(!['catalog','analytics','planner'].includes(contract.app_id)||
     manifest?.kind!=='evidence-manifest'||manifest?.schema_version!==1||
     manifest?.analysis_mode!==`fixture-generic-${contract.app_id}`||
     manifest?.evidence_scope!=='controlled-local-fixture'||
@@ -85,7 +85,7 @@ export function matchesStoredReconstructionContract(contract,{verifiedGraph,mani
   changed_fields:[...e.changed_fields],simulated_api_calls:e.observed_api_requests,
   effect_provenance:'observed-controlled-synthetic-only'}));
  return contract?.schema_version===1&&contract?.kind==='rea-observed-state-contract'&&
-  ['catalog','analytics'].includes(contract.app_id)&&
+  ['catalog','analytics','planner'].includes(contract.app_id)&&
   contract.app_id===verifiedGraph?.app_id&&contract.product_ready===false&&
   contract.backend?.mode==='local-simulated-counters'&&
   contract.backend?.real_endpoint_calls===0&&

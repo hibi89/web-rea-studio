@@ -14,28 +14,31 @@ async function until(check){
  throw Error('Generic Studio test timeout');
 }
 function observed(id){
- const analytics=id==='analytics';
- const initial=analytics?{chart:'bar',range:'week',total:12}:{category:'all',count:8,layout:'grid'};
- const first=analytics?{...initial,range:'month',total:31}:{...initial,category:'summer',count:3};
- const second=analytics?{...first,chart:'line'}:{...first,layout:'list'};
- const alternate=analytics?{...initial,chart:'line'}:{...initial,layout:'list'};
- const names=analytics?['range','chart']:['filter','layout'];
- const labels=analytics?['기간 확대','차트 전환']:['카테고리 변경','목록 표시'];
- const endpoint=analytics?'/api/metrics':'/api/items';
- const state=(index,from,to,calls=0)=>{
-  const fields=Object.keys(from).sort().filter(k=>from[k]!==to[k]);
-  return {id:names[index],label:labels[index],before:from,after:to,action:'click',
-   status:'completed',changed_fields:fields,request_count:calls,
-   endpoint_paths:calls?[endpoint]:[],attribution:'controlled-single-action-window'};
- };
+ const planner=id==='planner',analytics=id==='analytics';
+ const initial=planner?{day:'monday',layout:'list',slots:4}:
+  analytics?{chart:'bar',range:'week',total:12}:{category:'all',count:8,layout:'grid'};
+ const first=planner?{...initial,day:'tuesday',slots:2}:
+  analytics?{...initial,range:'month',total:31}:{...initial,category:'summer',count:3};
+ const second=planner?{...first,layout:'grid'}:
+  analytics?{...first,chart:'line'}:{...first,layout:'list'};
+ const alternate=planner?{...initial,layout:'grid'}:
+  analytics?{...initial,chart:'line'}:{...initial,layout:'list'};
+ const names=planner?['day','view']:analytics?['range','chart']:['filter','layout'];
+ const labels=planner?['다음 날짜','그리드 표시']:analytics?['기간 확대','차트 전환']:['카테고리 변경','목록 표시'];
+ const endpoint=planner?'/api/calendar':analytics?'/api/metrics':'/api/items';
+ const state=(index,from,to,calls=0)=>({
+  id:names[index],label:labels[index],before:from,after:to,action:'click',
+  status:'completed',changed_fields:Object.keys(from).sort().filter(k=>from[k]!==to[k]),
+  request_count:calls,endpoint_paths:calls?[endpoint]:[],attribution:'controlled-single-action-window'
+ });
  return {source:'controlled-generic-chrome',scope:'synthetic-only',
   verification:'real-isolated-chrome',app_id:id,
-  title:analytics?'분석 대시보드 실험':'상품 목록 실험',
+  title:planner?'일정 관리 실험':analytics?'분석 대시보드 실험':'상품 목록 실험',
   initial,observed_action_api_links:1,
   execution_policy:{source:'controlled-action-audit',scope:'in-memory-synthetic-only',
    authorized_controls:3,denied_controls:4,unauthorized_actions_executed:0,
    external_navigation_performed:false,form_submissions_performed:0,
-   approved_action_ids:analytics?['range','chart','reset']:['filter','layout','reset']},
+   approved_action_ids:[...names,'reset']},
   steps:[state(0,initial,first,1),state(1,first,second),state(1,initial,alternate)]};
 }
 test('generic Studio modes are exact-fixture-only and persist Chrome-verified branching prototypes',async()=>{
@@ -67,7 +70,7 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
  const base='http://127.0.0.1:'+port;
  const post=body=>fetch(base+'/api/runs',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});
  try{
-  for(const mode of ['fixture-generic-catalog','fixture-generic-analytics']){
+  for(const mode of ['fixture-generic-catalog','fixture-generic-analytics','fixture-generic-planner']){
    assert.equal((await post({target_url:external,analysis_mode:mode})).status,400);
    assert.equal((await post({target_url:fixture+'other',analysis_mode:mode})).status,400);
    const response=await post({target_url:fixture,analysis_mode:mode});
@@ -115,7 +118,7 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal(saved.edges.length,3);
    assert.equal(saved.states.length,4);
    assert.deepEqual(saved.coverage_routes.map(r=>r.actions),mode==='fixture-generic-catalog'?
-    [['filter','layout'],['layout']]:[['range','chart'],['chart']]);
+    [['filter','layout'],['layout']]:mode==='fixture-generic-analytics'?[['range','chart'],['chart']]:[['day','view'],['view']]);
    assert.deepEqual(saved.coverage_routes.map(r=>r.verified_in_source),[true,true]);
    const preview=await fetch(base+'/api/runs/'+id+'/generic-prototype');
    assert.equal(preview.status,200);
@@ -133,6 +136,7 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal(contractResponse.status,200);
    assert.match(contractResponse.headers.get('content-disposition'),/attachment.*json/);
    const contract=await contractResponse.json();
+   if(mode==='fixture-generic-planner')assert.deepEqual(contract.initial_state,{day:'monday',layout:'list',slots:4});
    assert.equal(contract.scope,'controlled-synthetic-only');
    assert.equal(contract.app_id,mode.slice('fixture-generic-'.length));
    assert.equal(contract.product_ready,false);
@@ -145,16 +149,29 @@ test('generic Studio modes are exact-fixture-only and persist Chrome-verified br
    assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction-contract')).status,409);
    await writeFile(graphFile,originalGraph);
    assert.equal((await fetch(base+'/api/runs/'+id+'/reconstruction-contract')).status,200);
+   const auditResponse=await fetch(base+'/api/runs/'+id+'/controlled-chain-audit');
+   assert.equal(auditResponse.status,200);
+   assert.equal((await auditResponse.json()).status,'SYNTHETIC_SAVED_CHAIN_CONSISTENT');
+   const receiptResponse=await fetch(base+'/api/runs/'+id+'/delivery-receipt');
+   assert.equal(receiptResponse.status,200);
+   const receipt=await receiptResponse.json();
+   assert.equal(receipt.export_eligible,true);
+   assert.equal(receipt.original_api_or_backend_parity,false);
+   if(mode==='fixture-generic-planner')assert.equal(receipt.artifact.filename,'rea-reviewed-synthetic-planner.html');
+   const reviewed=await fetch(base+'/api/runs/'+id+'/reviewed-export');
+   assert.equal(reviewed.status,200);
+   assert.equal(await reviewed.text(),html);
    assert.equal((await fetch(base+'/api/runs/'+id+'/behavior-prototype')).status,404);
   }
-  assert.deepEqual(observedApps,['catalog','analytics']);
-  assert.deepEqual(replayedApps,['catalog','analytics']);
+  assert.deepEqual(observedApps,['catalog','analytics','planner']);
+  assert.deepEqual(replayedApps,['catalog','analytics','planner']);
   const bad='00000000-0000-4000-8000-000000000000';
   assert.equal((await fetch(base+'/api/runs/'+bad+'/generic-prototype')).status,404);
   assert.equal((await fetch(base+'/api/runs/'+bad+'/feature-graph')).status,404);
   const html=await(await fetch(base+'/')).text();
   assert.match(html,/value="fixture-generic-catalog"/);
   assert.match(html,/value="fixture-generic-analytics"/);
+  assert.match(html,/value="fixture-generic-planner"/);
   assert.match(html,/id="feature-graph-panel"/);
   assert.match(html,/id="download-feature-graph"/);
   const app=await(await fetch(base+'/app.js')).text();
