@@ -27,7 +27,7 @@ function caseData(appId='planner'){
   request_count,endpoint_paths:request_count?[endpoint]:[]
  });
  const evidence={source:'controlled-generic-chrome',scope:'synthetic-only',
-  verification:'real-isolated-chrome',app_id,title:p?'일정 관리 실험':'목록 및 차트 실험',
+  verification:'real-isolated-chrome',app_id:appId,title:p?'일정 관리 실험':'목록 및 차트 실험',
   initial,observed_action_api_links:1,
   steps:[edge(a,initial,one,1),edge(b,one,two),edge(b,initial,alternate)]};
  const planned=buildObservedFeatureGraph(evidence);
