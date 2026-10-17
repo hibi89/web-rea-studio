@@ -189,6 +189,8 @@ function setCurrent(run){
   el(linkId).hidden=true;el(linkId).removeAttribute('href');
  }
  el('feature-graph-panel').hidden=true;
+ el('download-passive-blueprint').hidden=true;
+ el('download-passive-blueprint').removeAttribute('href');
  el('download-feature-graph').hidden=true;
  el('download-feature-graph').removeAttribute('href');
  el('f3-panel').hidden=true;
@@ -233,6 +235,11 @@ async function select(id){
    try{const report=await api(`/api/runs/${id}/report`);el('report').textContent=JSON.stringify(report,null,2);screenshotSaved=report.screenshot_saved===true;reconstructionAvailable=report.reconstruction_available===true;comparisonAvailable=report.visual_comparison_available===true;manifestAvailable=report.evidence_manifest_available===true;behaviorAvailable=report.behavior_reconstruction_available===true;genericAvailable=report.generic_prototype_available===true;controlMapAvailable=report.control_map_available===true;controlMapCount=report.control_map_count??0;featureGraphAvailable=report.feature_graph_available===true;featureGraphStates=report.feature_graph_states??0;featureGraphRoutes=report.feature_graph_routes??0;el('steps').textContent=`${report.completed_steps??'—'} / ${report.step_count??'—'}`;el('responses').textContent=String(report.api_responses_200??'—');el('verdict').textContent=report.verdict||'—';}catch{el('report').textContent='검증 리포트가 저장되지 않았습니다.';}
   }else el('report').textContent='분석을 완료하지 못했습니다.';
   await inspect(id);
+  if(run.mode==='dynamic-passive'&&!active){
+   const link=el('download-passive-blueprint');
+   link.href=`/api/runs/${id}/passive-blueprint`;
+   link.hidden=false;
+  }
   if(manifestAvailable&&!active){
    el('f3-panel').hidden=false;
    const link=el('download-manifest');link.href=`/api/runs/${id}/manifest`;link.hidden=false;
