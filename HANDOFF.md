@@ -1,6 +1,6 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
-> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **품질 우선 Q0 기능 코드 기준 SHA는 `6ef1af91aa4c78853e64f9b384e2d93da7e89353`** (F5 전체 화면 비교·엄격한 관문·Studio UI·테스트). 코드 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
+> **최신 관리 스냅샷: 2026-10-17 (KST).** 새 대화에서는 실제 비공개 GitHub `main` HEAD와 이 문서를 먼저 대조한다. **품질 우선 Q0 기능 코드 기준 SHA는 `6ef1af91aa4c78853e64f9b384e2d93da7e89353`** (F5 전체 화면 비교·엄격한 관문·Studio UI·테스트). 코드 **CI 전체 SUCCESS**: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 직전 핵심 비교 기능 SHA `846568bf34cf999783bb70a1554943d7019deb82`는 GitHub Node **168/168**·격리 Chrome P4/F2/P2-CORS/F4 전체 SUCCESS: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 최신 코드 CI의 최종 상태는 이 문서 확인 시 재조회할 것. 이후의 문서 전용 커밋 SHA는 별개이며, 문서가 자기 자신의 SHA를 예측해서는 안 된다. 실제 사용자 Windows에서 저장된 실패 기록을 읽거나 외부 대시보드 데이터 로딩에 성공한 사실은 **아직 없다**.
 
 ## 0. 시작하는 AI를 위한 필수 순서
 
@@ -33,7 +33,7 @@
 - **동적 실제 사이트 렌더링 문제 미해결:** 외부 앱 캡처는 되었으나 앱 화면에는 `Failed to fetch`/`보고서를 불러오지 못했습니다`가 표시되었다. 진단 코드 `PASSIVE_EXTERNAL_FETCH_REJECTED`. PNG 저장이나 `COMPLETED`만으로 화면 성공을 선언하지 않는다. 외부 리소스/CSP/중계 정책 관련 원인 후보는 있으나 실제 원격 서버/CORS 원인까지 확정된 것은 아니다.
 - **F1/F2 최근 진전:** `f91d434...` (2026-10-17)에서 관찰 상태 노드/액션 그래프, BFS 경로, 커버리지 검증, `function-graph.json` 내보내기를 추가했다. 관찰된 합성 상태 전이의 커버리지 100%는 미관찰/실제 사이트 커버리지를 뜻하지 않는다.
 - **F4 합성 검증:** 독립 HTML의 분기형 상태 머신을 `catalog`와 `analytics`라는 두 가지 메모리 내 합성 앱의 별도 Chrome 재생으로 확인. 시뮬레이션 API 카운터이며 실제 외부 네트워크 호출은 없다.
-- **GitHub CI:** P5 품질 관문 핵심 SHA `846568bf34cf999783bb70a1554943d7019deb82` 전체 SUCCESS (Node 168/168, 격리 Chrome P4/F2/P2 CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 이후 UI/테스트 포함 코드 SHA `6ef1af91aa4c78853e64f9b384e2d93da7e89353`, 별도 CI https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 확인 전 성공으로 단정하지 않는다. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
+- **GitHub CI:** P5 품질 관문 핵심 SHA `846568bf34cf999783bb70a1554943d7019deb82` 전체 SUCCESS (Node 168/168, 격리 Chrome P4/F2/P2 CORS/F4): https://github.com/hibi89/web-rea-studio/actions/runs/38995511999. 이후 UI/테스트 포함 코드 SHA `6ef1af91aa4c78853e64f9b384e2d93da7e89353`, GitHub CI 전체 **SUCCESS** https://github.com/hibi89/web-rea-studio/actions/runs/38995644114. 이 성공은 Node 및 합성 Chrome P4/F2/P2-CORS/F4이고 실제 Windows/외부 사이트 결과는 아니다. `npm test` + 격리 Chrome P4/F2/F4 검증을 워크플로에 포함한다. CI 성공 ≠ 사용자 Windows/공개 Production 성공.
 - **P2 두 출처 합성 브라우저 검증:** `studio/synthetic-cross-origin-browser.mjs` 및 `tests/p2-cross-origin-chrome-e2e.mjs`. 실제 Chrome에서 ① 기본 외부 API 차단→fetch 실패, ② CSP 허용·CORS 부재→fetch 실패, ③ CSP 허용·정확한 CORS 응답→합성 JSON 표시 성공을 확인했다. **인터넷 API 호출 0건**, 원래의 `dynamic-gateway.mjs`/`dynamic-browser.mjs`/실제 허용목록/CSP는 변경하지 않았으며 실대상 복구 증거는 아니다.
 - **Q0 품질 관문:** P5 v2 `studio/p5-visual-diff.mjs`는 이전의 고정 우하단 영역 제외를 폐기하고 전체 화면의 모든 샘플을 비교한다. 크롭·누락 픽셀은 최대 RGB 오차 255로 반영하고 비교 면적/해상도/기하 판정을 분리한다. 게이트 기본값은 동일 크기/100% 표본 커버리지/픽셀 일치율 90% 이상/RGB MAE 20 이하/기하 영역 70% 이상이며 PASS라도 `VISUAL_THRESHOLD_MET_STATIC_ONLY`, `product_ready=false`. 합성 Chrome 화면 1440×1550 기준 일치율 **99.37%**, 전체 커버리지 100%, 기하 영역 100%, RGB MAE **0.94**, 기능 동일성 미검증. 이전 저장 P5 v1 결과는 소급 변경하지 않는다.
 - **Vercel:** `preview/`는 실 분석 엔진 없는 정적 목업용이며 `docs/PUBLIC_PREVIEW.md`를 참고한다. 이 인계 시점에는 Production URL/배포 SHA 및 실제 공개 동작을 별도로 확인하지 않았으므로 미검증이다. 배포 연결/설정을 임의로 변경하지 않는다.
@@ -100,7 +100,7 @@
 
 | 날짜(KST) | 작업 | 확인된 결과 | 남은 과제 |
 | --- | --- | --- | --- |
-| 2026-10-17 | Q0 F5 과대평가 제거·품질 우선 계약 | 코드 `6ef1af91...`: 잘린 스크린샷 겹침만 100%였던 오판정 제거, 표본 누락 최대 오차·기하/커버리지 판정·구버전 표시, 부정 테스트 및 실제 Chrome 체크, `docs/QUALITY_FIRST_ROADMAP.md`. 핵심 SHA `846568bf` CI `38995511999` 전체 SUCCESS; 최신 UI 코드 `6ef1af91` CI `38995644114` 별도 상태 확인 필요 | 실제 웹사이트 Q1 데이터 로딩/실제 독립 앱 미해결. 과거 P5 v1 보고서 소급 변경 금지 |
+| 2026-10-17 | Q0 F5 과대평가 제거·품질 우선 계약 | 코드 `6ef1af91...`: 잘린 스크린샷 겹침만 100%였던 오판정 제거, 표본 누락 최대 오차·기하/커버리지 판정·구버전 표시, 부정 테스트 및 실제 Chrome 체크, `docs/QUALITY_FIRST_ROADMAP.md`. 핵심 SHA `846568bf` CI `38995511999` 전체 SUCCESS; 최종 UI 포함 코드 `6ef1af91` CI `38995644114` **전체 SUCCESS** | 실제 웹사이트 Q1 데이터 로딩/실제 독립 앱 미해결. 과거 P5 v1 보고서 소급 변경 금지 |
 | 2026-10-17 | P2 실제 Chrome 두 출처 CSP·CORS 검증 | 코드 `d96ea6df`, CI `38994833194` 전체 SUCCESS. 기본 차단/허용·CORS 누락/양쪽 충족 3경우 Chrome 성공적 판별. 모든 응답 메모리 합성·실제 외부 호출 0건 | 실대상 서버/CORS 검증과 API 호스트 권한 승인은 별도. Windows 과거 실패 데이터 `support-packet` 확인이 다음 단계 |
 | 2026-10-17 | P2 개인정보 최소화 실패 진단 패킷 | 실패/중단된 기존 passive run에서 진단 코드, 요청·거부 수치, 호스트명, 경로 유형만 결합한 `support-packet` JSON 다운로드·UI·단위/HTTP 테스트 추가. 스크린샷·입력값·원본 URL·본문 제외, 외부 재요청 0건 | 코드 `9d4bcf36` 및 GitHub Actions `38994454894` 전체 SUCCESS 확인; 사용자 Windows 기존 실패 기록의 패킷 실제 열람·공유 전 점검 필요 |
 | 2026-10-17 | F1/F2 읽기 전용 관찰 명세 | 코드 `4a2031bd54a7b833efc9a26555b30df3c61eaa9c`, CI `38994112399` 전체 PASS. 저장된 컨트롤·API 관찰 증거 통합 JSON API·Studio 링크·회귀 테스트, 외부 호출·클릭 및 검증된 인과관계 0건 | 사용자 Windows 실기록/실화면 검증 필요; 실제 `Failed to fetch` 미해결 |
@@ -123,8 +123,8 @@
 - 저장소: https://github.com/hibi89/web-rea-studio
 - 이전 기능 기준 커밋: https://github.com/hibi89/web-rea-studio/commit/e1063bb07c73b26356f319298ff1d1b621ce2349
 - 이번 최신 기능 코드 기준: https://github.com/hibi89/web-rea-studio/commit/6ef1af91aa4c78853e64f9b384e2d93da7e89353
-- 핵심 F5 비교 코드의 확인된 성공 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999
-- 최신 UI 포함 코드 CI (상태 재확인): https://github.com/hibi89/web-rea-studio/actions/runs/38995644114
+- 핵심 F5 비교 코드 성공 CI: https://github.com/hibi89/web-rea-studio/actions/runs/38995511999
+- 최신 UI 포함 코드 **성공 CI**: https://github.com/hibi89/web-rea-studio/actions/runs/38995644114
 - 실제 분석 대상: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/
 - 품질 최우선 최종 완성 기준: `docs/QUALITY_FIRST_ROADMAP.md`.
 - 새 P2 합성 CSP/CORS 실험과 실환경 제약: `docs/P2_SYNTHETIC_CORS_LAB.md`.
