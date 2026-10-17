@@ -11,10 +11,12 @@ const validKeys=(data,keys)=>data&&typeof data==='object'&&!Array.isArray(data)&
  Object.keys(data).length===keys.length&&keys.every(k=>Object.hasOwn(data,k));
 const error=code=>Object.assign(Error(code),{code});
 export function validateIndependentDraftBundle(input,originalGeometry){
- if(!validKeys(input,['confirm','html','geometry'])||
-  input.confirm!=='store-scriptless-p4-draft'||
-  typeof input.html!=='string'||Buffer.byteLength(input.html,'utf8')>250000||
-  input.html.length<100)
+ const hasHtml=validKeys(input,['confirm','html','geometry']);
+ const geometryOnly=validKeys(input,['confirm','geometry']);
+ if((!hasHtml&&!geometryOnly)||
+    input.confirm!=='store-scriptless-p4-draft'||
+    (hasHtml&&(typeof input.html!=='string'||
+     Buffer.byteLength(input.html,'utf8')>250000||input.html.length<100)))
   throw error('DRAFT_INVALID_ENVELOPE');
  const original=sanitizeP4Geometry(originalGeometry);
  const draft=sanitizeP4Geometry(input.geometry);
@@ -31,19 +33,20 @@ export function validateIndependentDraftBundle(input,originalGeometry){
  // Strict equality ensures no hidden scripts, handlers, iframes, url(),
  // external CSS, tags, protocol handlers or HTML appended to the upload.
  const canonical=generateP4Reconstruction(draft);
- if(input.html!==canonical)throw error('DRAFT_HTML_NOT_CANONICAL');
+ if(hasHtml&&input.html!==canonical)throw error('DRAFT_HTML_NOT_CANONICAL');
  return {
   html:canonical,geometry:draft,
   record:{
    schema_version:1,kind:'local-independent-scriptless-p4-draft',
    status:'STORED_UNVERIFIED',
-   provenance:'explicit-local-user-provided-canonical-p4-bundle',
+   provenance:hasHtml?'explicit-local-canonical-p4-html-and-geometry':'explicit-local-user-provided-p4-geometry',
    html_sha256:createHash('sha256').update(canonical).digest('hex'),
    bytes:Buffer.byteLength(canonical,'utf8'),
    painted_regions:draft.boxes.length,
    captured_title_count:draft.titles.length,
    original_site_refetched:false,
    browser_replay_executed:false,
+   user_uploaded_raw_html_executed:false,
    external_requests_issued:0,permissions_expanded:false,
    source_draft_alignment_verified:false,
    functional_equivalence_verified:false,product_ready:false,
