@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## F3 passive functional and data gaps (offline)
+
+The Studio's stored approved **Passive Browser** run can now export a read-only [F3 functional/data gap contract](docs/F3_PASSIVE_FUNCTION_DATA_GAPS.md) via `GET /api/runs/:id/passive-gap-contract`. The JSON summarizes only coarse observed control categories/counts and network event totals, explicitly marking action effects, state changes, control/API causality, response schemas, backend/DB and external permissions **unknown or unapproved**. Hostnames, URL paths, form values, labels, response bodies and credentials are omitted. It runs on **saved evidence** only; reloading this report makes no new requests or user actions and does not recover real source behavior.
+
 ## Full local planner Studio evidence, contract and reviewed export (offline)
 
 The controlled third `planner` app is available as `fixture-generic-planner` **only when the exact local fixture URL is selected**. Its date-change and view-change transitions are observed using isolated Chrome with an in-memory calendar response, then passed through the same persisted F1/F2 graph, F3 manifest, F4 generated standalone HTML + reconstruction contract, F5 saved-chain audit, reviewed HTML export and unsigned SHA-256 receipt as catalog/analytics. A separate end-to-end **real Chrome → Studio POST → saved artifacts → reviewed HTML** test verifies the chain, including rejecting a tampered saved manifest with HTTP 409. The browser/API interactions are controlled **synthetic** only; this does not recreate an original external application's backend or database. See [planner Studio end-to-end acceptance](docs/F4_PLANNER_STUDIO_END_TO_END.md).
