@@ -46,3 +46,6 @@ No analysis is rerun when these saved artifacts are opened.
   variable user input, arbitrary branching and navigation remain unverified.
 - This is a reusable **schema and renderer** backed by two real test apps,
   NOT general autonomous crawling or verified functional cloning of public sites.
+## Follow-up negative-action verification
+
+The isolated generated F4 app must also reject events on buttons that are disabled for the current observed state, even when Chrome dispatches an artificial click event directly. `studio/generic-fixture-browser.mjs` compares the current state, completed-action counter, simulated API counter and intercepted fixture API requests before and after each synthetic event; any change fails the Chrome acceptance. This uses the **same in-memory Chrome replay** with no new origin or user-site contact. The mandatory `tests/f4-generic-chrome-e2e.mjs` on Linux Chrome requires at least four such denied probes in each of `catalog` and `analytics` (see `docs/F4_NEGATIVE_TRANSITION_GUARD.md`). It establishes only bounded negative-path fidelity for the two known synthetic fixtures, not arbitrary website support.
