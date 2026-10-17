@@ -2,6 +2,10 @@
 
 Private local-first website analysis project. **Current project state, limits, latest verified code and next steps: [HANDOFF.md](HANDOFF.md)**. P1 controlled Windows fixture and P2 static HTTPS have been observed working; the real-site P2 passive-browser app rendering is **not** verified (`Failed to fetch`). Recent F1–F4 behavior work is synthetic-fixture-only.
 
+## Third independent state-machine fixture in real isolated Chrome (offline)
+
+The F4 controlled generic Chrome suite now includes **planner** beside catalog/analytics. A new synthetic calendar page exposes date and layout state changes, a locally intercepted API response, permission-gated buttons and prohibited controls. The existing generic inference/generation engine builds a standalone HTML state machine from observed states, then an independent Chrome replay checks 3 transitions, 2 branches, 4 states and denial of unobserved click events with zero real external API requests. This currently extends the **CI browser fixture only**, not the public Studio run menu or stored F3/F5 path. New live-site behavior, source API and original DB are still unverified. See [third-fixture Chrome scope](docs/F4_THIRD_FIXTURE_CHROME.md).
+
 ## F4 F1/F2-to-F3-to-standalone-app reconstruction contract (offline)
 
 Completed controlled synthetic `catalog` and `analytics` runs now save a bounded `reconstruction-contract.json`. The contract ties observed action/state transitions, F3 manifest and the independently generated F4 HTML to exact SHA-256 digests, safe simulated-call counters, and explicit unknown real-world effects. `GET /api/runs/:id/reconstruction-contract` is read-only and returns 409 when linked saved graph, manifest or HTML no longer matches. The underlying HTML generator and old runs remain unchanged. A new planner-shaped synthetic schema is covered by Node tests only; source Chrome/real-site behavior is **not** proven for it. This does not recover any external backend or original API. See [bounded F4 reconstruction contract](docs/F4_RECONSTRUCTION_CONTRACT.md).
