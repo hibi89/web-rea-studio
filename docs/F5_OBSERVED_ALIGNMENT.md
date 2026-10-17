@@ -27,3 +27,10 @@ The result reports sanitized region indices and integer coordinate deltas, never
 ## Limitations and next priority
 
 This is a narrowly controlled **offline/synthetic** independent-draft correspondence proof. Ambiguous repeated cards, gradients, text overlap, structural rearrangement, responsiveness, missing geometry and multi-element corrections remain blocked. It does not infer functional JavaScript/API logic or original backend algorithms. The normal local Studio UI still lacks an independently captured editable alternate geometry; users cannot request an invented mismatch as a repair. Q1 actual Windows dashboard and explicit external API authorization remain unresolved. Advance to an actual user-authorized saved independent draft artifact, then consider opt-in Studio integration only when identity/paint/viewport contracts are verified.
+
+## Exact CI acceptance — 2026-10-17
+
+- Verified functional GitHub SHA: `af3877d843d6c1d95e66df594c0206c120eaece2`.
+- CI: [Local Studio Node regression run 39001079575](https://github.com/hibi89/web-rea-studio/actions/runs/39001079575), **SUCCESS**, Node **199/199** plus all isolated Chrome P4/F5 color, F5 cross-viewport, F5 basic geometry, F5 observed-region identity, F2, P2-CORS and F4.
+- Independent Chrome results: two unambiguous visible painted rectangles; source `aside` linked to generated independent draft `div`; one defect with observed `x` and `w`; two patch acceptances after an extra canonical-draft preflight. Full-canvas RGB MAE **2.08 → 1.28**; generated replays **4**; local in-memory synthetic HTML responses **6**; internet requests **0**, product readiness **false**.
+- This is evidence-driven correspondence in the **controlled synthetic fixture**. It is neither proof of real arbitrary DOM understanding nor original-site functional parity.
