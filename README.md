@@ -1,5 +1,8 @@
 # Web REA Studio
 
+> **Latest 2026-10-18 11:35 KST — local three-mode MVP committed on `mvp-three-mode-20261018`.** `/mvp` now offers faithful geometry, remix, and schema-data HTML generation using a previously completed static-visual run; individual independent previews and downloads. Isolated Node unit/HTTP **6/6 PASS**; full Studio integration/Chrome/branch CI/fidelity **not yet verified**. Existing main preserved. See `HANDOFF.md`. Historical initial design note below was written before this implementation.
+
+
 > **2026-10-18: MVP execution branch (mvp-three-mode-20261018).** Execution plan: [docs/MVP_TODAY_20261018_BUILD_PLAN.md](docs/MVP_TODAY_20261018_BUILD_PLAN.md). All three outputs and measured visual fidelity are yet to be implemented; no new source site visits have occurred.
 
 

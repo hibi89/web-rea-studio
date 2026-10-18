@@ -1,5 +1,8 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
+**2026-10-18 11:35 KST — p1 three-mode MVP first vertical slice committed (`ede4f77b`):** New standalone `/mvp` local UI, saved `static-visual` geometry → faithful/remix/schema HTML generation via explicit POST, per-mode preview/download and SHA-256 guarded read-only GET; schema local search/sort with CSP. Existing `main` and capture boundary preserved. Isolated Linux Node v22.16.0 `node --test tests/mvp-builder.test.mjs tests/mvp-http.test.mjs`: **6/6 PASS** (pure builder + route mounted to a simulated local HTTP/store). **Full existing Studio server integration, branch GitHub Actions, actual Chromium screenshot, original site visual similarity and deployment unverified**; headless Chromium stalled twice in this environment. Next `ㄱ`: verify CI and full saved-run browser flow, then compare matched screenshots. **Historical planning notes below are superseded where they say 'not yet implemented'.**
+
+
 **2026-10-18: MVP execution branch (mvp-three-mode-20261018) — documentation-only preparation.** Three-mode URL→capture→independent HTML/CSS→compare→remix/user-schema→export plan has been prepared. No new runtime features, actual source scan, screenshot fidelity measurements, CI claims or deployment. Work occurs only on mvp-three-mode-20261018 branch; main preserved.
 
 
