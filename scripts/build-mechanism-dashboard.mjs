@@ -17,7 +17,7 @@ const rows=parseDataset(await readFile(input,'utf8'),format);
 const keys=['--dimension','--group','--measure'];
 const explicit=keys.every(k=>opts[k]!==undefined);
 if(!explicit&&keys.some(k=>opts[k]!==undefined))throw Error('ALL_THREE_MAPPING_OPTIONS_REQUIRED');
-if(!explicit&&!input.startsWith(resolve(root,'fixtures/mechanisms')+'/'))throw Error('EXPLICIT_MAPPING_REQUIRED_FOR_USER_DATA');
+if(!explicit&&![resolve(root,'fixtures/mechanisms/sales.csv'),resolve(root,'fixtures/mechanisms/sales.json')].includes(input))throw Error('EXPLICIT_MAPPING_REQUIRED_FOR_USER_DATA');
 const mapping=explicit?{dimension:opts['--dimension'],group:opts['--group'],measure:opts['--measure']}:suggestMapping(rows);
 const html=generateMechanismDashboard(rows,mapping);
 const spec=buildMechanismSpec(rows,mapping);
