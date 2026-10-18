@@ -1,5 +1,8 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
+**2026-10-18 15:24 KST — mechanism skills MVP feature code committed; local prototype verified, GitHub CI pending:** On `mvp-three-mode-20261018`, isolated `dimension-filter`, `group-by-sum`, `chart-crossfilter`, CSV/JSON validation and mapping, independent CSP-protected offline KPI/SVG HTML generation, CLI `npm run build:mechanisms`, fixture datasets and focused tests committed. Separate authoring-runtime Node 22.16.0 prototype: 10/10 focused tests PASS; same-source Node browser-script VM confirms All/KR/US/JP KPI 870/450/270/150 and matching chart, file import requires mapping confirmation. **GitHub exact committed code/full CI, physical Chrome/Windows and Vercel deployment not verified**; Chromium trial locally timed out, GitHub feature Vercel status reported failure/build-rate-limit. No new external reference capture, changed permission, `main` merge or Production deployment. Refer to `docs/MECHANISM_SKILLS_RUNBOOK_2026-10-18.md` and `HANDOFF.md`. Next: confirm feature CI + physical browser; inspect authorized saved dashboard evidence only after functional gates.
+
+
 **2026-10-18 — PRODUCT PIVOT / DESIGN HANDOFF ONLY:** Owner replaced pixel-lookalike/3-mode goal with reusable *dashboard mechanism skills* (group/sum, filtering, chart cross-filter) for own CSV/JSON → independent functional dashboard. New authoritative [1h fast / 2–3h max plan](docs/MECHANISM_SKILLS_MVP_2026-10-18.md). Not yet implemented or tested; earlier W3C benchmark 315-test CI is historic only. Existing unreachable URL not to be retried. No code, deployment or main changes from this documentation task.
 
 
