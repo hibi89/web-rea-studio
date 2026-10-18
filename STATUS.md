@@ -1,5 +1,8 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
+**2026-10-18 — user-confirmed three-mode REA Studio concept, MVP-first pivot (specification only):** A single authorized-site input should produce (1) faithful independent approximation, (2) design remix, (3) reference-design app adapted to user's schema/data/requirements. Prioritize a working full-shell/three-mode pipeline and end-to-end preview/download before feature hardening. Details in `docs/PRODUCT_CONCEPT_3_MODE_MVP.md` and `REQUIREMENTS.md`. Existing P4 reconstruction, independent geometry draft and screenshot/compare routines may be reused, but the three-mode integrated MVP is **not yet implemented or verified**. No site probes, deployment or runtime code changes in this step; documentation-only commit CI not equivalent to product validation.
+
+
 **2026-10-18 — failed/interrupted run recovery planning (CI pending):** Added `studio/recovery-plan.mjs` pure fail-closed classifier, read-only `GET /api/runs/:id/recovery-plan` for stopped runs, failure diagnostics UI and redacted downloadable JSON. Checks saved report/inspection/manifest presence and conservative conflicts, with `auto_resume_allowed:false`, `checkpoint_verified:false`, explicit POST approval required for any new capture, no copied target URL or raw error. Non-stopped 409 and missing 404. New four-case pure tests **4/4 PASS** in isolated Linux Node.js 22.16.0; new real Studio HTTP integration assertions committed but **CI not yet observed**. Does not implement a durable action-level resume or prove source-site parity. Last verified pre-change GitHub Actions #234 still Linux/Windows Node 22/24 all 291/291.
 
 
