@@ -1,5 +1,10 @@
 # Web REA Studio: requirements baseline
 
+## CURRENT MVP PRODUCT REQUIREMENTS — 2026-10-18 revised by owner
+
+**Current authoritative scope:** [Mechanism Skills MVP — 1h fast / 2–3h hard stop](docs/MECHANISM_SKILLS_MVP_2026-10-18.md). Learn permitted reference dashboards' observable data processing, chart/filter interactions and map independent mechanisms to **user-owned CSV/JSON** in an **original-design functional dashboard**. Implement three independent skills and combine at least two to drive actual reactive chart + KPI; label observed/inferred/template/unknown. Old 3-mode pixel-copy fidelity and styling are **deprioritized**. Unknown backend algorithms, proprietary data and API credentials must not be copied. The legacy scope below is retained as history, not this session's acceptance.
+
+
 ## Product v1 — 사용자 확정 상위 요구사항 (2026-10-18)
 
 **최종 목적:** 허가받은 사이트 URL 하나로 독립된 실행형 웹앱을 생성하는 3모드 제작기. 전체 사용자 경험과 3모드 MVP 골격을 **기존 P0–P5 부품의 미세 보강보다 우선**한다. [제품 계약 및 오늘 MVP 기준](docs/PRODUCT_CONCEPT_3_MODE_MVP.md)을 현재 제품의 단일 상위 명세로 사용한다.

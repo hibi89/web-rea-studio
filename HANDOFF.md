@@ -1,5 +1,16 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
+## **CURRENT / NEXT CHAT — 2026-10-18 product pivot: MECHANISM SKILLS MVP (PLAN ONLY, NOT IMPLEMENTED)**
+
+User explicitly abandoned visual lookalike goal. New goal: **learn data/interaction mechanisms from permitted reference dashboards → independent reusable skills → map own CSV/JSON → generate new functional dashboard with original design**. Priority functional skills (group-by-sum, dimension-filter, chart-crossfilter), no pixel replication. **Fast path 60 min, intended 2–3 hours maximum** are planning budgets, NOT verified delivery estimates. **Authoritative new execution contract: [docs/MECHANISM_SKILLS_MVP_2026-10-18.md](docs/MECHANISM_SKILLS_MVP_2026-10-18.md)**.
+
+This is a **documentation/plan handoff only**. No mechanism skills implemented or validated in this commit. Last verified functional suite remains W3C benchmark CI #39100919436 on earlier code, **not evidence for new pivot**. Repo feature branch `mvp-three-mode-20261018`; main and deployment unchanged.
+
+Next single action: read the new plan and immediately build/test 3 independently implemented skill functions; feed safe local CSV/JSON to a new offline HTML dashboard with real filter→KPI+chart update. Prefer a local synthetic/owned fixture for the first working MVP. Previous chatgpt.site target is unreachable and must not be retried. W3C homepage not a dashboard reference. No new unapproved external URL or backend probing. New model must not repeat historical "body-text faithful reconstruction" next-step: that is now **superseded**.
+
+---
+
+
 ## Latest handoff · 2026-10-18 · first actual public W3C Chrome benchmark VERIFIED
 1. **User instruction and target:** After the old target was unreachable, the user explicitly approved trying any other public URL. Selected public `https://www.w3.org/` (web page checked) for one-time, fixed-origin, script-disabled, read-only Chrome capture. No credentials, cookies, clicks, off-origin fetch, redirect following, form submission, deployment or live JS.
 2. **Implemented:** `scripts/real-public-smoke.mjs` + commit-message-gated one-time job `public-site-once` in `.github/workflows/local-studio-ci.yml`. First workflow commit `ce18abbd42a99f36e8698997a5b7fbc65e0d8cdf` had invalid YAML plain-scalar colon and produced a zero-job failed workflow; fixed quoting in feature commit `0c453b71e19d7f6b518d4ec098248bd5332c1235`. Normal CI and public benchmark then succeeded. The one-time job is disabled for ordinary future commits by exact commit-message gate.

@@ -1,5 +1,10 @@
 # Web REA Studio project rules
 
+## CURRENT product mandate — 2026-10-18 mechanism-skill pivot (OVERRIDES older 3-mode/pixel fidelity instructions)
+
+User confirmed original visual fidelity no longer matters. Build a **mechanism/skill catalog + user's own CSV/JSON data mapping + functional newly designed dashboard**, not a lookalike site. Read `docs/MECHANISM_SKILLS_MVP_2026-10-18.md` as current authoritative scope and 60-minute fast-path / 180-minute hard stop. Three mechanism skills, two combined, chart+KPI react to a real filter, provenance explicitly distinguished (observed/inferred/template/unknown). Never infer backend code/DB from DOM. Maintain current safety, authorized-origin limits, legacy code/tests and existing branch; no automatic capture of additional external origins. Older 3-mode instructions below are historical and **not today's priority**.
+
+
 - ChatGPT designs, codes, tests and reviews; owner approves consequential steps and runs software on their own Windows machine.
 - GitHub single source of truth: private repository `hibi89/web-rea-studio`. Do not modify other repositories or deployment connections.
 - Before edits: inspect source, branches, backups and privacy. Avoid force pushes and history rewriting.
