@@ -1,0 +1,47 @@
+[
+  {
+    "region": "KR",
+    "month": "2026-01",
+    "revenue": 100
+  },
+  {
+    "region": "KR",
+    "month": "2026-02",
+    "revenue": 150
+  },
+  {
+    "region": "KR",
+    "month": "2026-03",
+    "revenue": 200
+  },
+  {
+    "region": "US",
+    "month": "2026-01",
+    "revenue": 60
+  },
+  {
+    "region": "US",
+    "month": "2026-02",
+    "revenue": 90
+  },
+  {
+    "region": "US",
+    "month": "2026-03",
+    "revenue": 120
+  },
+  {
+    "region": "JP",
+    "month": "2026-01",
+    "revenue": 30
+  },
+  {
+    "region": "JP",
+    "month": "2026-02",
+    "revenue": 45
+  },
+  {
+    "region": "JP",
+    "month": "2026-03",
+    "revenue": 75
+  }
+]
