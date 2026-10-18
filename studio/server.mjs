@@ -1,4 +1,5 @@
 import {createServer} from 'node:http';
+import {handleMvpApi} from './mvp-api.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
@@ -39,7 +40,7 @@ import {reviewSavedP5GeometryRepair} from './p5-saved-geometry-repair.mjs';
 import {MAX_INDEPENDENT_DRAFT_BODY,saveIndependentDraftBundle,readIndependentDraftReceipt} from './independent-draft.mjs';
 
 const PUBLIC=join(dirname(fileURLToPath(import.meta.url)),'public');
-const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8"};
+const CONTENT_TYPES={"/":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/style.css":"text/css; charset=utf-8","/mvp":"text/html; charset=utf-8","/mvp.js":"text/javascript; charset=utf-8","/mvp.css":"text/css; charset=utf-8"};
 const jsonContent='application/json; charset=utf-8';
 const MAX_BODY=4096;
 const headers={
@@ -372,9 +373,12 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
    }
    const path=u.pathname;
    if(req.method==='GET' && Object.hasOwn(CONTENT_TYPES,path)){
-    const name=path==='/'?'index.html':path.slice(1);
+    const name=path==='/'?'index.html':path==='/mvp'?'mvp.html':path.slice(1);
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
+   // Explicit POST builds three local HTMLs from saved static evidence only; GET is read-only.
+   if(await handleMvpApi({req,res,path,store,respond,studioPort,
+    isBusy:()=>Boolean(active)||colorRepairActive.size>0||geometryRepairActive.size>0||anonymousAcceptanceActive.size>0}))return;
    if(req.method==='GET'&&path==='/api/targets')return respond(res,200,{fixture:fixtureUrl,approved_urls:[...allowed],external_modes:['static-html','dynamic-passive','static-visual']});
    if(req.method==='GET'&&path==='/api/runs')return respond(res,200,{runs:await store.list()});
    const match=/^\/api\/runs\/([a-f0-9-]+)(?:\/(report|inspection|screenshot|diagnosis|dependencies|passive-blueprint|passive-gap-contract|f3-q1-readiness|f3-q1-work-plan|f3-q1-wireframe|f3-q1-wireframe-download|f3-q1-wireframe-receipt|f3-q1-geometry-preview|f3-q1-geometry-preview-download|f3-q1-geometry-preview-receipt|f3-q1-layout-acceptance|f3-q1-verified-offline-export|f3-q1-offline-bundle|support-packet|permission-preflight|q1-assessment|reconstruction|reconstruction-download|control-map|control-map-download|control-contract|behavior-prototype|behavior-prototype-download|generic-prototype|generic-prototype-download|feature-graph|comparison|reconstruction-screenshot|static-pipeline-audit|controlled-chain-audit|delivery-receipt|reviewed-export|reconstruction-contract|manifest|color-repair|color-repair-download|independent-draft|independent-draft-download|independent-draft-starter|geometry-repair|geometry-repair-download|recovery-plan))?$/.exec(path);
