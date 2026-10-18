@@ -167,7 +167,7 @@ jobs:
 
   public-site-once:
     name: Approved one-time public W3C Chrome visual benchmark
-    if: github.event_name == 'push' && github.event.head_commit.message == 'test(real): one-shot W3C public visual benchmark'
+    if: "github.event_name == 'push' && github.event.head_commit.message == 'test(real): one-shot W3C public visual benchmark'"
     runs-on: ubuntu-latest
     timeout-minutes: 4
     permissions:
