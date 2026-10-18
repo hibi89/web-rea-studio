@@ -23,7 +23,7 @@ test('MVP URL capture submits only after explicit click, rejects unapproved targ
  assert.match(htmlText,/<form id="build-form">/);
  assert.ok(htmlText.indexOf('<form id="capture-form">')<htmlText.indexOf('<form id="build-form">'));
  const elements=new Map();
- const ids=['data','run','source','target-url','authorized-sites','capture','build','capture-status','status','preview','artifact','download','theme','requirements','build-form','capture-form'];
+ const ids=['data','run','source','target-url','authorized-sites','capture','build','capture-status','status','preview','artifact','download','theme','requirements','build-form','capture-form','measure-faithful','visual-photos','comparison-source','comparison-generated','visual-status'];
  for(const id of ids)elements.set(id,new Element(id));
  elements.get('theme').value='paper';
  const tabs=['faithful','remix','schema'].map(x=>new Element(x));

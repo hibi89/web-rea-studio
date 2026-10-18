@@ -10,16 +10,16 @@ function render(){for(const button of document.querySelectorAll('[data-mode]'))b
 }
 for(const button of document.querySelectorAll('[data-mode]'))button.addEventListener('click',()=>{selected=button.dataset.mode;render();});
 async function get(url){const r=await fetch(url,{cache:'no-store'});const x=await r.json();if(!r.ok)throw Error(x.error||`HTTP ${r.status}`);return x;}
-async function loadManifest(){manifest=null;const runId=$('run').value;if(!runId){render();return;}
+async function loadManifest(){manifest=null;const runId=$('run').value;if(!runId){render();await loadVisualReport();return;}
  try{manifest=await get(`/api/runs/${runId}/mvp`);status('기존 빌드 결과를 읽었습니다. 원본 사이트 재방문 없음.');}
  catch(e){if(e.message!=='mvp_not_built')status(`결과 조회: ${e.message}`);else status('이 분석에는 아직 3모드 결과물이 없습니다.');}
- render();}
+ render();await loadVisualReport();}
 $('run').addEventListener('change',async()=>{const m=runs.find(r=>r.id===$('run').value);$('source').textContent=m?.target_url||'—';await loadManifest();});
 $('build-form').addEventListener('submit',async e=>{e.preventDefault();$('build').disabled=true;try{
  const id=$('run').value;if(!id)throw Error('완료된 static-visual 분석을 먼저 선택하세요.');
  const parsed=JSON.parse($('data').value);const input={theme:$('theme').value,requirements:$('requirements').value,...parsed};
  status('저장된 분석에서 HTML 3종 생성 중…');const r=await fetch(`/api/runs/${id}/mvp-build`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
- const result=await r.json();if(!r.ok)throw Error(result.error||`HTTP ${r.status}`);manifest=result;status('HTML 3종 생성 완료. 미리보기 또는 다운로드로 확인하세요.');render();
+ const result=await r.json();if(!r.ok)throw Error(result.error||`HTTP ${r.status}`);manifest=result;status('HTML 3종 생성 완료. 미리보기 또는 다운로드로 확인하세요.');render();await loadVisualReport();
  }catch(err){status(`생성 실패: ${err.message}`);}finally{$('build').disabled=false;}});
 (async()=>{try{const all=await get('/api/runs');runs=(all.runs||[]).filter(r=>r.mode==='static-visual'&&r.status==='completed');
  $('run').replaceChildren(new Option(runs.length?'완료된 분석을 선택하세요':'완료된 static-visual 분석 없음',''));
@@ -96,7 +96,7 @@ $('capture-form').addEventListener('submit',async e=>{
   if(!build.ok)throw Error(generated.error||'3모드 생성 실패: HTTP '+build.status);
   manifest=generated;
   await refreshMvpRuns(createdId);
-  selected='faithful';render();
+  selected='faithful';render();await loadVisualReport();
   status('URL 입력 → 시각 분석 저장 → HTML 3종 생성 완료. 원본 기능·디자인 일치율은 별도 검증이 필요합니다.');
   $('capture-status').textContent='완료 · HTML 3종 미리보기와 다운로드를 사용할 수 있습니다.';
  }catch(err){
@@ -104,5 +104,56 @@ $('capture-form').addEventListener('submit',async e=>{
    (createdId?' · 분석 ID '+createdId+' (중복 자동 실행 없음; 저장된 결과를 기존 목록에서 확인 가능)':'');
  }finally{
   captureRunning=false;$('capture').disabled=false;$('build').disabled=false;$('run').disabled=false;
+ }
+});
+
+
+
+// Read-only on run selection/refresh; actual Chrome execution is opt-in POST.
+async function loadVisualReport(){
+ const id=$('run').value;
+ $('visual-photos').hidden=true;
+ $('comparison-source').removeAttribute('src');
+ $('comparison-generated').removeAttribute('src');
+ $('measure-faithful').disabled=!(id&&manifest?.modes?.faithful);
+ if(!id||!manifest?.modes?.faithful){
+  $('visual-status').textContent='원본형 HTML을 만든 후 저장된 원본과 비교할 수 있습니다.';
+  return;
+ }
+ $('visual-status').textContent='저장된 비교 결과 조회 중 (원본 재방문 없음)…';
+ try{
+  const result=await get('/api/runs/'+id+'/mvp-comparison');
+  if($('run').value!==id)return;
+  $('visual-photos').hidden=false;
+  $('comparison-source').src='/api/runs/'+id+'/screenshot';
+  $('comparison-generated').src='/api/runs/'+id+'/mvp-replica-screenshot';
+  $('measure-faithful').disabled=true; // successful measurements are immutable
+  $('visual-status').textContent=result.status==='MEASURED'?
+   '실측 픽셀 일치율 '+result.metrics.pixel_match_pct+'% · RGB 평균 오차 '+result.metrics.rgb_mae+
+   ' · 화면 '+result.original.width+'×'+result.original.height+
+   ' (8픽셀 간격 표본, RGB 차이 18 이하 일치 · 원본 기능 미검증)':
+   '스크린샷 높이/폭 불일치 · 원본 '+result.original.width+'×'+result.original.height+
+   ' / 생성 '+result.generated.width+'×'+result.generated.height+
+   ' · 비교 이미지는 제공하지만 유사도 점수는 표시하지 않습니다.';
+ }catch(e){
+  if($('run').value===id)$('visual-status').textContent=
+   e.message==='comparison_not_run'?'아직 비교하지 않았습니다. 버튼을 누르면 저장된 증거만 사용해 측정합니다.':
+   '비교 미측정 · '+e.message+' (캡처가 없거나 원본·생성 증거가 유효하지 않을 수 있습니다)';
+ }
+}
+$('measure-faithful').addEventListener('click',async()=>{
+ const id=$('run').value;
+ if(!id||!manifest?.modes?.faithful)return;
+ $('measure-faithful').disabled=true;
+ $('visual-status').textContent='저장된 원본과 원본형 HTML을 별도 Chrome에서 비교하는 중…';
+ try{
+  const r=await fetch('/api/runs/'+id+'/mvp-compare',{method:'POST'});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'HTTP '+r.status);
+  await loadVisualReport();
+ }catch(e){
+  $('visual-status').textContent='비교 불가 · '+e.message+
+   ' (이 작업은 원본을 다시 방문하거나 자동 재시도하지 않습니다)';
+  $('measure-faithful').disabled=false;
  }
 });
