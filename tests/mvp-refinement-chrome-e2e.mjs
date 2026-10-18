@@ -28,7 +28,7 @@ const html=buildMvpArtifacts(geometry,{theme:'paper'}).outputs.faithful.html;
 const expected=generateBoundedFaithfulCandidates(html).find(p=>p.id==='label-down-4');
 assert.ok(expected);
 const root=await mkdtemp(join(tmpdir(),'rea-refinement-chrome-e2e-'));
-let server,offlineCalls=0;
+let server,offlineCalls=0,refinementRenders=0;
 async function capture(doc,folder){
  await mkdir(folder,{recursive:true});
  const evidence=await runDynamicAnalysis({target:origin,browserPath:chrome,dir:folder,
@@ -77,6 +77,7 @@ try{
     replayExecutor:({relay,target,dir,scriptsDisabled,offlineViewport,browserPath})=>{
      assert.equal(target,origin);assert.equal(browserPath,chrome);assert.equal(scriptsDisabled,true);
      assert.deepEqual(offlineViewport,{width:1440,height:900});
+     refinementRenders++;
      return runDynamicAnalysis({relay,target,dir,scriptsDisabled,offlineViewport,browserPath});
     }});
    if(!ok)respond(res,404,{error:'not_found'});
@@ -102,7 +103,8 @@ try{
  assert.equal((await fetch(url+'/mvp-refined-screenshot')).status,200);
  assert.equal(await readFile(join(base,'faithful.html'),'utf8'),html,'original faithful cannot change');
  assert.equal((await fetch(url+'/mvp-refine',{method:'POST',headers:{Origin:new URL(url).origin}})).status,409);
- assert.equal(offlineCalls,6,'2 setup + 4 candidate isolated in-memory renders');
+ assert.equal(offlineCalls,2,'two synthetic source and baseline captures');
+ assert.equal(refinementRenders,4,'all four candidate independent Chrome renders');
  console.log(JSON.stringify({mvp_bounded_refinement_chrome:'PASS',
   candidates:4,source_site_contacts:0,original_html_unchanged:true,
   accepted:'label-down-4',
