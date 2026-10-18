@@ -103,6 +103,14 @@ BuildOutput = {mode,html_path,preview_path,comparison,unknowns,
 - [ ] 전체 경로 `입력→관찰→build(3모드)→preview→export` 자동 테스트 및 GitHub CI 확인. 기능 변경 커밋과 문서/테스트 구분.
 - [ ] `HANDOFF.md`, `STATUS.md`, `BOOK.md`가 마지막 확인된 결과·한계·다음 할 일을 기록.
 
+## CI 동작 주의 (2026-10-18 확인)
+
+기존 `.github/workflows/local-studio-ci.yml`의 push 자동 실행은 **`main` 브랜치에만 한정**되어 있다. 그러므로 이 작업 브랜치에 커밋만 했다고 새 CI가 자동 통과한 게 아니다.
+- Windows 본인 PC/격리 Node에서 `npm test`, 생성 HTML 실제 로컬 Chrome Playwright 시연, 3모드 E2E를 우선 실행한다.
+- 필요할 때 GitHub Actions에서 `Local Studio Node regression` → `Run workflow` → `mvp-three-mode-20261018` 브랜치를 명시 선택하여 수동 실행한다(`workflow_dispatch` 제공됨). 실행 기록/잡 수를 실제 확인한다.
+- CI가 아직 없다면 **`CI 미검증`** 으로 표시한다. CI를 실행하려고 본 브랜치를 `main`에 즉시 병합하거나 기존 `main`을 무단 수정하지 않는다.
+- UI용 새로운 테스트는 필요한 만큼 추가하고, legacy test suite 전체 성공과 실제 사이트 유사도 실측을 구분한다.
+
 ## 구현 우선순위/금지
 1. **절대 먼저 할 것:** real independent HTML+CSS 1종 생성, 실행 화면. 기존 도구가 유효한 레이아웃을 만들면 바로 그 결과를 제공.
 2. **그다음:** 기능 없는 수준에서도 3모드 전체 연결, 실제 JS local interaction/JSON data.
