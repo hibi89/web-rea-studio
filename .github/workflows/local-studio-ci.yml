@@ -163,3 +163,36 @@ jobs:
         timeout-minutes: 7
         shell: pwsh
         run: npm run accept:local
+
+
+  public-site-once:
+    name: Approved one-time public W3C Chrome visual benchmark
+    if: github.event_name == 'push' && github.event.head_commit.message == 'test(real): one-shot W3C public visual benchmark'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Locate Chrome
+        shell: bash
+        run: |
+          BROWSER_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -z "$BROWSER_BIN" ]; then exit 1; fi
+          echo "CHROME_BIN=$BROWSER_BIN" >> "$GITHUB_ENV"
+      - name: One-time W3C visual capture and independent comparison
+        timeout-minutes: 3
+        env:
+          REA_PUBLIC_CAPTURE_CONSENT: "2026-10-18-w3c-once"
+        run: node scripts/real-public-smoke.mjs
+      - name: Save one-time public evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rea-w3c-public-visual-once
+          path: /tmp/rea-public-smoke/
+          retention-days: 1
+          if-no-files-found: warn
