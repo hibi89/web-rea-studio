@@ -67,6 +67,25 @@ test('candidate patches are four bounded text transforms and do not remove discl
  for(const p of arr){assert.match(p.html,/original functions unverified/);assert.match(p.html,/<style data-mvp-refinement/);}
  assert.throws(()=>generateBoundedFaithfulCandidates('<html></html>'),/MVP_REFINEMENT_UNTRUSTED_HTML/);
 });
+test('panel geometry targets the largest eligible non-canvas region',()=>{
+ const withPanels=html.replace('<div class="label">',
+  '<main class="page">'+
+  '<div class="region" aria-hidden="true" style="left:0px;top:0px;width:1440px;height:900px;background:#fff;"></div>'+
+  '<div class="region" aria-hidden="true" style="left:100px;top:120px;width:400px;height:300px;background:#ddd;"></div>'+
+  '<div class="region" aria-hidden="true" style="left:500px;top:130px;width:650px;height:320px;background:#eee;"></div>'+
+  '<div class="label">');
+ const patches=generateBoundedFaithfulCandidates(withPanels);
+ assert.equal(patches.length,8);
+ assert.deepEqual(patches.slice(4).map(p=>p.id),['region-up-4','region-down-4','region-left-4','region-right-4']);
+ for(const patch of patches.slice(4)){
+  assert.match(patch.html,/\.page > \.region:nth-child\(3\)/);
+  assert.doesNotMatch(patch.html,/\.region\{transform:/);
+  assert.match(patch.html,/original functions unverified/);
+ }
+ const backgroundOnly=html.replace('<div class="label">',
+  '<main class="page"><div class="region" aria-hidden="true" style="left:0px;top:0px;width:1440px;height:900px;background:#fff;"></div><div class="label">');
+ assert.equal(generateBoundedFaithfulCandidates(backgroundOnly).length,4);
+});
 test('opt-in refinement chooses measured improvement, preserves faithful and requires integrity',async()=>{
  await setup(async({url,base,calls})=>{
   assert.equal((await fetch(url+'/mvp-refinement')).status,404);

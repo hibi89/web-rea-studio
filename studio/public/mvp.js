@@ -194,7 +194,7 @@ async function loadRefinement(){
     const baseline=await get('/api/runs/'+id+'/mvp-comparison');
     if(baseline.status==='MEASURED'){
      $('refine-faithful').disabled=false;
-     $('refine-status').textContent='원본형 실측 완료 · 위치 보정 후보 4개를 Chrome에서 비교할 수 있습니다.';
+     $('refine-status').textContent='원본형 실측 완료 · 글자 4개와 주요 패널 최대 4개 위치 보정 후보를 Chrome에서 비교할 수 있습니다.';
     }else $('refine-status').textContent='원본·생성 해상도가 달라 보정 점수를 산출할 수 없습니다.';
    }catch(err){$('refine-status').textContent='보정 미실행 · '+err.message;}
   }else $('refine-status').textContent='보정 증거 조회 불가 · '+e.message;
@@ -204,7 +204,7 @@ $('refine-faithful').addEventListener('click',async()=>{
  const id=$('run').value;
  if(!id||!manifest?.modes?.faithful)return;
  $('refine-faithful').disabled=true;
- $('refine-status').textContent='저장된 원본 기준 네 가지 글자 위치 수정안을 Chrome에서 평가 중…';
+ $('refine-status').textContent='저장된 원본 기준 글자와 주요 패널 위치 수정안을 Chrome에서 평가 중…';
  try{
   const r=await fetch('/api/runs/'+id+'/mvp-refine',{method:'POST'});
   const data=await r.json();

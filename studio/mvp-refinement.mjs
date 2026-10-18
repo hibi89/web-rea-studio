@@ -18,13 +18,32 @@ const candidates=Object.freeze([
  ['label-left-4','.label{transform:translateX(-4px)}'],
  ['label-right-4','.label{transform:translateX(4px)}']
 ]);
+// Select one onscreen non-canvas panel only, preserve all originals.
+function boundedPanelCandidates(original){
+ if(!original.includes('<main class="page"'))return [];
+ const regions=[...original.matchAll(/<div class="region" aria-hidden="true" style="left:(-?\d+)px;top:(-?\d+)px;width:(\d+)px;height:(\d+)px;background:[^"<>]*"/g)];
+ const maxArea=Math.max(0,...regions.map(m=>Number(m[3])*Number(m[4])));
+ const focus=regions.map((m,index)=>({index:index+1,x:Number(m[1]),y:Number(m[2]),
+  w:Number(m[3]),h:Number(m[4])})).filter(r=>
+   r.w>=80&&r.h>=40&&r.x>=0&&r.y>=0&&r.x+r.w<=1440&&r.y+r.h<=900&&
+   !(r.x===0&&r.y===0&&r.w*r.h===maxArea))
+  .sort((a,b)=>b.w*b.h-a.w*a.h||a.index-b.index)[0];
+ if(!focus)return [];
+ const selector='.page > .region:nth-child('+focus.index+')';
+ return [
+  ['region-up-4',selector+'{transform:translateY(-4px)}'],
+  ['region-down-4',selector+'{transform:translateY(4px)}'],
+  ['region-left-4',selector+'{transform:translateX(-4px)}'],
+  ['region-right-4',selector+'{transform:translateX(4px)}']
+ ];
+}
 export function generateBoundedFaithfulCandidates(original){
  if(typeof original!=='string'||original.length>250000||
     !original.startsWith('<!doctype html>')||
     !original.includes('<title>REA MVP · faithful</title>')||
     !original.includes('original functions unverified')||
     original.split('</style></head>').length!==2)throw Error('MVP_REFINEMENT_UNTRUSTED_HTML');
- return candidates.map(([id,css])=>({id,css,html:original.replace('</style></head>',
+ return [...candidates,...boundedPanelCandidates(original)].map(([id,css])=>({id,css,html:original.replace('</style></head>',
   '</style><style data-mvp-refinement="'+id+'">'+css+'</style></head>')}));
 }
 const err=(respond,res,status,name)=>(respond(res,status,{error:name}),true);
@@ -161,7 +180,7 @@ export async function handleMvpRefinement({req,res,path,store,respond,studioPort
    after:best?{pixel_match_pct:best.metric.pixel_match_pct,rgb_mae:best.metric.rgb_mae,
     html_sha256:hash(best.patch.html),png_sha256:hash(best.png)}:null,
    limitations:['No original CSS/JS/backend cloning','No removal or masking of notice regions',
-    'Only four bounded text-position offsets tested; no improvement means original retained',
+    'Four text offsets plus up to four offsets of one eligible visible panel; no improvement means original retained',
     'Synthetic or script-disabled reference screenshots may not represent the live app']
   };
   if(best){

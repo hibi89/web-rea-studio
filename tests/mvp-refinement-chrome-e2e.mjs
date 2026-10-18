@@ -1,6 +1,6 @@
-// Real Chrome evidence for bounded, non-destructive MODE1 text-position repair.
-// The synthetic reference is an owned, in-memory HTML page deliberately offset
-// by +4px; the baseline is the unchanged independent builder output.
+// Real Chrome evidence for bounded, non-destructive MODE1 panel-geometry repair.
+// The synthetic reference moves one non-canvas panel +4px; the baseline is
+// the unchanged independent builder output.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdtemp,mkdir,readFile,writeFile,rm} from 'node:fs/promises';
@@ -21,11 +21,11 @@ const origin='https://mvp-faithful-offline.example.org/';
 const geometry={source:'p4-geometry',viewport:{width:1440,height:900},
  document:{width:1440,height:900},background:'#f4f5f6',boxes:[
  {x:0,y:0,w:1440,h:900,depth:0,background:'#f4f5f6',border_color:'transparent',radius:'0px'},
- {x:115,y:90,w:1000,h:500,depth:1,background:'#ffffff',border_color:'transparent',radius:'0px'}
+ {x:115,y:90,w:1000,h:500,depth:1,background:'#526b88',border_color:'transparent',radius:'0px'}
  ],titles:[{x:190,y:142,w:650,h:55,text:'SYNTHETIC SAFE DASHBOARD',
   color:'#17283a',font_size:'32px',font_weight:'700'}]};
 const html=buildMvpArtifacts(geometry,{theme:'paper'}).outputs.faithful.html;
-const expected=generateBoundedFaithfulCandidates(html).find(p=>p.id==='label-down-4');
+const expected=generateBoundedFaithfulCandidates(html).find(p=>p.id==='region-down-4');
 assert.ok(expected);
 const root=await mkdtemp(join(tmpdir(),'rea-refinement-chrome-e2e-'));
 let server,offlineCalls=0,refinementRenders=0;
@@ -45,7 +45,7 @@ try{
  const baseline=await capture(html,join(root,'baseline'));
  const score=compareChromeScreenshots(source,baseline);
  assert.equal(score.dimensions_equal,true);
- assert.ok(score.rgb_mae>0,'Intentional 4px shift must produce measurable baseline error');
+ assert.ok(score.rgb_mae>0,'Intentional panel shift must produce measurable baseline error');
  assert.ok(score.pixel_match_pct<100,'Shifted reference must be detectably different');
  const base=join(root,id,'mvp');await mkdir(base,{recursive:true});
  const h=Buffer.from(html);
@@ -90,12 +90,12 @@ try{
  assert.equal(response.status,201,'Offline refinement must complete');
  const receipt=await response.json();
  assert.equal(receipt.status,'IMPROVED',JSON.stringify(receipt));
- assert.equal(receipt.candidate_id,'label-down-4');
+ assert.equal(receipt.candidate_id,'region-down-4');
  assert.ok(receipt.after.pixel_match_pct>receipt.before.pixel_match_pct);
  assert.ok(receipt.after.rgb_mae<receipt.before.rgb_mae);
  assert.equal(receipt.after.pixel_match_pct,100);
  assert.equal(receipt.after.rgb_mae,0);
- assert.equal(receipt.candidate_count,4);
+ assert.equal(receipt.candidate_count,8);
  assert.equal(receipt.source_site_refetched,false);
  assert.equal((await fetch(url+'/mvp-refinement')).status,200);
  assert.equal((await fetch(url+'/mvp-refined')).status,200);
@@ -104,10 +104,10 @@ try{
  assert.equal(await readFile(join(base,'faithful.html'),'utf8'),html,'original faithful cannot change');
  assert.equal((await fetch(url+'/mvp-refine',{method:'POST',headers:{Origin:new URL(url).origin}})).status,409);
  assert.equal(offlineCalls,2,'two synthetic source and baseline captures');
- assert.equal(refinementRenders,4,'all four candidate independent Chrome renders');
+ assert.equal(refinementRenders,8,'all eight candidate independent Chrome renders');
  console.log(JSON.stringify({mvp_bounded_refinement_chrome:'PASS',
-  candidates:4,source_site_contacts:0,original_html_unchanged:true,
-  accepted:'label-down-4',
+  candidates:8,source_site_contacts:0,original_html_unchanged:true,
+  accepted:'region-down-4',
   pixel_match_before:receipt.before.pixel_match_pct,pixel_match_after:receipt.after.pixel_match_pct,
   rgb_mae_before:receipt.before.rgb_mae,rgb_mae_after:receipt.after.rgb_mae,
   reference:'controlled-synthetic-only',real_site_parity_verified:false}));
