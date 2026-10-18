@@ -1,5 +1,8 @@
 # Web REA Studio
 
+> **Latest 2026-10-18 — First actual public-site Chrome benchmark completed.** Authorized one-time W3C homepage capture (scriptless, no cookies or interactions) → saved geometry → independent faithful HTML → Chrome pixel comparison. **83.88% sampled full-page pixel match, RGB MAE 23.29, but only ~53.28% match among high-contrast source edge pixels**; major images/logo and body text remain missing. This is **not** a verified 70–80% human-perceived design reproduction or functional clone. Official CI [#39100919436](https://github.com/hibi89/web-rea-studio/actions/runs/39100919436): **4/4 jobs SUCCESS**, Linux Node22/Windows Node22/24 **315/315 PASS each**, one-time public W3C benchmark PASS. See [actual-site visual baseline](docs/REAL_PUBLIC_W3C_BASELINE_2026-10-18.md) and [HANDOFF.md](HANDOFF.md). Older dated notes below are historical and may be superseded.
+
+
 > **Latest 2026-10-18 11:35 KST — local three-mode MVP committed on `mvp-three-mode-20261018`.** `/mvp` now offers faithful geometry, remix, and schema-data HTML generation using a previously completed static-visual run; individual independent previews and downloads. Isolated Node unit/HTTP **6/6 PASS**; full Studio integration/Chrome/branch CI/fidelity **not yet verified**. Existing main preserved. See `HANDOFF.md`. Historical initial design note below was written before this implementation.
 
 
