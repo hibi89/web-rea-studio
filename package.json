@@ -11,7 +11,8 @@
     "studio": "node studio/start.mjs",
     "diagnose": "node studio/diagnose.mjs",
     "check:launcher": "node studio/check-launcher.mjs",
-    "accept:local": "node scripts/local-acceptance.mjs"
+    "accept:local": "node scripts/local-acceptance.mjs",
+    "build:mechanisms": "node scripts/build-mechanism-dashboard.mjs"
   },
   "engines": {
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
