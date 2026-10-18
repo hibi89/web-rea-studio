@@ -25,6 +25,20 @@ test('all three stand-alone HTML results are independent, distinct, and hash rea
  assert.match(mvpDocumentCsp('faithful'),/script-src 'none'/);
 });
 
+test('faithful and remix encode mobile-only proportional canvas fitting without hiding layout',()=>{
+ const pages=buildMvpArtifacts(geometry,payload).outputs;
+ for(const mode of ['faithful','remix']){
+  const html=pages[mode].html;
+  assert.match(html,/@media\(max-width:750px\)\{\.page\{zoom:min\(1,calc\(100vw \/ 1440px\)\)\}\}/);
+  assert.doesNotMatch(html,/overflow-x:hidden/);
+  assert.match(html,/original functions unverified/);
+  assert.doesNotMatch(html,/<script>/);
+ }
+ assert.doesNotMatch(pages.schema.html,/\.page\{zoom:min/);
+ const narrow={...geometry,document:{width:600,height:900}};
+ assert.match(buildMvpArtifacts(narrow,payload).outputs.faithful.html,/100vw \/ 600px/);
+});
+
 test('schema and row edits change the stand-alone result',()=>{
  const original=buildMvpArtifacts(geometry,payload).outputs.schema.sha256;
  const changed=buildMvpArtifacts(geometry,{...payload,sample_rows:[{Item:'Blue',Value:300}]}).outputs.schema;

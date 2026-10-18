@@ -57,6 +57,10 @@ const stateExpr=String.raw`(()=>{const body=document.body;
   regions:document.querySelectorAll('.region').length,labels:document.querySelectorAll('.label').length,
   rows:rows.length,visible,count:document.getElementById('count')?.textContent||'',
   overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth,
+  pageZoom:document.querySelector('.page')?Number(getComputedStyle(document.querySelector('.page')).zoom):null,
+  pageRect:(()=>{const r=document.querySelector('.page')?.getBoundingClientRect();return r?{left:r.left,width:r.width,height:r.height}:null})(),
+  panelRect:(()=>{const r=document.querySelectorAll('.region')[1]?.getBoundingClientRect();return r?{left:r.left,width:r.width}:null})(),
+  labelRect:(()=>{const r=document.querySelector('.label')?.getBoundingClientRect();return r?{left:r.left,width:r.width}:null})(),
   shellDisplay:document.querySelector('.shell')?getComputedStyle(document.querySelector('.shell')).display:null,
   hasExternalScripts:!!document.querySelector('script[src]')};})()`;
 async function main(){
@@ -154,8 +158,23 @@ async function main(){
      assert.deepEqual(sortRepeat,['Seoul','Daejeon','Busan']);
     }else{
      assert.match(state.heading,/Authorized synthetic dashboard/);
-     // The current faithful/remix MVP deliberately retains fixed desktop geometry;
-     // do not misrepresent the mobile view as independently responsive.
+     // MODE1/2 retain desktop geometry; mobile scales the complete static
+     // picture instead of hiding overflowing content or claiming native reflow.
+     assert.equal(state.overflow,false,mode+' horizontal overflow at '+viewport.width+'px');
+     if(viewport.width===1440){
+      assert.equal(state.pageZoom,1,'Desktop scale must remain unchanged');
+      assert.ok(Math.abs(state.pageRect.width-1440)<0.1,'Desktop page geometry changed');
+      assert.ok(Math.abs(state.panelRect.left-120)<0.1,'Desktop panel x changed');
+      assert.ok(Math.abs(state.panelRect.width-1150)<0.1,'Desktop panel width changed');
+     }else{
+      const ratio=viewport.width/1440;
+      assert.ok(Math.abs(state.pageZoom-ratio)<0.002,'Mobile scaling was not applied');
+      assert.ok(Math.abs(state.pageRect.width-viewport.width)<1,'Entire source canvas must fit');
+      assert.ok(Math.abs(state.panelRect.left-120*ratio)<1,'Panel must be proportionally positioned');
+      assert.ok(Math.abs(state.panelRect.width-1150*ratio)<1,'Panel must keep full proportional width');
+      assert.ok(state.labelRect.left>=0&&state.labelRect.left+state.labelRect.width<=viewport.width+1,
+       'Text geometry must remain within the scaled canvas');
+     }
     }
     const shot=await cdp.send('Page.captureScreenshot',{
      format:'png',captureBeyondViewport:false,fromSurface:true},session,12000);
@@ -164,7 +183,8 @@ async function main(){
     console.log(JSON.stringify({mvp_chrome:'PASS',mode,viewport,
      screenshot_sha256:sha(png),screenshot_bytes:png.length,background:state.bodyBg,
      heading:state.heading,regions:state.regions,rows:state.rows,
-     horizontal_overflow:state.overflow,download_byte_identity:true,
+     horizontal_overflow:state.overflow,page_zoom:state.pageZoom,
+     page_width:state.pageRect?.width??null,download_byte_identity:true,
      search_sort_checked:mode==='schema',synthetic_only:true,source_parity:false}));
    }
   }
