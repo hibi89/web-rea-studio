@@ -1,5 +1,13 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
+> **2026-10-18: MVP execution branch (mvp-three-mode-20261018) — new chat handoff; implementation pending.**
+> User goal today: input one authorized site URL, generate actual independent HTML/CSS resembling the rendered page (target 70–80% visual fidelity on one desktop viewport, NOT measured or guaranteed), then produce three variants: faithful, theme remix, and user JSON/schema driven.
+> Use existing repo and branch mvp-three-mode-20261018 only, preserve main. Start coding /mvp interface and shared captured DOM/CSS/screenshot blueprint → independent HTML → Chromium compare → remix/schema render → download. Avoid screenshot-as-page fake.
+> If original JS/API is inaccessible, use authorized Chrome DevTools/F12 computed DOM, CSS, screenshots, visible assets and layout to infer alternate implementation. Do not claim observed backend parity; label mocks and unknowns. Pivot after 1–2 unsuccessful attempts.
+> Current demo URL in config/approved-targets.json: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/ ; verify ongoing permission and live page state. No new external origin, auth bypass, capture permission changes or deploy.
+> Authoritative execution contract: docs/MVP_TODAY_20261018_BUILD_PLAN.md. Build code immediately in a new chat and test actual local end-to-end. Runtime features and latest branch CI are not yet implemented or verified.
+
+
 > **2026-10-18 KST · 사용자 확정 3모드 제품 콘셉트 및 오늘 MVP 준비 (설계만 커밋, 구현 미완료):** 제품 상위 요구사항을 (1) 입력한 허가 사이트의 시각/동작을 최대한 독립 재현, (2) 같은 사이트의 디자인 리믹스, (3) 사용자 데이터/스키마/설명에 맞게 디자인을 변형한 독립 웹앱으로 **확정**. 장기 원본 일치 목표 99%는 특정 페이지·뷰포트·기능 기준 실측 목표이지 범용 99% 기능 재현 보장은 아님. 오늘은 기존 Studio의 사용자 소유/격리된 저장 분석 한 건에서 세 모드를 **실제 실행 결과 HTML/미리보기/다운로드**로 연결하는 MVP 전체 골격이 우선. 기존 `studio/p4-reconstruction.mjs`, `studio/independent-draft.mjs`, `studio/server.mjs`, 저장 evidence/preview/P5 비교 재사용. 미구현은 통합 3모드 제작 화면, shared blueprint, theme renderer, user-schema renderer, 세 경로 E2E이다. 상세 단일 제품 명세 `docs/PRODUCT_CONCEPT_3_MODE_MVP.md`와 `REQUIREMENTS.md` 상단 참조. **현재 턴은 문서·개발 우선순위 준비만 하고 새 외부 사이트 분석, 코드 기능 개발, 배포는 실행하지 않았다.** 다음 `ㄱ`: 최종 화면 골격+shared blueprint+세 renderer 최소 경로를 구현하여 하나의 허가된 저장 실행부터 결과물 3개까지 연결. 세 모드 동작 확인 전 ZIP/진단 주변 기능 추가 금지. CI는 새로운 기능 구현 시 해당 커밋에서 별도 검증.
 
 

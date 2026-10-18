@@ -28,3 +28,17 @@
 - Avoid further narrowly scoped ZIP, hash, retry and passive diagnostic polishing **until all three modes produce usable end-to-end output**, except fixes required to make the MVP safe or testable.
 - Reuse existing P4 geometry HTML, static analysis and Studio localhost server; maintain explicit allowlist/consent and honest mock/unverified labels. No new external URLs, credential handling, deployment or permission expansion without owner approval.
 - Mandatory `HANDOFF.md` should report three-mode progress and current missing vertical slices, not just number of passing legacy tests.
+
+## 2026-10-18: MVP execution branch (mvp-three-mode-20261018)
+
+**2026-10-18: MVP execution branch (mvp-three-mode-20261018) — new chat handoff; implementation pending.**
+
+User goal today: input one authorized site URL, generate actual independent HTML/CSS resembling the rendered page (target 70–80% visual fidelity on one desktop viewport, NOT measured or guaranteed), then produce three variants: faithful, theme remix, and user JSON/schema driven.
+
+Use existing repo and branch mvp-three-mode-20261018 only, preserve main. Start coding /mvp interface and shared captured DOM/CSS/screenshot blueprint → independent HTML → Chromium compare → remix/schema render → download. Avoid screenshot-as-page fake.
+
+If original JS/API is inaccessible, use authorized Chrome DevTools/F12 computed DOM, CSS, screenshots, visible assets and layout to infer alternate implementation. Do not claim observed backend parity; label mocks and unknowns. Pivot after 1–2 unsuccessful attempts.
+
+Current demo URL in config/approved-targets.json: https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/ ; verify ongoing permission and live page state. No new external origin, auth bypass, capture permission changes or deploy.
+
+Authoritative execution contract: docs/MVP_TODAY_20261018_BUILD_PLAN.md. Build code immediately in a new chat and test actual local end-to-end. Runtime features and latest branch CI are not yet implemented or verified.

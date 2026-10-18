@@ -1,5 +1,8 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
+**2026-10-18: MVP execution branch (mvp-three-mode-20261018) — documentation-only preparation.** Three-mode URL→capture→independent HTML/CSS→compare→remix/user-schema→export plan has been prepared. No new runtime features, actual source scan, screenshot fidelity measurements, CI claims or deployment. Work occurs only on mvp-three-mode-20261018 branch; main preserved.
+
+
 **2026-10-18 — user-confirmed three-mode REA Studio concept, MVP-first pivot (specification only):** A single authorized-site input should produce (1) faithful independent approximation, (2) design remix, (3) reference-design app adapted to user's schema/data/requirements. Prioritize a working full-shell/three-mode pipeline and end-to-end preview/download before feature hardening. Details in `docs/PRODUCT_CONCEPT_3_MODE_MVP.md` and `REQUIREMENTS.md`. Existing P4 reconstruction, independent geometry draft and screenshot/compare routines may be reused, but the three-mode integrated MVP is **not yet implemented or verified**. No site probes, deployment or runtime code changes in this step; documentation-only commit CI not equivalent to product validation.
 
 

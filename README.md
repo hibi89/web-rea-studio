@@ -1,5 +1,8 @@
 # Web REA Studio
 
+> **2026-10-18: MVP execution branch (mvp-three-mode-20261018).** Execution plan: [docs/MVP_TODAY_20261018_BUILD_PLAN.md](docs/MVP_TODAY_20261018_BUILD_PLAN.md). All three outputs and measured visual fidelity are yet to be implemented; no new source site visits have occurred.
+
+
 > **최종 제품 방향 (2026-10-18):** REA Studio는 허가된 사이트 하나에서 ① 원본형 독립 구현, ② 디자인 변형, ③ 사용자 데이터·스키마·설명에 맞춘 재구성형 웹앱을 생성하는 **3모드 로컬 제작기**로 개발한다. [확정 제품 계약 및 오늘의 3모드 MVP 완료 기준](docs/PRODUCT_CONCEPT_3_MODE_MVP.md). 현재 코드는 분석/정적 미리보기와 합성 실험 도구 위주이며, **세 모드로 독립 실행형 결과 3개를 만드는 통합 화면은 아직 구현 전**이다. 외부 실사이트 99% 완전 복제를 주장하지 않는다.
 
 
