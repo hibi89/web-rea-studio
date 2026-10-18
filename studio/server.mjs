@@ -1,6 +1,7 @@
 import {createServer} from 'node:http';
 import {handleMvpApi} from './mvp-api.mjs';
 import {handleMvpVisualComparison} from './mvp-visual-comparison.mjs';
+import {handleMvpRefinement} from './mvp-refinement.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
@@ -377,6 +378,9 @@ export function createStudioServer({fixturePort=4317,studioPort=4320,storageDir=
     const name=path==='/'?'index.html':path==='/mvp'?'mvp.html':path.slice(1);
     return respond(res,200,await readFile(join(PUBLIC,name)),CONTENT_TYPES[path]);
    }
+   // Optional bounded correction uses saved reference and measured before/after evidence.
+   if(await handleMvpRefinement({req,res,path,store,respond,studioPort,replayExecutor,browserPath,
+    isBusy:()=>Boolean(active)||colorRepairActive.size>0||geometryRepairActive.size>0||anonymousAcceptanceActive.size>0}))return;
    // Optional explicit Chrome comparison uses saved source screenshot and immutable MVP output.
    // The GET receipt and screenshot routes never launch Chrome or visit a source website.
    if(await handleMvpVisualComparison({req,res,path,store,respond,studioPort,

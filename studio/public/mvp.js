@@ -116,6 +116,7 @@ async function loadVisualReport(){
  $('comparison-source').removeAttribute('src');
  $('comparison-generated').removeAttribute('src');
  $('measure-faithful').disabled=!(id&&manifest?.modes?.faithful);
+ await loadRefinement();
  if(!id||!manifest?.modes?.faithful){
   $('visual-status').textContent='원본형 HTML을 만든 후 저장된 원본과 비교할 수 있습니다.';
   return;
@@ -128,6 +129,7 @@ async function loadVisualReport(){
   $('comparison-source').src='/api/runs/'+id+'/screenshot';
   $('comparison-generated').src='/api/runs/'+id+'/mvp-replica-screenshot';
   $('measure-faithful').disabled=true; // successful measurements are immutable
+  await loadRefinement();
   $('visual-status').textContent=result.status==='MEASURED'?
    '실측 픽셀 일치율 '+result.metrics.pixel_match_pct+'% · RGB 평균 오차 '+result.metrics.rgb_mae+
    ' · 화면 '+result.original.width+'×'+result.original.height+
@@ -156,4 +158,57 @@ $('measure-faithful').addEventListener('click',async()=>{
    ' (이 작업은 원본을 다시 방문하거나 자동 재시도하지 않습니다)';
   $('measure-faithful').disabled=false;
  }
+});
+
+
+// Explicit, bounded CSS refinement; never called on page load unless reading receipt.
+// Saved measured original remains immutable; a NO_IMPROVEMENT receipt never exposes HTML.
+async function loadRefinement(){
+ const id=$('run').value;
+ $('refine-result').hidden=true;
+ $('refined-download').hidden=true;
+ $('refine-before').removeAttribute('src');
+ $('refine-after').removeAttribute('src');
+ $('refine-faithful').disabled=true;
+ $('refine-status').textContent='유효한 원본형 비교가 필요합니다. 개선되지 않으면 HTML을 변경하지 않습니다.';
+ if(!id||!manifest?.modes?.faithful)return;
+ try{
+  const existing=await get('/api/runs/'+id+'/mvp-refinement');
+  if($('run').value!==id)return;
+  if(existing.status==='IMPROVED'){
+   $('refine-status').textContent='보정 성공 · 픽셀 일치율 '+existing.before.pixel_match_pct+'% → '+existing.after.pixel_match_pct+
+    '% · RGB 오차 '+existing.before.rgb_mae+' → '+existing.after.rgb_mae+' (독립 오프라인 Chrome)';
+   $('refine-result').hidden=false;
+   $('refine-before').src='/api/runs/'+id+'/mvp-replica-screenshot';
+   $('refine-after').src='/api/runs/'+id+'/mvp-refined-screenshot';
+   $('refined-download').hidden=false;
+   $('refined-download').href='/api/runs/'+id+'/mvp-refined-download';
+  }else{
+   $('refine-status').textContent='보정 후보 '+existing.candidate_count+
+    '개 검증 · 모두 미개선으로 원본형 HTML 유지 (픽셀 '+existing.before.pixel_match_pct+'%, RGB 오차 '+existing.before.rgb_mae+')';
+  }
+ }catch(e){
+  if($('run').value!==id)return;
+  if(e.message==='refinement_not_run'){
+   try{
+    const baseline=await get('/api/runs/'+id+'/mvp-comparison');
+    if(baseline.status==='MEASURED'){
+     $('refine-faithful').disabled=false;
+     $('refine-status').textContent='원본형 실측 완료 · 위치 보정 후보 4개를 Chrome에서 비교할 수 있습니다.';
+    }else $('refine-status').textContent='원본·생성 해상도가 달라 보정 점수를 산출할 수 없습니다.';
+   }catch(err){$('refine-status').textContent='보정 미실행 · '+err.message;}
+  }else $('refine-status').textContent='보정 증거 조회 불가 · '+e.message;
+ }
+}
+$('refine-faithful').addEventListener('click',async()=>{
+ const id=$('run').value;
+ if(!id||!manifest?.modes?.faithful)return;
+ $('refine-faithful').disabled=true;
+ $('refine-status').textContent='저장된 원본 기준 네 가지 글자 위치 수정안을 Chrome에서 평가 중…';
+ try{
+  const r=await fetch('/api/runs/'+id+'/mvp-refine',{method:'POST'});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'HTTP '+r.status);
+  await loadRefinement();
+ }catch(e){$('refine-status').textContent='보정 중단 · '+e.message+' (자동 재시도 없음)';}
 });
