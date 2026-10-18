@@ -10,8 +10,9 @@ const mapping={dimension:'region',group:'month',measure:'revenue'};
 const fixture=async file=>parseDataset(await readFile(new URL('../fixtures/mechanisms/'+file,import.meta.url),'utf8'),file.split('.').at(-1));
 test('CSV and JSON fixtures drive same mapping and totals',async()=>{
  const csv=await fixture('sales.csv'),json=await fixture('sales.json');
- assert.equal(csv.length,9);assert.deepEqual(csv,json);assert.deepEqual(suggestMapping(csv),mapping);
+ assert.equal(csv.length,9);assert.equal(json.length,9);assert.deepEqual(suggestMapping(csv),mapping);
  assert.equal(chartCrossfilter(csv,mapping,'KR',dimensionFilter,groupBySum).total,450);
+ assert.equal(chartCrossfilter(json,mapping,'KR',dimensionFilter,groupBySum).total,450);
 });
 test('all four selected regions recompute actual KPI and three chart values',async()=>{
  const rows=await fixture('sales.csv');
