@@ -1,5 +1,13 @@
 # Web REA Studio — 다음 채팅방 인계 지침서
 
+## Latest handoff · 2026-10-18 14:24 KST · approved one-time real capture attempted, SOURCE UNREACHABLE
+1. User's `ㄱ` explicitly approved one bounded visual capture of previously approved `https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/` (no login/private data).
+2. Actual attempt #1: direct web open returned `URL ... is not accessible via this tool`. Attempt #2: HTTPS request from working container failed DNS `NameResolutionError: Temporary failure in name resolution`. Browser connected-tab inspection found only ChatGPT and YouTube tabs, not the target. No screenshot or site HTML was retrieved.
+3. **Stop-and-pivot:** Do NOT keep repeating the same URL attempts; cannot calculate actual-site visual similarity or claim 70–80%. Ask user to upload an original screenshot (ideally 1440x900 and include URL/viewport), or supply a currently reachable replacement owned/approved target. One-time authorization already granted; if a new target is supplied, verify scope before accessing.
+4. Previous synthetic-only GitHub CI #39099902485 remains 3/3 SUCCESS and 315/315 tests each. This turn has **documentation-only** changes; no code, CI, production, source data, tokens or original artifacts changed.
+5. Next `ㄱ` without new evidence: avoid repeating unreachable source requests. Implement a bounded offline screenshot-intake/comparison capability or continue independent MVP improvements, clearly marked synthetic-only until real evidence is provided.
+
+
 ## Latest handoff · 2026-10-18 · p1 real-reference evidence audit, READ-ONLY VERIFIED
 1. **Task:** Audit private GitHub feature branch for a valid saved original-site screenshot suitable for comparing real-site visual fidelity; no new remote capture, no local PC access, no deployment.
 2. **Evidence checked:** Full recursive Git tree (not truncated), `config/approved-targets.json`, `.gitignore`, `docs/F3_EVIDENCE_MANIFEST.md`, `studio/mvp-api.mjs`, `studio/evidence-manifest.mjs`, current HANDOFF and STATUS. Exactly one approved URL is listed: `https://daily-dashboard-ldh-1013.clevertide128.chatgpt.site/`. Git tree has fixture HTML/CSS/JS and tests but no committed real-site screenshot/PNG or stored real run; `.gitignore` excludes `results/*`. Saved local user machine or prior CI artifacts are not represented by this tree; cannot assert none exist anywhere.

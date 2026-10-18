@@ -1,5 +1,8 @@
 # Status — historical timeline (see HANDOFF.md for the current state)
 
+**2026-10-18 14:24 KST — p1 approved live original-site capture BLOCKED:** User approved one bounded capture of the sole allowlisted URL. Web open reported inaccessible; direct container HTTPS failed DNS NameResolutionError. No source screenshot/HTML obtained; no real 70–80% similarity metric. Stop retrying this source; obtain uploaded screenshot or a reachable explicitly approved target. Prior synthetic CI #39099902485 still 3/3 SUCCESS (315/315 each); docs-only update, no code/Production change.
+
+
 **2026-10-18 — p1 real-original screenshot evidence audit (read-only):** Checked full nontruncated feature-branch Git tree, approved URL config, ignored local `results/*`, evidence manifest and MVP API. No committed real original-site screenshot and corresponding MODE1 comparison pair; only synthetic fixtures are proven. Real 70–80% site fidelity **not measured**. Existing private local run results are not accessible through Git tree. No live external request or source recapture. Next requires explicit user permission for a bounded real capture or user-provided original screenshot/viewport; feature work stopped at evidence boundary. Prior CI #39099902485 remains 3/3 SUCCESS. No application code or Production changes.
 
 
